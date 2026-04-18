@@ -6,6 +6,14 @@
 #include "util/Mth.h"
 
 bool LevelChunk::touchedSky = false;
+namespace
+{
+	std::shared_ptr<Level> makeLevelHandle(Level &level)
+	{
+		return std::shared_ptr<Level>(&level, [](Level *) {});
+	}
+}
+
 
 LevelChunk::LevelChunk(Level &level, int_t x, int_t z) : level(level)
 {
@@ -405,27 +413,64 @@ void LevelChunk::skyBrightnessChanged()
 
 std::shared_ptr<TileEntity> LevelChunk::getTileEntity(int_t x, int_t y, int_t z)
 {
-	return nullptr;
+	auto it = tileEntities.find(TilePos(x, y, z));
+	if (it == tileEntities.end())
+		return nullptr;
+	return it->second;
 }
 
 void LevelChunk::addTileEntity(std::shared_ptr<TileEntity> tileEntity)
 {
-
+	if (tileEntity == nullptr)
+		return;
+	int_t localX = tileEntity->x - this->x * 16;
+	int_t localZ = tileEntity->z - this->z * 16;
+	if (localX < 0 || localX >= 16 || localZ < 0 || localZ >= 16)
+		return;
+	setTileEntity(localX, tileEntity->y, localZ, tileEntity);
 }
 
 void LevelChunk::setTileEntity(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity)
 {
-
+	TilePos pos(x, y, z);
+	auto it = tileEntities.find(pos);
+	if (it != tileEntities.end() && loaded)
+		level.tileEntityList.erase(it->second);
+	if (tileEntity == nullptr)
+	{
+		tileEntities.erase(pos);
+		unsaved = true;
+		return;
+	}
+	tileEntity->level = makeLevelHandle(level);
+	tileEntity->x = this->x * 16 + x;
+	tileEntity->y = y;
+	tileEntity->z = this->z * 16 + z;
+	tileEntities[pos] = tileEntity;
+	if (loaded)
+		level.tileEntityList.insert(tileEntity);
+	unsaved = true;
 }
 
 void LevelChunk::removeTileEntity(int_t x, int_t y, int_t z)
 {
-
+	auto it = tileEntities.find(TilePos(x, y, z));
+	if (it == tileEntities.end())
+		return;
+	if (loaded)
+		level.tileEntityList.erase(it->second);
+	tileEntities.erase(it);
+	unsaved = true;
 }
 
 void LevelChunk::load()
 {
-
+	loaded = true;
+	for (auto &entry : tileEntities)
+	{
+		entry.second->level = makeLevelHandle(level);
+		level.tileEntityList.insert(entry.second);
+	}
 }
 
 void LevelChunk::unload()

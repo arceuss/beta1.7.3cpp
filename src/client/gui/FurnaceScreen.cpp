@@ -1,6 +1,4 @@
-#include "client/gui/InventoryScreen.h"
-
-#include <cmath>
+#include "client/gui/FurnaceScreen.h"
 
 #include "client/Lighting.h"
 #include "client/Minecraft.h"
@@ -11,9 +9,10 @@
 #include "world/entity/player/InventoryPlayer.h"
 #include "world/entity/player/Player.h"
 #include "world/item/Item.h"
-#include "world/item/crafting/CraftingContainer.h"
-#include "world/item/crafting/Recipes.h"
+#include "world/item/ItemInstance.h"
+#include "world/level/tile/FurnaceTile.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/entity/FurnaceTileEntity.h"
 
 #include "OpenGL.h"
 #include "lwjgl/Keyboard.h"
@@ -21,34 +20,14 @@
 namespace
 {
 	constexpr int_t SLOT_NONE = -1;
-	constexpr int_t SLOT_CRAFTING_BASE = 100;
-	constexpr int_t SLOT_RESULT = 200;
+	constexpr int_t SLOT_INPUT = 200;
+	constexpr int_t SLOT_FUEL = 201;
+	constexpr int_t SLOT_OUTPUT = 202;
 
 	bool isPointInSlot(int_t relX, int_t relY, int_t slotX, int_t slotY)
 	{
 		return relX >= slotX - 1 && relX < slotX + 17 && relY >= slotY - 1 && relY < slotY + 17;
 	}
-
-	class GridCraftingContainer : public CraftingContainer
-	{
-	private:
-		const std::vector<ItemInstance> &slots;
-		int_t width = 0;
-		int_t height = 0;
-
-	public:
-		GridCraftingContainer(const std::vector<ItemInstance> &slots, int_t width, int_t height)
-			: slots(slots), width(width), height(height)
-		{
-		}
-
-		ItemInstance getItem(int_t x, int_t y) const override
-		{
-			if (x < 0 || y < 0 || x >= width || y >= height)
-				return ItemInstance();
-			return slots[x + y * width];
-		}
-	};
 
 	jstring getTooltipText(const ItemInstance &stack)
 	{
@@ -118,64 +97,77 @@ namespace
 	}
 }
 
-InventoryScreen::InventoryScreen(Minecraft &minecraft, int_t craftingWidth, int_t craftingHeight)
-	: Screen(minecraft), craftingSlots(craftingWidth * craftingHeight), craftingWidth(craftingWidth), craftingHeight(craftingHeight)
+FurnaceScreen::FurnaceScreen(Minecraft &minecraft, std::shared_ptr<FurnaceTileEntity> furnace)
+	: Screen(minecraft), furnace(std::move(furnace))
 {
 	passEvents = true;
-	updateCraftingResult();
 }
 
-void InventoryScreen::render(int_t xm, int_t ym, float a)
+void FurnaceScreen::tick()
+{
+	if (minecraft.player == nullptr || furnace == nullptr || furnace->level == nullptr)
+	{
+		minecraft.setScreen(nullptr);
+		return;
+	}
+
+	int_t tile = furnace->level->getTile(furnace->x, furnace->y, furnace->z);
+	if ((tile != Tile::furnace.id && tile != Tile::furnaceLit.id) || !furnace->canUse(*minecraft.player))
+		minecraft.setScreen(nullptr);
+}
+
+void FurnaceScreen::render(int_t xm, int_t ym, float a)
 {
 	xMouse = static_cast<float>(xm);
 	yMouse = static_cast<float>(ym);
 
 	renderBackground();
+	renderBg();
+
+	if (minecraft.player == nullptr || furnace == nullptr)
+		return;
 
 	int_t xo = getGuiLeft();
 	int_t yo = getGuiTop();
-	renderBg(a);
-
-	if (minecraft.player == nullptr)
-		return;
-
-	glPushMatrix();
-	glRotatef(120.0f, 1.0f, 0.0f, 0.0f);
-	Lighting::turnOn();
-	glPopMatrix();
+	int_t relX = xm - xo;
+	int_t relY = ym - yo;
 
 	glPushMatrix();
 	glTranslatef(static_cast<float>(xo), static_cast<float>(yo), 0.0f);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	glEnable(GL_RESCALE_NORMAL);
 
+	glPushMatrix();
+	glRotatef(120.0f, 1.0f, 0.0f, 0.0f);
+	Lighting::turnOn();
+	glPopMatrix();
+
 	int_t hoveredSlot = SLOT_NONE;
 	int_t hoveredSlotX = -1;
 	int_t hoveredSlotY = -1;
-	int_t relX = xm - xo;
-	int_t relY = ym - yo;
 
-	for (int_t slot = 0; slot < static_cast<int_t>(craftingSlots.size()); ++slot)
+	renderSlot(furnace->getItem(0), 56, 17, a);
+	if (isPointInSlot(relX, relY, 56, 17))
 	{
-		int_t slotX = getCraftingSlotX(slot);
-		int_t slotY = getCraftingSlotY(slot);
-		renderSlot(craftingSlots[slot], slotX, slotY, a);
-		if (isPointInSlot(relX, relY, slotX, slotY))
-		{
-			hoveredSlot = SLOT_CRAFTING_BASE + slot;
-			hoveredSlotX = slotX;
-			hoveredSlotY = slotY;
-		}
+		hoveredSlot = SLOT_INPUT;
+		hoveredSlotX = 56;
+		hoveredSlotY = 17;
 	}
 
-	int_t resultSlotX = getResultSlotX();
-	int_t resultSlotY = getResultSlotY();
-	renderSlot(craftingResult, resultSlotX, resultSlotY, a);
-	if (isPointInSlot(relX, relY, resultSlotX, resultSlotY))
+	renderSlot(furnace->getItem(1), 56, 53, a);
+	if (isPointInSlot(relX, relY, 56, 53))
 	{
-		hoveredSlot = SLOT_RESULT;
-		hoveredSlotX = resultSlotX;
-		hoveredSlotY = resultSlotY;
+		hoveredSlot = SLOT_FUEL;
+		hoveredSlotX = 56;
+		hoveredSlotY = 53;
+	}
+
+	renderSlot(furnace->getItem(2), 116, 35, a);
+	if (isPointInSlot(relX, relY, 116, 35))
+	{
+		hoveredSlot = SLOT_OUTPUT;
+		hoveredSlotX = 116;
+		hoveredSlotY = 35;
 	}
 
 	for (int_t row = 0; row < 3; ++row)
@@ -252,18 +244,12 @@ void InventoryScreen::render(int_t xm, int_t ym, float a)
 	glPopMatrix();
 }
 
-bool InventoryScreen::isPauseScreen()
+bool FurnaceScreen::isPauseScreen()
 {
 	return false;
 }
 
-void InventoryScreen::removed()
-{
-	dropCraftingContents();
-	Screen::removed();
-}
-
-void InventoryScreen::keyPressed(char_t eventCharacter, int_t eventKey)
+void FurnaceScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 {
 	if (eventKey == lwjgl::Keyboard::KEY_ESCAPE || eventKey == minecraft.options.keyInventory.key)
 	{
@@ -271,13 +257,12 @@ void InventoryScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 		minecraft.grabMouse();
 		return;
 	}
-
 	Screen::keyPressed(eventCharacter, eventKey);
 }
 
-void InventoryScreen::mouseClicked(int_t x, int_t y, int_t buttonNum)
+void FurnaceScreen::mouseClicked(int_t x, int_t y, int_t buttonNum)
 {
-	if (minecraft.player == nullptr || (buttonNum != 0 && buttonNum != 1))
+	if (minecraft.player == nullptr || furnace == nullptr || (buttonNum != 0 && buttonNum != 1))
 		return;
 
 	int_t xo = getGuiLeft();
@@ -307,58 +292,61 @@ void InventoryScreen::mouseClicked(int_t x, int_t y, int_t buttonNum)
 	}
 
 	int_t slot = getSlotAt(x, y);
-	if (slot != SLOT_NONE)
-		handleSlotClick(slot, buttonNum);
+	if (slot == SLOT_NONE)
+		return;
+	if (slot == SLOT_OUTPUT)
+	{
+		handleOutputSlotClick(buttonNum);
+		return;
+	}
+	if (slot == SLOT_INPUT)
+	{
+		handleRegularSlotClick(furnace->getItem(0), buttonNum);
+		return;
+	}
+	if (slot == SLOT_FUEL)
+	{
+		handleRegularSlotClick(furnace->getItem(1), buttonNum);
+		return;
+	}
+	if (slot >= 0 && slot < 36)
+		handleRegularSlotClick(minecraft.player->inventory.mainInventory[slot], buttonNum);
 }
 
-int_t InventoryScreen::getGuiLeft() const
+int_t FurnaceScreen::getGuiLeft() const
 {
 	return (width - imageWidth) / 2;
 }
 
-int_t InventoryScreen::getGuiTop() const
+int_t FurnaceScreen::getGuiTop() const
 {
 	return (height - imageHeight) / 2;
 }
 
-int_t InventoryScreen::getInventorySlotX(int_t slot) const
+int_t FurnaceScreen::getInventorySlotX(int_t slot) const
 {
 	if (slot >= 0 && slot < 9)
 		return 8 + slot * 18;
 	return 8 + ((slot - 9) % 9) * 18;
 }
 
-int_t InventoryScreen::getInventorySlotY(int_t slot) const
+int_t FurnaceScreen::getInventorySlotY(int_t slot) const
 {
 	if (slot >= 0 && slot < 9)
 		return 142;
 	return 84 + ((slot - 9) / 9) * 18;
 }
 
-int_t InventoryScreen::getCraftingSlotX(int_t slot) const
-{
-	return getCraftingGridLeft() + (slot % craftingWidth) * 18;
-}
-
-int_t InventoryScreen::getCraftingSlotY(int_t slot) const
-{
-	return getCraftingGridTop() + (slot / craftingWidth) * 18;
-}
-
-int_t InventoryScreen::getSlotAt(int_t x, int_t y) const
+int_t FurnaceScreen::getSlotAt(int_t x, int_t y) const
 {
 	int_t relX = x - getGuiLeft();
 	int_t relY = y - getGuiTop();
-
-	if (isPointInSlot(relX, relY, getResultSlotX(), getResultSlotY()))
-		return SLOT_RESULT;
-
-	for (int_t slot = 0; slot < static_cast<int_t>(craftingSlots.size()); ++slot)
-	{
-		if (isPointInSlot(relX, relY, getCraftingSlotX(slot), getCraftingSlotY(slot)))
-			return SLOT_CRAFTING_BASE + slot;
-	}
-
+	if (isPointInSlot(relX, relY, 56, 17))
+		return SLOT_INPUT;
+	if (isPointInSlot(relX, relY, 56, 53))
+		return SLOT_FUEL;
+	if (isPointInSlot(relX, relY, 116, 35))
+		return SLOT_OUTPUT;
 	for (int_t slot = 0; slot < 36; ++slot)
 	{
 		if (isPointInSlot(relX, relY, getInventorySlotX(slot), getInventorySlotY(slot)))
@@ -367,101 +355,31 @@ int_t InventoryScreen::getSlotAt(int_t x, int_t y) const
 	return SLOT_NONE;
 }
 
-void InventoryScreen::updateCraftingResult()
+void FurnaceScreen::renderBg()
 {
-	GridCraftingContainer container(craftingSlots, craftingWidth, craftingHeight);
-	craftingResult = Recipes::getInstance().getItemFor(container);
-}
-
-void InventoryScreen::consumeCraftingIngredients()
-{
-	for (ItemInstance &stack : craftingSlots)
-	{
-		if (stack.isEmpty())
-			continue;
-		--stack.stackSize;
-		if (stack.isEmpty())
-			stack = ItemInstance();
-	}
-}
-
-void InventoryScreen::dropCraftingContents()
-{
-	if (minecraft.player == nullptr)
-		return;
-
-	for (ItemInstance &stack : craftingSlots)
-	{
-		if (stack.isEmpty())
-			continue;
-		minecraft.player->drop(stack);
-		stack = ItemInstance();
-	}
-	craftingResult = ItemInstance();
-}
-
-void InventoryScreen::renderBg(float a)
-{
-	(void)a;
-	int_t tex = minecraft.textures.loadTexture(getBackgroundTexture());
+	int_t tex = minecraft.textures.loadTexture(u"/gui/furnace.png");
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	minecraft.textures.bind(tex);
 
 	int_t xo = getGuiLeft();
 	int_t yo = getGuiTop();
 	blit(xo, yo, 0, 0, imageWidth, imageHeight);
-
-	if (minecraft.player == nullptr || !shouldRenderPlayerModel())
-		return;
-
-	glEnable(GL_RESCALE_NORMAL);
-	glEnable(GL_LIGHTING);
-	renderPlayerModel(xo + 51, yo + 75, 30);
-	glDisable(GL_RESCALE_NORMAL);
+	if (furnace->isBurning())
+	{
+		int_t burn = furnace->getBurnTimeRemainingScaled(12);
+		blit(xo + 56, yo + 36 + 12 - burn, 176, 12 - burn, 14, burn + 2);
+	}
+	int_t cook = furnace->getCookProgressScaled(24);
+	blit(xo + 79, yo + 34, 176, 14, cook + 1, 16);
 }
 
-void InventoryScreen::renderLabels()
+void FurnaceScreen::renderLabels()
 {
-	jstring title = getTitleText();
-	if (!title.empty())
-		font.draw(title, getTitleX(), getTitleY(), 0x00404040);
+	font.draw(u"Furnace", 60, 6, 0x00404040);
+	font.draw(u"Inventory", 8, imageHeight - 96 + 2, 0x00404040);
 }
 
-void InventoryScreen::renderPlayerModel(int_t x, int_t y, int_t scale)
-{
-	float oldBodyRot = minecraft.player->yBodyRot;
-	float oldYRot = minecraft.player->yRot;
-	float oldXRot = minecraft.player->xRot;
-
-	glPushMatrix();
-	glTranslatef(static_cast<float>(x), static_cast<float>(y), 50.0f);
-	glScalef(static_cast<float>(-scale), static_cast<float>(scale), static_cast<float>(scale));
-	glRotatef(180.0f, 0.0f, 0.0f, 1.0f);
-
-	float xd = static_cast<float>(x) - xMouse;
-	float yd = static_cast<float>(y - 50) - yMouse;
-
-	glRotatef(135.0f, 0.0f, 1.0f, 0.0f);
-	Lighting::turnOn();
-	glRotatef(-135.0f, 0.0f, 1.0f, 0.0f);
-	glRotatef(-static_cast<float>(std::atan(yd / 40.0f)) * 20.0f, 1.0f, 0.0f, 0.0f);
-
-	minecraft.player->yBodyRot = static_cast<float>(std::atan(xd / 40.0f)) * 20.0f;
-	minecraft.player->yRot = static_cast<float>(std::atan(xd / 40.0f)) * 40.0f;
-	minecraft.player->xRot = -static_cast<float>(std::atan(yd / 40.0f)) * 20.0f;
-
-	glTranslatef(0.0f, minecraft.player->heightOffset, 0.0f);
-	EntityRenderDispatcher::instance.render(*minecraft.player, 0.0, 0.0, 0.0, 0.0f, 1.0f);
-
-	minecraft.player->yBodyRot = oldBodyRot;
-	minecraft.player->yRot = oldYRot;
-	minecraft.player->xRot = oldXRot;
-
-	glPopMatrix();
-	Lighting::turnOff();
-}
-
-void InventoryScreen::renderSlot(ItemInstance &stack, int_t x, int_t y, float a)
+void FurnaceScreen::renderSlot(ItemInstance &stack, int_t x, int_t y, float a)
 {
 	if (stack.isEmpty())
 		return;
@@ -478,25 +396,22 @@ void InventoryScreen::renderSlot(ItemInstance &stack, int_t x, int_t y, float a)
 	}
 
 	itemRenderer.renderGuiItem(font, minecraft.textures, stack, x, y);
-
 	if (pop > 0.0f)
 		glPopMatrix();
-
 	itemRenderer.renderGuiItemDecorations(font, minecraft.textures, stack, x, y);
 }
 
-const ItemInstance *InventoryScreen::getSlotItem(int_t slot) const
+const ItemInstance *FurnaceScreen::getSlotItem(int_t slot) const
 {
-	if (slot == SLOT_RESULT)
-		return craftingResult.isEmpty() ? nullptr : &craftingResult;
-	if (slot >= SLOT_CRAFTING_BASE)
-	{
-		int_t craftingSlot = slot - SLOT_CRAFTING_BASE;
-		if (craftingSlot >= 0 && craftingSlot < static_cast<int_t>(craftingSlots.size()) && !craftingSlots[craftingSlot].isEmpty())
-			return &craftingSlots[craftingSlot];
+	if (furnace == nullptr)
 		return nullptr;
-	}
-	if (slot >= 0 && slot < 36)
+	if (slot == SLOT_INPUT)
+		return furnace->getItem(0).isEmpty() ? nullptr : &furnace->getItem(0);
+	if (slot == SLOT_FUEL)
+		return furnace->getItem(1).isEmpty() ? nullptr : &furnace->getItem(1);
+	if (slot == SLOT_OUTPUT)
+		return furnace->getItem(2).isEmpty() ? nullptr : &furnace->getItem(2);
+	if (slot >= 0 && slot < 36 && minecraft.player != nullptr)
 	{
 		const ItemInstance &stack = minecraft.player->inventory.mainInventory[slot];
 		return stack.isEmpty() ? nullptr : &stack;
@@ -504,7 +419,7 @@ const ItemInstance *InventoryScreen::getSlotItem(int_t slot) const
 	return nullptr;
 }
 
-void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t buttonNum)
+void FurnaceScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t buttonNum)
 {
 	InventoryPlayer &inventory = minecraft.player->inventory;
 	ItemInstance *carried = inventory.getCarried();
@@ -513,17 +428,17 @@ void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t butt
 	{
 		if (carried == nullptr)
 			return;
-
 		int_t toPlace = buttonNum == 0 ? carried->stackSize : 1;
 		if (toPlace > carried->getMaxStackSize())
 			toPlace = carried->getMaxStackSize();
 		if (toPlace <= 0)
 			return;
-
 		slotStack = ItemInstance(carried->itemID, toPlace, carried->itemDamage);
 		carried->stackSize -= toPlace;
 		if (carried->isEmpty())
 			inventory.setCarriedNull();
+		if (furnace != nullptr)
+			furnace->setChanged();
 		return;
 	}
 
@@ -534,6 +449,8 @@ void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t butt
 		slotStack.stackSize -= toTake;
 		if (slotStack.isEmpty())
 			slotStack = ItemInstance();
+		if (furnace != nullptr)
+			furnace->setChanged();
 		return;
 	}
 
@@ -543,13 +460,14 @@ void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t butt
 		ItemInstance swapped = slotStack;
 		slotStack = *carried;
 		inventory.setCarried(swapped);
+		if (furnace != nullptr)
+			furnace->setChanged();
 		return;
 	}
 
 	int_t space = slotStack.getMaxStackSize() - slotStack.stackSize;
 	if (space <= 0)
 		return;
-
 	int_t toMove = buttonNum == 0 ? carried->stackSize : 1;
 	if (toMove > space)
 		toMove = space;
@@ -560,88 +478,42 @@ void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t butt
 	carried->stackSize -= toMove;
 	if (carried->isEmpty())
 		inventory.setCarriedNull();
+	if (furnace != nullptr)
+		furnace->setChanged();
 }
 
-void InventoryScreen::handleSlotClick(int_t slot, int_t buttonNum)
+void FurnaceScreen::handleOutputSlotClick(int_t buttonNum)
 {
 	InventoryPlayer &inventory = minecraft.player->inventory;
-	if (slot == SLOT_RESULT)
+	ItemInstance &slotStack = furnace->getItem(2);
+	if (slotStack.isEmpty())
+		return;
+	ItemInstance *carried = inventory.getCarried();
+	if (carried == nullptr)
 	{
-		if (craftingResult.isEmpty())
-			return;
-
-		ItemInstance *carried = inventory.getCarried();
-		if (carried == nullptr)
-			inventory.setCarried(craftingResult);
-		else
-		{
-			bool canMerge = carried->sameItem(craftingResult) && carried->isStackable() && craftingResult.isStackable();
-			if (!canMerge)
-				return;
-
-			int_t space = carried->getMaxStackSize() - carried->stackSize;
-			if (space < craftingResult.stackSize)
-				return;
-			carried->stackSize += craftingResult.stackSize;
-		}
-
-		consumeCraftingIngredients();
-		updateCraftingResult();
+		int_t toTake = buttonNum == 0 ? slotStack.stackSize : (slotStack.stackSize + 1) / 2;
+		inventory.setCarried(ItemInstance(slotStack.itemID, toTake, slotStack.itemDamage));
+		slotStack.stackSize -= toTake;
+		if (slotStack.isEmpty())
+			slotStack = ItemInstance();
+		furnace->setChanged();
 		return;
 	}
 
-	if (slot >= SLOT_CRAFTING_BASE)
-	{
-		handleRegularSlotClick(craftingSlots[slot - SLOT_CRAFTING_BASE], buttonNum);
-		updateCraftingResult();
+	bool canMerge = slotStack.sameItem(*carried) && slotStack.isStackable() && carried->isStackable();
+	if (!canMerge)
 		return;
-	}
-
-	if (slot >= 0 && slot < 36)
-		handleRegularSlotClick(minecraft.player->inventory.mainInventory[slot], buttonNum);
-}
-
-jstring InventoryScreen::getBackgroundTexture() const
-{
-	return u"/gui/inventory.png";
-}
-
-int_t InventoryScreen::getCraftingGridLeft() const
-{
-	return 88;
-}
-
-int_t InventoryScreen::getCraftingGridTop() const
-{
-	return 26;
-}
-
-int_t InventoryScreen::getResultSlotX() const
-{
-	return 144;
-}
-
-int_t InventoryScreen::getResultSlotY() const
-{
-	return 36;
-}
-
-int_t InventoryScreen::getTitleX() const
-{
-	return 86;
-}
-
-int_t InventoryScreen::getTitleY() const
-{
-	return 16;
-}
-
-jstring InventoryScreen::getTitleText() const
-{
-	return u"Crafting";
-}
-
-bool InventoryScreen::shouldRenderPlayerModel() const
-{
-	return true;
+	int_t space = carried->getMaxStackSize() - carried->stackSize;
+	if (space <= 0)
+		return;
+	int_t toMove = buttonNum == 0 ? slotStack.stackSize : 1;
+	if (toMove > space)
+		toMove = space;
+	if (toMove <= 0)
+		return;
+	carried->stackSize += toMove;
+	slotStack.stackSize -= toMove;
+	if (slotStack.isEmpty())
+		slotStack = ItemInstance();
+	furnace->setChanged();
 }

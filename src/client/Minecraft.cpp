@@ -491,7 +491,7 @@ void Minecraft::run()
 					std::this_thread::sleep_for(std::chrono::nanoseconds(remaining));
 			}
 			
-			if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
+			if (options.showDebugInfo)
 			{
 				renderFpsMeter(tickNanos);
 			}
@@ -914,6 +914,8 @@ void Minecraft::tick()
 				{
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_ESCAPE)
 						pauseGame();
+					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F3)
+						options.showDebugInfo = !options.showDebugInfo;
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_S && lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
 						reloadSound();
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F5)

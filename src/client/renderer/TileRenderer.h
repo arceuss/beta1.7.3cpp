@@ -46,5 +46,6 @@ public:
 
 	void renderCube(Tile &tile, float alpha);
 	void renderTile(Tile &tile, int_t data);
+	void renderGuiTile(Tile &tile, int_t data);
 	static bool canRender(int_t renderShape);
 };

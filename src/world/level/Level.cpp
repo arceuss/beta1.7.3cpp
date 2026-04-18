@@ -655,7 +655,7 @@ int_t Level::getRawBrightness(int_t x, int_t y, int_t z, bool neighbors)
 	if (neighbors)
 	{
 		int_t tile = getTile(x, y, z);
-		if (tile == 60)
+		if (tile == 60 || tile == 44)
 		{
 			int_t brightness = getRawBrightness(x, y + 1, z, false);
 			int_t east = getRawBrightness(x + 1, y, z, false);
@@ -1274,9 +1274,18 @@ void Level::tickEntities()
 		continue;
 	}
 
-	// Tick tile entities
-	for (auto &tileEntity : tileEntityList)
+	// Tick tile entities from a snapshot because some updates, like furnace relighting,
+	// temporarily replace the block and mutate tileEntityList mid-tick.
+	std::vector<std::shared_ptr<TileEntity>> tileEntities(tileEntityList.begin(), tileEntityList.end());
+	for (auto &tileEntity : tileEntities)
+	{
+		if (tileEntity == nullptr || !hasChunk(tileEntity->x >> 4, tileEntity->z >> 4))
+			continue;
+		auto current = getTileEntity(tileEntity->x, tileEntity->y, tileEntity->z);
+		if (current.get() != tileEntity.get())
+			continue;
 		tileEntity->tick();
+	}
 }
 
 void Level::tick(std::shared_ptr<Entity> entity)

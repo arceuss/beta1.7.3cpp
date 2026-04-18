@@ -40,6 +40,8 @@ class PumpkinTile;
 class SnowTile;
 class IceTile;
 class WorkbenchTile;
+class SlabTile;
+class FurnaceTile;
 
 class TransparentTile;
 class LiquidTile;
@@ -120,9 +122,13 @@ public:
 	static Tile &sandstone;
 	static Tile mossyCobblestone;
 	static Tile obsidian;
+	static SlabTile slabDouble;
+	static SlabTile slabSingle;
 	static WorkbenchTile workBench;
 	static CropsTile crops;
 	static FarmlandTile farmland;
+	static FurnaceTile furnace;
+	static FurnaceTile furnaceLit;
 	static Tile diamondOre;
 	static Tile redstoneOre;
 	static SnowTile snow;
@@ -238,6 +244,7 @@ public:
 
 	virtual void stepOn(Level &level, int_t x, int_t y, int_t z, Entity &entity);
 	virtual void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face);
+	virtual void setPlacedBy(Level &level, int_t x, int_t y, int_t z, Player &player);
 	virtual void prepareRender(Level &level, int_t x, int_t y, int_t z);
 	virtual void attack(Level &level, int_t x, int_t y, int_t z, Player &player);
 	virtual bool use(Level &level, int_t x, int_t y, int_t z, Player &player);

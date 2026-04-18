@@ -1093,7 +1093,16 @@ void TileRenderer::renderTile(Tile &tile, int_t data)
 		}
 	}
 
-	bool TileRenderer::canRender(int_t renderShape)
+void TileRenderer::renderGuiTile(Tile &tile, int_t data)
+{
+	if (tile.id == 61 || tile.id == 62)
+		data = static_cast<int_t>(Facing::SOUTH);
+
+
+	renderTile(tile, data);
+}
+
+bool TileRenderer::canRender(int_t renderShape)
 	{
 		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS;
 	}

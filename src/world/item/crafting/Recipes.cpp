@@ -11,6 +11,9 @@
 #include "world/level/tile/TreeTile.h"
 #include "world/level/tile/WoodTile.h"
 #include "world/level/tile/WorkbenchTile.h"
+#include "world/level/tile/FurnaceTile.h"
+#include "world/level/tile/SlabTile.h"
+#include "world/level/tile/StoneTile.h"
 
 namespace
 {
@@ -93,6 +96,12 @@ Recipes::Recipes()
 	addShapedRecipe(ItemInstance(Tile::wood.id, 4, 0), {"#"}, {{'#', ItemInstance(Tile::treeTrunk.id, 1, -1)}});
 	addShapedRecipe(ItemInstance(Items::stick->getShiftedIndex(), 4, 0), {"#", "#"}, {{'#', ItemInstance(Tile::wood.id, 1, -1)}});
 	addShapedRecipe(ItemInstance(Tile::workBench.id, 1, 0), {"##", "##"}, {{'#', ItemInstance(Tile::wood.id, 1, -1)}});
+	addShapedRecipe(ItemInstance(Tile::furnace.id, 1, 0), {"###", "# #", "###"}, {{'#', ItemInstance(Tile::cobblestone.id, 1, -1)}});
+
+	addShapedRecipe(ItemInstance(Tile::slabSingle.id, 3, 3), {"###"}, {{'#', ItemInstance(Tile::cobblestone.id, 1, -1)}});
+	addShapedRecipe(ItemInstance(Tile::slabSingle.id, 3, 0), {"###"}, {{'#', ItemInstance(Tile::rock.id, 1, -1)}});
+	addShapedRecipe(ItemInstance(Tile::slabSingle.id, 3, 1), {"###"}, {{'#', ItemInstance(Tile::sandstone.id, 1, -1)}});
+	addShapedRecipe(ItemInstance(Tile::slabSingle.id, 3, 2), {"###"}, {{'#', ItemInstance(Tile::wood.id, 1, -1)}});
 
 	addToolRecipes(ItemInstance(Tile::wood.id, 1, -1), *Items::swordWood, *Items::shovelWood, *Items::pickaxeWood, *Items::axeWood, *Items::hoeWood);
 	addToolRecipes(ItemInstance(Tile::cobblestone.id, 1, -1), *Items::swordStone, *Items::shovelStone, *Items::pickaxeStone, *Items::axeStone, *Items::hoeStone);

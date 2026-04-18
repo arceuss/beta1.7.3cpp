@@ -139,14 +139,17 @@ bool GameMode::useItemOn(std::shared_ptr<Player> &player, Level &level, ItemInst
 	if (item == nullptr || item->isEmpty())
 		return false;
 
+	bool used = item->useOn(*player, level, x, y, z, face);
+	if (used)
+	{
+		if (item->isEmpty())
+			player->removeSelectedItem();
+		return true;
+	}
+
 	Tile *placedTile = (item->itemID >= 0 && item->itemID < static_cast<int_t>(Tile::tiles.size())) ? Tile::tiles[item->itemID] : nullptr;
 	if (placedTile == nullptr)
-	{
-		bool used = item->useOn(*player, level, x, y, z, face);
-		if (used && item->isEmpty())
-			player->removeSelectedItem();
-		return used;
-	}
+		return false;
 	int_t placeX = x;
 	int_t placeY = y;
 	int_t placeZ = z;
@@ -165,6 +168,7 @@ bool GameMode::useItemOn(std::shared_ptr<Player> &player, Level &level, ItemInst
 		return true;
 
 	placedTile->setPlacedOnFace(level, placeX, placeY, placeZ, placementFace);
+	placedTile->setPlacedBy(level, placeX, placeY, placeZ, *player);
 	if (placedTile->soundType != nullptr)
 	{
 		StepSound *ss = placedTile->soundType;
