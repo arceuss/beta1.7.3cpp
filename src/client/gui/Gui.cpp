@@ -97,7 +97,7 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 	glDisable(GL_BLEND);
 	glEnable(GL_RESCALE_NORMAL);
 	glPushMatrix();
-	glRotatef(180.0f, 1.0f, 0.0f, 0.0f);
+	glRotatef(120.0f, 1.0f, 0.0f, 0.0f);
 	Lighting::turnOn();
 	glPopMatrix();
 	for (int_t i = 0; i < 9; i++)
@@ -110,7 +110,7 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 	glDisable(GL_RESCALE_NORMAL);
 
 	// Debug text
-	if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
+	if (minecraft.options.showDebugInfo)
 	{
 		font.drawShadow(Minecraft::VERSION_STRING + u" (" + minecraft.fpsString + u")", 2, 2, 0xFFFFFF);
 		font.drawShadow(minecraft.gatherStats1(), 2, 12, 0xFFFFFF);

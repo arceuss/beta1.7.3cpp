@@ -108,6 +108,7 @@ public:
 	int_t difficulty = 2;
 
 	bool thirdPersonView = false;
+	bool showDebugInfo = false;
 
 	jstring lastMpIp = u"";
 

@@ -106,17 +106,25 @@ void ItemRenderer::renderGuiItem(Font &font, Textures &textures, ItemInstance &i
 	Tile *tile = item.itemID >= 0 && item.itemID < static_cast<int_t>(Tile::tiles.size()) ? Tile::tiles[item.itemID] : nullptr;
 	if (tile != nullptr && TileRenderer::canRender(tile->getRenderShape()))
 	{
-		glEnable(GL_CULL_FACE);
+		glDisable(GL_CULL_FACE);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_COLOR_MATERIAL);
+		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 		textures.bind(textures.loadTexture(u"/terrain.png"));
 		glPushMatrix();
-		glTranslatef((float)(x - 2), (float)(y + 3), 0.0f);
+		glTranslatef((float)(x - 2), (float)(y + 3), -3.0f);
 		glScalef(10.0f, 10.0f, 10.0f);
-		glTranslatef(1.0f, 0.5f, 8.0f);
+		glTranslatef(1.0f, 0.5f, 1.0f);
+		glScalef(1.0f, 1.0f, -1.0f);
 		glRotatef(210.0f, 1.0f, 0.0f, 0.0f);
 		glRotatef(45.0f, 0.0f, 1.0f, 0.0f);
+		glRotatef(-90.0f, 0.0f, 1.0f, 0.0f);
 		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-		tileRenderer.renderTile(*tile, item.getAuxValue());
+		tileRenderer.renderGuiTile(*tile, item.getAuxValue());
 		glPopMatrix();
+		glEnable(GL_CULL_FACE);
+		glDisable(GL_COLOR_MATERIAL);
+		glDisable(GL_LIGHTING);
 	}
 	else if (item.getIcon() >= 0)
 	{

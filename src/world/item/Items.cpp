@@ -7,6 +7,7 @@
 #include "world/item/ItemSeeds.h"
 #include "world/item/ItemSpade.h"
 #include "world/item/ItemSword.h"
+#include "world/item/ItemSlab.h"
 
 namespace Items
 {
@@ -85,5 +86,7 @@ namespace Items
 
 		flint = new Item(62);
 		flint->setIconIndex(6).setDescriptionId(u"item.flint");
+
+		new ItemSlab(44 - 256);
 	}
 }

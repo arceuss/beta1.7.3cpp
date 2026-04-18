@@ -11,6 +11,7 @@
 class Minecraft;
 class User;
 
+class FurnaceTileEntity;
 class LocalPlayer : public Player
 {
 public:
@@ -44,10 +45,10 @@ public:
 	void take(Entity &entity, int_t count) override;
 	void respawn() override;
 	void startCrafting(int_t x, int_t y, int_t z);
+	void startFurnace(std::shared_ptr<FurnaceTileEntity> furnace);
 	// TODO
 	// openTextEdit
 	// openContainer
-	// openFurnace
 	// openTrap
 	
 	void prepareForTick();

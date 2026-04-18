@@ -2,6 +2,7 @@
 
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/entity/FurnaceTileEntity.h"
 
 void TileEntity::load(CompoundTag &tag)
 {
@@ -29,8 +30,13 @@ void TileEntity::tick()
 
 TileEntity *TileEntity::loadStatic(CompoundTag &tag)
 {
-	// TODO
-	return nullptr;
+	jstring id = tag.getString(u"id");
+	TileEntity *tileEntity = nullptr;
+	if (id == u"Furnace")
+		tileEntity = new FurnaceTileEntity();
+	if (tileEntity != nullptr)
+		tileEntity->load(tag);
+	return tileEntity;
 }
 
 int_t TileEntity::getData()
@@ -57,8 +63,7 @@ double TileEntity::distanceToSqr(double x, double y, double z)
 	return dx * dx + dy * dy + dz * dz;
 }
 
-// TODO
-// Tile &TileEntity::getTile()
-// {
-// 
-// }
+Tile &TileEntity::getTile()
+{
+	return *Tile::tiles[level->getTile(x, y, z)];
+}

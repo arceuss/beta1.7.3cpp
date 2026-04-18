@@ -2,6 +2,7 @@
 
 #include "world/level/tile/StoneTile.h"
 #include "world/level/tile/IceTile.h"
+#include "world/level/tile/SlabTile.h"
 #include "world/level/tile/Tile.h"
 
 namespace
@@ -16,6 +17,8 @@ namespace
 	{
 		static int_t EFFECTIVE_TILES[] = {
 			Tile::cobblestone.id,
+			Tile::slabDouble.id,
+			Tile::slabSingle.id,
 			Tile::rock.id,
 			Tile::sandstone.id,
 			Tile::mossyCobblestone.id,

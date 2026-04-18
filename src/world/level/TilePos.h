@@ -8,10 +8,10 @@ struct TilePos
 
 	TilePos(int_t x, int_t y, int_t z) : x(x), y(y), z(z) {}
 
-	// bool operator==(const TilePos &other) const
-	// {
-	// 	return x == other.x && y == other.y && z == other.z;
-	// }
+	bool operator==(const TilePos &other) const
+	{
+		return x == other.x && y == other.y && z == other.z;
+	}
 };
 
 template <>

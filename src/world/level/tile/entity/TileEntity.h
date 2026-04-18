@@ -12,7 +12,7 @@
 class Level;
 class Tile;
 
-class TileEntity : std::enable_shared_from_this<TileEntity>
+class TileEntity : public std::enable_shared_from_this<TileEntity>
 {
 public:
 	virtual jstring getEncodeId() const { return u""; }

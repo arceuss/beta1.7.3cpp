@@ -1,4 +1,6 @@
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/FurnaceTile.h"
+#include "world/level/tile/SlabTile.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -90,12 +92,16 @@ Tile Tile::coalOre = Tile(16, 34, Material::stone);
 Tile Tile::lapisOre = Tile(21, 160, Material::stone);
 static SandStoneTile sandstoneTile(24, 192);
 Tile &Tile::sandstone = sandstoneTile;
+SlabTile Tile::slabDouble = SlabTile(43, true);
+SlabTile Tile::slabSingle = SlabTile(44, false);
 Tile Tile::mossyCobblestone = Tile(48, 36, Material::stone);
 Tile Tile::obsidian = Tile(49, 37, Material::stone);
+Tile Tile::diamondOre = Tile(56, 50, Material::stone);
 WorkbenchTile Tile::workBench = WorkbenchTile(58);
 CropsTile Tile::crops = CropsTile(59, 88);
 FarmlandTile Tile::farmland = FarmlandTile(60);
-Tile Tile::diamondOre = Tile(56, 50, Material::stone);
+FurnaceTile Tile::furnace = FurnaceTile(61, false);
+FurnaceTile Tile::furnaceLit = FurnaceTile(62, true);
 Tile Tile::redstoneOre = Tile(73, 51, Material::stone);
 SnowTile Tile::snow = SnowTile(78, 66);
 IceTile Tile::ice = IceTile(79, 67);
@@ -129,12 +135,15 @@ void Tile::initTiles()
 
 	cobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	sandstone.setDestroyTime(0.8f).setSoundType(soundStoneFootstep);
+	slabDouble.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
+	slabSingle.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	mossyCobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	obsidian.setDestroyTime(10.0f).setSoundType(soundStoneFootstep);
 	workBench.setDestroyTime(2.5f).setSoundType(soundWoodFootstep);
 	crops.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	farmland.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
-
+	furnace.setDestroyTime(3.5f).setSoundType(soundStoneFootstep);
+	furnaceLit.setDestroyTime(3.5f).setSoundType(soundStoneFootstep).setLightEmission(14);
 
 	goldOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	ironOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
@@ -144,7 +153,6 @@ void Tile::initTiles()
 	redstoneOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	snow.setDestroyTime(0.1f).setSoundType(soundClothFootstep);
 	ice.setDestroyTime(0.5f).setLightBlock(3).setSoundType(soundGlassFootstep);
-
 	clay.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
 
 	Tile::lightBlock[8] = 3;
@@ -519,7 +527,20 @@ void Tile::stepOn(Level &level, int_t x, int_t y, int_t z, Entity &entity)
 
 void Tile::setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face)
 {
+	(void)level;
+	(void)x;
+	(void)y;
+	(void)z;
+	(void)face;
+}
 
+void Tile::setPlacedBy(Level &level, int_t x, int_t y, int_t z, Player &player)
+{
+	(void)level;
+	(void)x;
+	(void)y;
+	(void)z;
+	(void)player;
 }
 
 void Tile::prepareRender(Level &level, int_t x, int_t y, int_t z)
