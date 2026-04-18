@@ -69,10 +69,10 @@ jobs:
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
           if [ "$RUNNER_OS" = "Windows" ]; then
             echo "bin-dir=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
-            echo "exe-name=Alpha126Cpp.exe" >> "$GITHUB_OUTPUT"
+            echo "exe-name=McBetaCpp.exe" >> "$GITHUB_OUTPUT"
           else
             echo "bin-dir=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
-            echo "exe-name=Alpha126Cpp" >> "$GITHUB_OUTPUT"
+            echo "exe-name=McBetaCpp" >> "$GITHUB_OUTPUT"
           fi
 
       # SDL3 recommends these build deps on Linux when building with "all features enabled"
