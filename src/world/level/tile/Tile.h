@@ -14,6 +14,8 @@
 #include "java/Type.h"
 #include "java/Random.h"
 #include "java/String.h"
+class OreTile;
+class RedstoneOreTile;
 
 class Level;
 class LevelSource;
@@ -117,8 +119,8 @@ public:
 	static LiquidTile &calmLava;
 	static Tile goldOre;
 	static Tile ironOre;
-	static Tile coalOre;
-	static Tile lapisOre;
+	static OreTile coalOre;
+	static OreTile lapisOre;
 	static Tile &sandstone;
 	static Tile mossyCobblestone;
 	static Tile obsidian;
@@ -129,8 +131,8 @@ public:
 	static FarmlandTile farmland;
 	static FurnaceTile furnace;
 	static FurnaceTile furnaceLit;
-	static Tile diamondOre;
-	static Tile redstoneOre;
+	static OreTile diamondOre;
+	static RedstoneOreTile redstoneOre;
 	static SnowTile snow;
 	static IceTile ice;
 	static CactusTile cactus;
@@ -256,5 +258,6 @@ public:
 
 	virtual void updateDefaultShape();
 
+virtual void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data);
 	virtual void playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data);
 };

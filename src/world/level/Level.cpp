@@ -12,6 +12,7 @@
 #include "java/File.h"
 #include "java/IOUtil.h"
 
+#include "world/level/tile/LiquidTile.h"
 #include "util/Mth.h"
 
 int_t Level::maxLoop = 0;
@@ -1456,8 +1457,11 @@ bool Level::handleMaterialAcceleration(AABB &bb, const Material &material, Entit
 					double surface = static_cast<double>(y + 1) - static_cast<double>(pct);
 					if (static_cast<double>(y1) >= surface)
 					{
-						found = true;
-						// Flow vector would be applied here if fluid flow was implemented
+					found = true;
+					Vec3 flow = static_cast<LiquidTile *>(Tile::tiles[t])->getFlowVector(*this, x, y, z);
+					vx += flow.x;
+					vy += flow.y;
+					vz += flow.z;
 					}
 				}
 			}

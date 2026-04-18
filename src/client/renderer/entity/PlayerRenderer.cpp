@@ -5,6 +5,7 @@
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 #include "java/String.h"
 #include "world/entity/player/Player.h"
+#include "world/item/Item.h"
 #include "util/Mth.h"
 
 #include <cmath>
@@ -110,6 +111,19 @@ void PlayerRenderer::additionalRendering(Mob &mobBase, float a)
 		glRotatef(20.0f, 1.0f, 0.0f, 0.0f);
 		glRotatef(45.0f, 0.0f, 1.0f, 0.0f);
 		glScalef(s, -s, s);
+	}
+	else if (item->getItem() && item->getItem()->isFull3D())
+	{
+		float s = 0.625f;
+		if (item->getItem()->shouldRotateAroundWhenRendering())
+		{
+			glRotatef(180.0f, 0.0f, 0.0f, 1.0f);
+			glTranslatef(0.0f, -0.125f, 0.0f);
+		}
+		glTranslatef(0.0f, 0.1875f, 0.0f);
+		glScalef(s, -s, s);
+		glRotatef(-100.0f, 1.0f, 0.0f, 0.0f);
+		glRotatef(45.0f, 0.0f, 1.0f, 0.0f);
 	}
 	else
 	{

@@ -6,6 +6,7 @@
 #include "world/level/tile/SnowTile.h"
 #include "world/level/tile/StepSound.h"
 
+#include <cmath>
 #include "util/Mth.h"
 
 int_t Entity::entityCounter = 0;
@@ -327,6 +328,12 @@ void Entity::move(double xd, double yd, double zd)
 		if (!slide && ozd != zd)
 			xd = yd = zd = 0;
 
+		// Step back down
+		yd = -footSize;
+		for (auto &cube : level.getCubes(*this, *bb.expand(0.0, yd, 0.0)))
+			yd = cube->clipYCollide(bb, yd);
+		bb.move(0.0, yd, 0.0);
+
 		if (ooxd * ooxd + oozd * oozd >= xd * xd + zd * zd)
 		{
 			xd = ooxd;
@@ -336,7 +343,7 @@ void Entity::move(double xd, double yd, double zd)
 		}
 		else
 		{
-			ySlideOffset += 0.5;
+			ySlideOffset += (bb.y0 - std::floor(bb.y0)) + 0.01;
 		}
 	}
 
@@ -383,7 +390,7 @@ void Entity::move(double xd, double yd, double zd)
 				int_t aboveTile = level.getTile(sx, Mth::floor(y), sz);
 				if (aboveTile == Tile::snow.id)
 					ss = Tile::snow.soundType;
-				level.playSoundAtEntity(*this, ss->stepSoundDir(), ss->getVolume() * 0.15f, ss->getPitch());
+				level.playSoundAtEntity(*this, ss->getStepResourcePath(), ss->getVolume() * 0.15f, ss->getPitch());
 			}
 			Tile::tiles[stile]->stepOn(level, sx, sy, sz, *this);
 		}

@@ -170,12 +170,19 @@ int_t FurnaceTileEntity::getBurnDuration(const ItemInstance &stack) const
 {
 	if (stack.isEmpty())
 		return 0;
-	if (stack.itemID < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[stack.itemID] != nullptr)
+	int_t id = stack.itemID;
+	// Block items with wood material
+	if (id < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[id] != nullptr)
 	{
-		if (&Tile::tiles[stack.itemID]->material == &Material::wood)
+		if (&Tile::tiles[id]->material == &Material::wood)
 			return 300;
 	}
-	if (Items::stick != nullptr && stack.itemID == Items::stick->getShiftedIndex())
+	// Coal item
+	if (Items::coal != nullptr && id == Items::coal->getShiftedIndex())
+		return 1600;
+	// Stick
+	if (Items::stick != nullptr && id == Items::stick->getShiftedIndex())
 		return 100;
 	return 0;
+
 }

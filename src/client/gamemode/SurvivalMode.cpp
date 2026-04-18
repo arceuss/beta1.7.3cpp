@@ -35,7 +35,7 @@ bool SurvivalMode::destroyBlock(int_t x, int_t y, int_t z, Facing face)
 				minecraft.player->removeSelectedItem();
 		}
 		if (couldDestroy)
-			tile->playerDestroy(*minecraft.level, x, y, z, data);
+			tile->harvestBlock(*minecraft.level, *minecraft.player, x, y, z, data);
 	}
 	return changed;
 }

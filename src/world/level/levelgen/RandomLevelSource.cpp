@@ -3,6 +3,8 @@
 #include "world/level/Level.h"
 
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/OreTile.h"
+#include "world/level/tile/RedstoneOreTile.h"
 #include "world/level/tile/TransparentTile.h"
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/StoneTile.h"

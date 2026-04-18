@@ -124,6 +124,8 @@ void LeafTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 
 void LeafTile::die(Level &level, int_t x, int_t y, int_t z)
 {
+	int_t data = level.getData(x, y, z);
+	spawnResources(level, x, y, z, data);
 	level.setTile(x, y, z, 0);
 }
 
@@ -134,10 +136,8 @@ int_t LeafTile::getResourceCount(Random &random)
 
 int_t LeafTile::getResource(int_t data, Random &random)
 {
-	// TODO: sapling
- 	return id;
+	return 0;
 }
-
 int_t LeafTile::getSpawnResourcesAuxValue(int_t data)
 {
 	return data & LEAF_TYPE_MASK;
@@ -162,4 +162,9 @@ void LeafTile::setFancy(bool fancy)
 void LeafTile::stepOn(Level &level, int_t x, int_t y, int_t z, Entity &entity)
 {
 	Tile::stepOn(level, x, y, z, entity);
+}
+
+void LeafTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
+{
+	Tile::harvestBlock(level, player, x, y, z, data);
 }
