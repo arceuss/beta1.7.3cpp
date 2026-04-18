@@ -36,3 +36,9 @@ ItemSpade::ItemSpade(int_t baseId, ToolMaterialType material)
 	: ItemTool(baseId, 1, material, getEffectiveTiles().tiles, getEffectiveTiles().count)
 {
 }
+
+bool ItemSpade::canDestroySpecial(const ItemInstance &stack, Tile &tile) const
+{
+	(void)stack;
+	return tile.id == Tile::snow.id;
+}
