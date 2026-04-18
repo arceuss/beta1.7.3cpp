@@ -1,6 +1,9 @@
 #include "world/level/tile/ReedTile.h"
 
 #include "world/level/Level.h"
+
+#include "world/item/Item.h"
+#include "world/item/Items.h"
 #include "world/level/material/Material.h"
 #include "world/level/tile/GrassTile.h"
 #include "world/level/tile/DirtTile.h"
@@ -60,7 +63,11 @@ void ReedTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 void ReedTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
 	if (!canStay(level, x, y, z))
+	{
+		int_t data = level.getData(x, y, z);
+		spawnResources(level, x, y, z, data);
 		level.setTile(x, y, z, 0);
+	}
 }
 
 void ReedTile::onPlace(Level &level, int_t x, int_t y, int_t z)
@@ -87,4 +94,11 @@ bool ReedTile::canStay(Level &level, int_t x, int_t y, int_t z)
 		level.getTile(x + 1, y - 1, z) == Tile::water.id || level.getTile(x + 1, y - 1, z) == Tile::calmWater.id ||
 		level.getTile(x, y - 1, z - 1) == Tile::water.id || level.getTile(x, y - 1, z - 1) == Tile::calmWater.id ||
 		level.getTile(x, y - 1, z + 1) == Tile::water.id || level.getTile(x, y - 1, z + 1) == Tile::calmWater.id;
+}
+
+int_t ReedTile::getResource(int_t data, Random &random)
+{
+	(void)data;
+	(void)random;
+	return Items::reed->getShiftedIndex();
 }

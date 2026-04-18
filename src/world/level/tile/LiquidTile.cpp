@@ -6,6 +6,7 @@
 #include "world/level/material/GasMaterial.h"
 #include "world/level/tile/ReedTile.h"
 
+#include "util/Mth.h"
 #include <algorithm>
 
 LiquidTile::LiquidTile(int_t id, int_t tex, const Material &material) : TransparentTile(id, tex, material, false)
@@ -139,6 +140,87 @@ int_t LiquidTile::getRenderedDepth(LevelSource &level, int_t x, int_t y, int_t z
 	if (data >= 8)
 		data = 0;
 	return data;
+}
+int_t LiquidTile::getEffectiveFlowDepth(Level &level, int_t x, int_t y, int_t z){
+	if (&level.getMaterial(x, y, z) != &material)
+		return -1;
+	int_t data = level.getData(x, y, z);
+	if (data >= 8)
+		data = 0;
+	return data;
+}
+
+Vec3 LiquidTile::getFlowVector(Level &level, int_t x, int_t y, int_t z)
+{
+	Vec3 vec(0.0, 0.0, 0.0);
+	int_t depth = getEffectiveFlowDepth(level, x, y, z);
+
+	for (int_t dir = 0; dir < 4; ++dir)
+	{
+		int_t nx = x, nz = z;
+		if (dir == 0) nx = x - 1;
+		else if (dir == 1) nz = z - 1;
+		else if (dir == 2) nx = x + 1;
+		else nz = z + 1;
+
+		int_t adjDepth = getEffectiveFlowDepth(level, nx, y, nz);
+		if (adjDepth < 0)
+		{
+			if (&level.getMaterial(nx, y, nz) != &material && !level.getMaterial(nx, y, nz).isSolid())
+			{
+				adjDepth = getEffectiveFlowDepth(level, nx, y - 1, nz);
+				if (adjDepth >= 0)
+				{
+					int_t diff = adjDepth - (depth - 8);
+					vec.x += static_cast<double>((nx - x) * diff);
+					vec.y += 6.0;
+					vec.z += static_cast<double>((nz - z) * diff);
+				}
+			}
+		}
+		else if (adjDepth > depth)
+		{
+			int_t diff = adjDepth - depth;
+			vec.x += static_cast<double>((nx - x) * diff);
+			vec.z += static_cast<double>((nz - z) * diff);
+		}
+	}
+
+	if (level.getData(x, y, z) >= 8)
+	{
+		bool surrounded = true;
+		for (int_t dir = 0; dir < 4 && surrounded; ++dir)
+		{
+			int_t nx = x, nz = z;
+			if (dir == 0) nx = x - 1;
+			else if (dir == 1) nz = z - 1;
+			else if (dir == 2) nx = x + 1;
+			else nz = z + 1;
+
+			if (!level.getMaterial(nx, y, nz).isSolid())
+				surrounded = false;
+		}
+		if (surrounded)
+			vec.y += 6.0;
+	}
+
+	double len = Mth::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+	if (len > 0.0)
+	{
+		vec.x /= len;
+		vec.y /= len;
+		vec.z /= len;
+	}
+
+	return vec;
+}
+
+void LiquidTile::velocityToAddToEntity(Level &level, int_t x, int_t y, int_t z, Entity &entity, Vec3 &vec)
+{
+	Vec3 flow = getFlowVector(level, x, y, z);
+	vec.x += flow.x;
+	vec.y += flow.y;
+	vec.z += flow.z;
 }
 
 void LiquidTile::updateLiquid(Level &level, int_t x, int_t y, int_t z)

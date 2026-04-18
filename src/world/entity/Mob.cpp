@@ -7,6 +7,7 @@
 Mob::Mob(Level &level) : Entity(level)
 {
 
+	footSize = 0.5f;
 }
 
 void Mob::defineSynchedData()
@@ -349,7 +350,7 @@ void Mob::causeFallDamage(float distance)
 		return;
 
 	StepSound *ss = landedTile->soundType;
-	level.playSoundAtEntity(*this, ss->stepSoundDir(), ss->getVolume() * 0.5f, ss->getPitch() * 0.75f);
+	level.playSoundAtEntity(*this, ss->getStepResourcePath(), ss->getVolume() * 0.5f, ss->getPitch() * 0.75f);
 }
 
 void Mob::travel(float x, float z)

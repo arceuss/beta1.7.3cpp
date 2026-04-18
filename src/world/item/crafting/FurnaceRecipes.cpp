@@ -2,7 +2,14 @@
 
 #include "world/item/Item.h"
 #include "world/item/Items.h"
+#include "world/level/tile/CactusTile.h"
+#include "world/level/tile/OreTile.h"
+#include "world/level/tile/SandTile.h"
+#include "world/level/tile/StoneTile.h"
+#include "world/level/tile/TreeTile.h"
+
 #include "world/level/tile/Tile.h"
+
 
 FurnaceRecipes &FurnaceRecipes::getInstance()
 {
@@ -13,7 +20,14 @@ FurnaceRecipes &FurnaceRecipes::getInstance()
 FurnaceRecipes::FurnaceRecipes()
 {
 	recipes.emplace(Tile::ironOre.id, ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0));
-	recipes.emplace(Tile::cobblestone.id, ItemInstance(1, 1, 0));
+	recipes.emplace(Tile::goldOre.id, ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0));
+	recipes.emplace(Tile::diamondOre.id, ItemInstance(Items::diamond->getShiftedIndex(), 1, 0));
+	recipes.emplace(Tile::sand.id, ItemInstance(20, 1, 0)); // sand → glass (block ID 20, no GlassTile yet)
+	recipes.emplace(Tile::cobblestone.id, ItemInstance(Tile::rock.id, 1, 0)); // cobblestone → stone
+	// cactus → green dye (metadata 2)
+	recipes.emplace(Tile::cactus.id, ItemInstance(Items::dyePowder->getShiftedIndex(), 1, 2));
+	// wood/log → charcoal (coal with metadata 1)
+	recipes.emplace(Tile::treeTrunk.id, ItemInstance(Items::coal->getShiftedIndex(), 1, 1));
 }
 
 ItemInstance FurnaceRecipes::getResult(const ItemInstance &input) const

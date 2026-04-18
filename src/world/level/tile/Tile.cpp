@@ -58,6 +58,8 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/TransparentTile.h"
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/material/LiquidMaterial.h"
+#include "world/level/tile/OreTile.h"
+#include "world/level/tile/RedstoneOreTile.h"
 
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
@@ -88,21 +90,21 @@ static LiquidTileStatic calmLavaTile(11, 237, Material::lava);
 LiquidTile &Tile::calmLava = calmLavaTile;
 Tile Tile::goldOre = Tile(14, 32, Material::stone);
 Tile Tile::ironOre = Tile(15, 33, Material::stone);
-Tile Tile::coalOre = Tile(16, 34, Material::stone);
-Tile Tile::lapisOre = Tile(21, 160, Material::stone);
+OreTile Tile::coalOre = OreTile(16, 34);
+OreTile Tile::lapisOre = OreTile(21, 160);
 static SandStoneTile sandstoneTile(24, 192);
 Tile &Tile::sandstone = sandstoneTile;
 SlabTile Tile::slabDouble = SlabTile(43, true);
 SlabTile Tile::slabSingle = SlabTile(44, false);
 Tile Tile::mossyCobblestone = Tile(48, 36, Material::stone);
 Tile Tile::obsidian = Tile(49, 37, Material::stone);
-Tile Tile::diamondOre = Tile(56, 50, Material::stone);
+OreTile Tile::diamondOre = OreTile(56, 50);
 WorkbenchTile Tile::workBench = WorkbenchTile(58);
 CropsTile Tile::crops = CropsTile(59, 88);
 FarmlandTile Tile::farmland = FarmlandTile(60);
 FurnaceTile Tile::furnace = FurnaceTile(61, false);
 FurnaceTile Tile::furnaceLit = FurnaceTile(62, true);
-Tile Tile::redstoneOre = Tile(73, 51, Material::stone);
+RedstoneOreTile Tile::redstoneOre = RedstoneOreTile(73, 51);
 SnowTile Tile::snow = SnowTile(78, 66);
 IceTile Tile::ice = IceTile(79, 67);
 CactusTile Tile::cactus = CactusTile(81, 70);
@@ -587,3 +589,10 @@ void Tile::playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data)
 {
 	spawnResources(level, x, y, z, data);
 }
+
+void Tile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
+{
+	(void)player;
+	spawnResources(level, x, y, z, data);
+}
+

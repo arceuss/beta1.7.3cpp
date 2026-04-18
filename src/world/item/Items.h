@@ -7,6 +7,7 @@ namespace Items
 {
 	extern Item *flintAndSteel;
 	extern Item *ingotIron;
+	extern Item *ingotGold;
 	extern Item *swordWood;
 	extern Item *shovelWood;
 	extern ItemPickaxe *pickaxeWood;
@@ -21,6 +22,11 @@ namespace Items
 	extern Item *seeds;
 	extern Item *wheat;
 	extern Item *bread;
+	extern Item *reed;
+	extern Item *coal;
+	extern Item *diamond;
+	extern Item *redstone;
+	extern Item *dyePowder;
 	extern Item *flint;
 
 	void initItems();

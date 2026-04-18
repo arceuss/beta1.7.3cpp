@@ -2,6 +2,7 @@
 
 #include "world/level/tile/TransparentTile.h"
 
+#include "world/phys/Vec3.h"
 #include <array>
 
 class LiquidTile : public TransparentTile
@@ -30,10 +31,14 @@ public:
 	virtual void onPlace(Level &level, int_t x, int_t y, int_t z) override;
 	virtual void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 
+	void velocityToAddToEntity(Level &level, int_t x, int_t y, int_t z, Entity &entity, Vec3 &vec);
+	Vec3 getFlowVector(Level &level, int_t x, int_t y, int_t z);
+
 	static float getHeight(int_t data);
 
 protected:
 	int_t getDepth(Level &level, int_t x, int_t y, int_t z) const;
+	int_t getEffectiveFlowDepth(Level &level, int_t x, int_t y, int_t z);
 	int_t getRenderedDepth(LevelSource &level, int_t x, int_t y, int_t z) const;
 	void updateLiquid(Level &level, int_t x, int_t y, int_t z);
 	void fizz(Level &level, int_t x, int_t y, int_t z);

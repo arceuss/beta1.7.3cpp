@@ -13,6 +13,7 @@ namespace Items
 {
 	Item *flintAndSteel = nullptr;
 	Item *ingotIron = nullptr;
+	Item *ingotGold = nullptr;
 	Item *swordWood = nullptr;
 	Item *shovelWood = nullptr;
 	ItemPickaxe *pickaxeWood = nullptr;
@@ -27,6 +28,11 @@ namespace Items
 	Item *seeds = nullptr;
 	Item *wheat = nullptr;
 	Item *bread = nullptr;
+	Item *reed = nullptr;
+	Item *coal = nullptr;
+	Item *diamond = nullptr;
+	Item *redstone = nullptr;
+	Item *dyePowder = nullptr;
 	Item *flint = nullptr;
 
 	void initItems()
@@ -41,6 +47,9 @@ namespace Items
 
 		ingotIron = new Item(9);
 		ingotIron->setIconIndex(23).setDescriptionId(u"item.ingotIron");
+		ingotGold = new Item(10);
+		ingotGold->setIconIndex(54).setDescriptionId(u"item.ingotGold");
+
 
 		swordWood = new ItemSword(12, ToolMaterialType::WOOD);
 		swordWood->setIconIndex(64).setDescriptionId(u"item.swordWood");
@@ -86,6 +95,21 @@ namespace Items
 
 		flint = new Item(62);
 		flint->setIconIndex(6).setDescriptionId(u"item.flint");
+
+		reed = new Item(82);
+		reed->setIconIndex(27).setDescriptionId(u"item.reed");
+
+		coal = new Item(7);
+		coal->setIconIndex(7).setDescriptionId(u"item.coal");
+
+		diamond = new Item(8);
+		diamond->setIconIndex(55).setDescriptionId(u"item.diamond");
+
+		redstone = new Item(75);
+		redstone->setIconIndex(56).setDescriptionId(u"item.redstone");
+
+		dyePowder = new Item(95);
+		dyePowder->setIconIndex(78).setDescriptionId(u"item.dyePowder");
 
 		new ItemSlab(44 - 256);
 	}

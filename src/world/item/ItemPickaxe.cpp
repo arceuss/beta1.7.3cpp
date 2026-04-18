@@ -4,6 +4,8 @@
 #include "world/level/tile/IceTile.h"
 #include "world/level/tile/SlabTile.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/OreTile.h"
+#include "world/level/tile/RedstoneOreTile.h"
 
 namespace
 {
