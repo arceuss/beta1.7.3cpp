@@ -147,6 +147,34 @@ void ItemRenderer::renderGuiItemDecorations(Font &font, Textures &textures, Item
 		glEnable(GL_LIGHTING);
 		glEnable(GL_DEPTH_TEST);
 	}
+	if (item.isItemDamaged())
+	{
+		auto fillRect = [](int_t rx, int_t ry, int_t w, int_t h, int_t color) {
+			Tesselator &t = Tesselator::instance;
+			t.begin();
+			t.color(color);
+			t.vertex(rx + 0, ry + 0, 0.0);
+			t.vertex(rx + 0, ry + h, 0.0);
+			t.vertex(rx + w, ry + h, 0.0);
+			t.vertex(rx + w, ry + 0, 0.0);
+			t.end();
+		};
+
+		int_t durabilityWidth = static_cast<int_t>(13.0 - static_cast<double>(item.itemDamage) * 13.0 / static_cast<double>(item.getMaxDamage()) + 0.5);
+		int_t durabilityColor = static_cast<int_t>(255.0 - static_cast<double>(item.itemDamage) * 255.0 / static_cast<double>(item.getMaxDamage()) + 0.5);
+		int_t barColor = ((255 - durabilityColor) << 16) | (durabilityColor << 8);
+		int_t backgroundColor = (((255 - durabilityColor) / 4) << 16) | 16128;
+		glDisable(GL_LIGHTING);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_TEXTURE_2D);
+		fillRect(x + 2, y + 13, 13, 2, 0);
+		fillRect(x + 2, y + 13, 12, 1, backgroundColor);
+		fillRect(x + 2, y + 13, durabilityWidth, 1, barColor);
+		glEnable(GL_TEXTURE_2D);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_DEPTH_TEST);
+		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	}
 }
 
 void ItemRenderer::blit(int_t x, int_t y, int_t sx, int_t sy, int_t w, int_t h)

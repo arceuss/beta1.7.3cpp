@@ -6,4 +6,6 @@ class ItemSpade : public ItemTool
 {
 public:
 	ItemSpade(int_t baseId, ToolMaterialType material);
+	bool canDestroySpecial(const ItemInstance &stack, Tile &tile) const override;
+
 };

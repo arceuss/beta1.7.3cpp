@@ -59,7 +59,7 @@ bool Item::canDestroySpecial(const ItemInstance &stack, Tile &tile) const
 {
 	(void)stack;
 	(void)tile;
-	return true;
+	return false;
 }
 
 int_t Item::getAttackDamage(const ItemInstance &stack, Entity &entity) const

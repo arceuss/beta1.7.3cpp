@@ -7,8 +7,9 @@
 GasMaterial Material::air;
 Material Material::dirt;
 Material Material::wood = Material().flammable();
-Material Material::stone;
+Material Material::stone = Material().noHarvest();
 Material Material::sand;
+Material Material::clay;
 LiquidMaterial Material::water;
 LiquidMaterial Material::lava;
 
@@ -33,6 +34,8 @@ Material &Material::pumpkin()
 Material &Material::snow()
 {
 	static DecorationMaterial material(false, false, false, true);
+	static bool initialized = (material.noHarvest(), true);
+	(void)initialized;
 	return material;
 }
 
@@ -67,9 +70,20 @@ bool Material::blocksMotion() const
 	return true;
 }
 
+bool Material::isHarvestable() const
+{
+	return harvestableFlag;
+}
+
 Material &Material::flammable()
 {
 	flammableFlag = true;
+	return *this;
+}
+
+Material &Material::noHarvest()
+{
+	harvestableFlag = false;
 	return *this;
 }
 

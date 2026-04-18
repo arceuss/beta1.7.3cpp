@@ -180,10 +180,12 @@ float InventoryPlayer::getDestroySpeed(Tile &tile)
 
 bool InventoryPlayer::canDestroySpecial(Tile &tile)
 {
+	if (tile.material.isHarvestable())
+		return true;
 	ItemInstance *item = getCurrentItem();
 	if (item != nullptr)
 		return item->canDestroySpecial(tile);
-	return true;
+	return false;
 }
 
 int_t InventoryPlayer::getAttackDamage(Entity &entity)

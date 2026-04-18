@@ -226,10 +226,11 @@ bool TileRenderer::tesselateCrossTextureInWorld(Tile &tt, int_t x, int_t y, int_
 	double v0 = static_cast<double>(yt) / 256.0;
 	double v1 = (static_cast<double>(yt) + 15.99) / 256.0;
 
-	// Beta renderCrossedSquares uses fixed-size quads; tall grass also gets a per-block jitter.
+	// Beta renderCrossedSquares uses fixed-size quads; tall grass gets jitter and crops render 1 px lower.
 	double xo = 0.0;
 	double yo = 0.0;
 	double zo = 0.0;
+	double cropYOffset = tt.id == 59 ? -(1.0 / 16.0) : 0.0;
 	if (tt.id == Tile::tallGrass.id)
 	{
 		long_t offset = (static_cast<long_t>(x) * 3129871LL) ^ (static_cast<long_t>(z) * 116129781LL) ^ static_cast<long_t>(y);
@@ -241,8 +242,8 @@ bool TileRenderer::tesselateCrossTextureInWorld(Tile &tt, int_t x, int_t y, int_
 
 	double x0 = x + xo + 0.5 - 0.45;
 	double x1 = x + xo + 0.5 + 0.45;
-	double y0 = y + yo;
-	double y1 = y + yo + 1.0;
+	double y0 = y + yo + cropYOffset;
+	double y1 = y + yo + cropYOffset + 1.0;
 	double z0 = z + zo + 0.5 - 0.45;
 	double z1 = z + zo + 0.5 + 0.45;
 

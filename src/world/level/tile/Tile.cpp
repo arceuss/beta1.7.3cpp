@@ -100,7 +100,7 @@ Tile Tile::redstoneOre = Tile(73, 51, Material::stone);
 SnowTile Tile::snow = SnowTile(78, 66);
 IceTile Tile::ice = IceTile(79, 67);
 CactusTile Tile::cactus = CactusTile(81, 70);
-Tile Tile::clay = Tile(82, 72, Material::stone);
+Tile Tile::clay = Tile(82, 72, Material::clay);
 ReedTile Tile::reed = ReedTile(83, 73);
 PumpkinTile Tile::pumpkin = PumpkinTile(86, 102);
 

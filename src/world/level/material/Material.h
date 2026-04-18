@@ -12,6 +12,7 @@ public:
 	static Material wood;
 	static Material stone;
 	static Material sand;
+	static Material clay;
 	static LiquidMaterial water;
 	static LiquidMaterial lava;
 
@@ -23,6 +24,7 @@ public:
 
 private:
 	bool flammableFlag = false;
+	bool harvestableFlag = true;
 
 public:
 	virtual ~Material() {}
@@ -32,9 +34,11 @@ public:
 	virtual bool isSolid() const;
 	virtual bool blocksLight() const;
 	virtual bool blocksMotion() const;
+	virtual bool isHarvestable() const;
 
 private:
 	Material &flammable();
+	Material &noHarvest();
 
 public:
 	virtual bool isFlammable() const;
