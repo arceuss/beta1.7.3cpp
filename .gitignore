@@ -6,3 +6,8 @@
 /.vs
 /.vscode
 /CMakeSettings.json
+CMakeUserPresets.json
+*.user
+stderr.log
+/.pi
+/.pi-lens

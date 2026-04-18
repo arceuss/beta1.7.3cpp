@@ -45,9 +45,9 @@ public:
 	AABB *shrink(double x, double y, double z) const;
 	AABB *copy() const;
 	HitResult clip(const Vec3 &a, const Vec3 &b) const;
-	bool containsX(const Vec3 &other) const;
-	bool containsY(const Vec3 &other) const;
-	bool containsZ(const Vec3 &other) const;
+	bool containsX(const Vec3 *other) const;
+	bool containsY(const Vec3 *other) const;
+	bool containsZ(const Vec3 *other) const;
 	void set(const AABB &other);
 	jstring toString() const;
 };

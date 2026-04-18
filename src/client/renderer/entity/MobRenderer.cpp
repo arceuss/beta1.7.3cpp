@@ -34,7 +34,7 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 	setupRotations(mob, bob, bodyRot, a);
 
 	float scale = 1.0f / 16.0f;
-	glEnable(GL_RESCALE_NORMAL_EXT);
+	glEnable(GL_RESCALE_NORMAL);
 	glScalef(-1.0f, -1.0f, 1.0f);
 
 	this->scale(mob, a);
@@ -55,7 +55,7 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 		{
 			armor->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
 			glDisable(GL_BLEND);
-			glDisable(GL_ALPHA_TEST);
+			glEnable(GL_ALPHA_TEST);
 		}
 	}
 
@@ -80,8 +80,6 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 				if (prepareArmor(mob, i, a))
 				{
 					armor->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
-					glDisable(GL_BLEND);
-					glDisable(GL_ALPHA_TEST);
 				}
 			}
 		}
@@ -99,8 +97,6 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 				if (prepareArmor(mob, i, a))
 				{
 					armor->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
-					glDisable(GL_BLEND);
-					glDisable(GL_ALPHA_TEST);
 				}
 			}
 		}
@@ -111,7 +107,7 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 		glEnable(GL_TEXTURE_2D);
 	}
 
-	glDisable(GL_RESCALE_NORMAL_EXT);
+	glDisable(GL_RESCALE_NORMAL);
 
 	glEnable(GL_CULL_FACE);
 

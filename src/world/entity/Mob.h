@@ -153,7 +153,7 @@ protected:
 
 public:
 	void knockback(Entity &source, int_t unknown, double x, double z);
-	void die(Entity *source);
+	virtual void die(Entity *source);
 
 protected:
 	virtual void dropDeathLoot();

@@ -25,7 +25,7 @@ Tesselator::Tesselator(int_t size)
 	if (vboMode)
 	{
 		vboIds = Util::make_unique<GLuint[]>(vboCounts);
-		glGenBuffersARB(vboCounts, vboIds.get());
+		glGenBuffers(vboCounts, vboIds.get());
 	}
 }
 
@@ -46,8 +46,8 @@ void Tesselator::end()
 		if (vboMode)
 		{
 			vboId = (vboId + 1) % vboCounts;
-			glBindBufferARB(GL_ARRAY_BUFFER_ARB, vboIds[vboId]);
-			glBufferDataARB(GL_ARRAY_BUFFER_ARB, buffer_p - buffer.get(), buffer.get(), GL_STREAM_DRAW_ARB);
+			glBindBuffer(GL_ARRAY_BUFFER, vboIds[vboId]);
+			glBufferData(GL_ARRAY_BUFFER, buffer_p - buffer.get(), buffer.get(), GL_STREAM_DRAW);
 		}
 
 		// Setup attributes

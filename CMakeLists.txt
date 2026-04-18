@@ -42,14 +42,24 @@ set(McBetaCpp_SOURCES
 	"src/client/gui/ConfirmScreen.h"
 	"src/client/gui/ControlsScreen.cpp"
 	"src/client/gui/ControlsScreen.h"
-	"src/client/gui/DeleteWorldScreen.cpp"
-	"src/client/gui/DeleteWorldScreen.h"
+	"src/client/gui/CreateWorldScreen.cpp"
+	"src/client/gui/CreateWorldScreen.h"
+	"src/client/gui/DeathScreen.cpp"
+	"src/client/gui/DeathScreen.h"
 	"src/client/gui/Font.cpp"
 	"src/client/gui/Font.h"
 	"src/client/gui/Gui.cpp"
 	"src/client/gui/Gui.h"
 	"src/client/gui/GuiComponent.cpp"
 	"src/client/gui/GuiComponent.h"
+	"src/client/gui/GuiSlot.cpp"
+	"src/client/gui/GuiSlot.h"
+	"src/client/gui/GuiTextField.cpp"
+	"src/client/gui/GuiTextField.h"
+	"src/client/gui/InventoryScreen.cpp"
+	"src/client/gui/InventoryScreen.h"
+	"src/client/gui/WorkbenchScreen.cpp"
+	"src/client/gui/WorkbenchScreen.h"
 	"src/client/gui/OptionsScreen.cpp"
 	"src/client/gui/OptionsScreen.h"
 	"src/client/gui/PauseScreen.cpp"
@@ -60,11 +70,17 @@ set(McBetaCpp_SOURCES
 	"src/client/gui/ScreenSizeCalculator.h"
 	"src/client/gui/SelectWorldScreen.cpp"
 	"src/client/gui/SelectWorldScreen.h"
+	"src/client/gui/RenameWorldScreen.cpp"
+	"src/client/gui/RenameWorldScreen.h"
+	"src/client/gui/WorldSelectionList.cpp"
+	"src/client/gui/WorldSelectionList.h"
 	"src/client/gui/SlideButton.cpp"
 	"src/client/gui/SlideButton.h"
 	"src/client/gui/SmallButton.cpp"
 	"src/client/gui/SmallButton.h"
 
+	"src/client/gui/VideoSettingsScreen.cpp"
+	"src/client/gui/VideoSettingsScreen.h"
 	"src/client/locale/Language.cpp"
 	"src/client/locale/Language.h"
 	
@@ -102,8 +118,20 @@ set(McBetaCpp_SOURCES
 	"src/client/renderer/Tesselator.h"
 	"src/client/renderer/Textures.cpp"
 	"src/client/renderer/Textures.h"
+	"external/cpp-httplib/httplib.h"
 	"src/client/renderer/TileRenderer.cpp"
 	"src/client/renderer/TileRenderer.h"
+
+	"src/client/renderer/texturefx/TextureFX.cpp"
+	"src/client/renderer/texturefx/TextureFX.h"
+	"src/client/renderer/texturefx/TextureWaterFX.cpp"
+	"src/client/renderer/texturefx/TextureWaterFX.h"
+	"src/client/renderer/texturefx/TextureWaterFlowFX.cpp"
+	"src/client/renderer/texturefx/TextureWaterFlowFX.h"
+	"src/client/renderer/texturefx/TextureLavaFX.cpp"
+	"src/client/renderer/texturefx/TextureLavaFX.h"
+	"src/client/renderer/texturefx/TextureLavaFlowFX.cpp"
+	"src/client/renderer/texturefx/TextureLavaFlowFX.h"
 
 	"src/client/renderer/culling/Culler.h"
 	"src/client/renderer/culling/Frustum.cpp"
@@ -120,7 +148,11 @@ set(McBetaCpp_SOURCES
 	"src/client/renderer/entity/MobRenderer.cpp"
 	"src/client/renderer/entity/MobRenderer.h"
 	"src/client/renderer/entity/PlayerRenderer.cpp"
+	"src/client/renderer/entity/ItemRenderer.cpp"
+	"src/client/renderer/entity/ItemRenderer.h"
 	"src/client/renderer/entity/PlayerRenderer.h"
+	"src/client/renderer/entity/FallingTileRenderer.cpp"
+	"src/client/renderer/entity/FallingTileRenderer.h"
 
 	"src/client/skins/DefaultTexturePack.cpp"
 	"src/client/skins/DefaultTexturePack.h"
@@ -133,6 +165,39 @@ set(McBetaCpp_SOURCES
 	"src/client/skins/TexturePackSelectScreen.cpp"
 	"src/client/skins/TexturePackSelectScreen.h"
 
+
+	"src/client/sound/Sound.h"
+	"src/client/sound/SoundEngine.cpp"
+	"src/client/sound/SoundEngine.h"
+	"src/client/sound/SoundRepository.cpp"
+	"src/client/sound/SoundRepository.h"
+
+	"src/client/particle/Particle.cpp"
+	"src/client/particle/Particle.h"
+	"src/client/particle/BubbleParticle.cpp"
+	"src/client/particle/BubbleParticle.h"
+	"src/client/particle/SmokeParticle.cpp"
+	"src/client/particle/SmokeParticle.h"
+	"src/client/particle/FlameParticle.cpp"
+	"src/client/particle/FlameParticle.h"
+	"src/client/particle/LavaParticle.cpp"
+	"src/client/particle/LavaParticle.h"
+	"src/client/particle/ExplodeParticle.cpp"
+	"src/client/particle/ExplodeParticle.h"
+	"src/client/particle/RedDustParticle.cpp"
+	"src/client/particle/RedDustParticle.h"
+	"src/client/particle/PortalParticle.cpp"
+	"src/client/particle/PortalParticle.h"
+	"src/client/particle/SplashParticle.cpp"
+	"src/client/particle/SplashParticle.h"
+	"src/client/particle/WaterDropParticle.cpp"
+	"src/client/particle/WaterDropParticle.h"
+	"src/client/particle/TakeAnimationParticle.cpp"
+	"src/client/particle/TakeAnimationParticle.h"
+	"src/client/particle/TerrainParticle.cpp"
+	"src/client/particle/TerrainParticle.h"
+	"src/client/particle/ParticleEngine.cpp"
+	"src/client/particle/ParticleEngine.h"
 	"src/client/title/TitleScreen.cpp"
 	"src/client/title/TitleScreen.h"
 
@@ -184,9 +249,36 @@ set(McBetaCpp_SOURCES
 
 	"src/world/entity/player/Player.cpp"
 	"src/world/entity/player/Player.h"
+	"src/world/entity/player/InventoryPlayer.cpp"
+	"src/world/entity/player/InventoryPlayer.h"
+	"src/world/entity/item/FallingTile.cpp"
+	"src/world/entity/item/FallingTile.h"
+	"src/world/entity/item/EntityItem.cpp"
+	"src/world/entity/item/EntityItem.h"
 
 	"src/world/item/ItemInstance.cpp"
 	"src/world/item/ItemInstance.h"
+	"src/world/item/Item.cpp"
+	"src/world/item/Item.h"
+	"src/world/item/ItemTool.cpp"
+	"src/world/item/ItemTool.h"
+	"src/world/item/ItemSpade.cpp"
+	"src/world/item/ItemSpade.h"
+	"src/world/item/ItemAxe.cpp"
+	"src/world/item/ItemAxe.h"
+	"src/world/item/ItemSword.cpp"
+	"src/world/item/ItemSword.h"
+	"src/world/item/ItemHoe.cpp"
+	"src/world/item/ItemHoe.h"
+	"src/world/item/ItemSeeds.cpp"
+	"src/world/item/ItemSeeds.h"
+	"src/world/item/ItemPickaxe.cpp"
+	"src/world/item/ItemPickaxe.h"
+	"src/world/item/Items.cpp"
+	"src/world/item/Items.h"
+	"src/world/item/crafting/CraftingContainer.h"
+	"src/world/item/crafting/Recipes.cpp"
+	"src/world/item/crafting/Recipes.h"
 	
 	"src/world/level/ChunkPos.h"
 	"src/world/level/Coord.h"
@@ -211,6 +303,12 @@ set(McBetaCpp_SOURCES
 	"src/world/level/chunk/storage/OldChunkStorage.cpp"
 	"src/world/level/chunk/storage/OldChunkStorage.h"
 	"src/world/level/chunk/storage/ChunkStorage.h"
+	"src/world/level/chunk/storage/RegionFile.cpp"
+	"src/world/level/chunk/storage/RegionFile.h"
+	"src/world/level/chunk/storage/RegionFileCache.cpp"
+	"src/world/level/chunk/storage/RegionFileCache.h"
+	"src/world/level/chunk/storage/McRegionChunkStorage.cpp"
+	"src/world/level/chunk/storage/McRegionChunkStorage.h"
 	
 	"src/world/level/chunk/ChunkCache.cpp"
 	"src/world/level/chunk/ChunkCache.h"
@@ -227,7 +325,35 @@ set(McBetaCpp_SOURCES
 	
 	"src/world/level/levelgen/feature/CaveFeature.cpp"
 	"src/world/level/levelgen/feature/CaveFeature.h"
+	"src/world/level/levelgen/feature/ClayFeature.cpp"
+	"src/world/level/levelgen/feature/ClayFeature.h"
 	"src/world/level/levelgen/feature/Feature.h"
+	"src/world/level/levelgen/feature/LakeFeature.cpp"
+	"src/world/level/levelgen/feature/LakeFeature.h"
+	"src/world/level/levelgen/feature/CactusFeature.cpp"
+	"src/world/level/levelgen/feature/CactusFeature.h"
+	"src/world/level/levelgen/feature/DeadBushFeature.cpp"
+	"src/world/level/levelgen/feature/DeadBushFeature.h"
+	"src/world/level/levelgen/feature/BigTreeFeature.cpp"
+	"src/world/level/levelgen/feature/BigTreeFeature.h"
+	"src/world/level/levelgen/feature/OreFeature.cpp"
+	"src/world/level/levelgen/feature/ForestFeature.cpp"
+	"src/world/level/levelgen/feature/ForestFeature.h"
+	"src/world/level/levelgen/feature/OreFeature.h"
+	"src/world/level/levelgen/feature/SpringFeature.cpp"
+	"src/world/level/levelgen/feature/FlowerFeature.cpp"
+	"src/world/level/levelgen/feature/FlowerFeature.h"
+	"src/world/level/levelgen/feature/PumpkinFeature.cpp"
+	"src/world/level/levelgen/feature/PumpkinFeature.h"
+	"src/world/level/levelgen/feature/ReedFeature.cpp"
+	"src/world/level/levelgen/feature/ReedFeature.h"
+	"src/world/level/levelgen/feature/Taiga1Feature.cpp"
+	"src/world/level/levelgen/feature/Taiga1Feature.h"
+	"src/world/level/levelgen/feature/Taiga2Feature.cpp"
+	"src/world/level/levelgen/feature/Taiga2Feature.h"
+	"src/world/level/levelgen/feature/SpringFeature.h"
+	"src/world/level/levelgen/feature/TallGrassFeature.cpp"
+	"src/world/level/levelgen/feature/TallGrassFeature.h"
 	"src/world/level/levelgen/feature/TreeFeature.cpp"
 	"src/world/level/levelgen/feature/TreeFeature.h"
 	
@@ -249,26 +375,60 @@ set(McBetaCpp_SOURCES
 	"src/world/level/levelgen/RandomLevelSource.cpp"
 	"src/world/level/levelgen/RandomLevelSource.h"
 	
+	"src/world/level/material/DecorationMaterial.cpp"
+	"src/world/level/material/DecorationMaterial.h"
 	"src/world/level/material/GasMaterial.cpp"
 	"src/world/level/material/GasMaterial.h"
+	"src/world/level/material/LiquidMaterial.cpp"
+	"src/world/level/material/LiquidMaterial.h"
 	"src/world/level/material/Material.cpp"
 	"src/world/level/material/Material.h"
 
 	"src/world/level/tile/entity/TileEntity.cpp"
 	"src/world/level/tile/entity/TileEntity.h"
 	
+	"src/world/level/tile/CactusTile.cpp"
+	"src/world/level/tile/CactusTile.h"
+	"src/world/level/tile/DeadBushTile.cpp"
+	"src/world/level/tile/DeadBushTile.h"
+	"src/world/level/tile/IceTile.cpp"
+	"src/world/level/tile/IceTile.h"
+	"src/world/level/tile/SnowTile.cpp"
+	"src/world/level/tile/SnowTile.h"
+	"src/world/level/tile/FlowerTile.cpp"
+	"src/world/level/tile/FlowerTile.h"
 	"src/world/level/tile/DirtTile.cpp"
 	"src/world/level/tile/DirtTile.h"
 	"src/world/level/tile/GrassTile.cpp"
 	"src/world/level/tile/GrassTile.h"
+	"src/world/level/tile/WoodTile.cpp"
+	"src/world/level/tile/WoodTile.h"
 	"src/world/level/tile/GravelTile.cpp"
 	"src/world/level/tile/GravelTile.h"
+	"src/world/level/tile/CropsTile.cpp"
+	"src/world/level/tile/CropsTile.h"
+	"src/world/level/tile/FarmlandTile.cpp"
+	"src/world/level/tile/FarmlandTile.h"
+	"src/world/level/tile/MushroomTile.cpp"
+	"src/world/level/tile/MushroomTile.h"
+	"src/world/level/tile/PumpkinTile.cpp"
+	"src/world/level/tile/PumpkinTile.h"
+	"src/world/level/tile/ReedTile.cpp"
+	"src/world/level/tile/ReedTile.h"
 	"src/world/level/tile/LeafTile.cpp"
 	"src/world/level/tile/LeafTile.h"
+	"src/world/level/tile/LiquidTile.cpp"
+	"src/world/level/tile/LiquidTile.h"
 	"src/world/level/tile/SandTile.cpp"
+	"src/world/level/tile/SandStoneTile.cpp"
+	"src/world/level/tile/SandStoneTile.h"
 	"src/world/level/tile/SandTile.h"
+	"src/world/level/tile/TallGrassTile.cpp"
+	"src/world/level/tile/TallGrassTile.h"
 	"src/world/level/tile/StoneTile.cpp"
 	"src/world/level/tile/StoneTile.h"
+	"src/world/level/tile/WorkbenchTile.cpp"
+	"src/world/level/tile/WorkbenchTile.h"
 	"src/world/level/tile/Tile.cpp"
 	"src/world/level/tile/Tile.h"
 	"src/world/level/tile/TransparentTile.cpp"
@@ -337,6 +497,7 @@ if(WIN32)
 		"src/pc/win32/java/File.cpp"
 		"src/pc/win32/java/Resource.cpp"
 		"src/pc/win32/java/Runtime.cpp"
+		"src/pc/win32/McBetaCpp.rc"
 	)
 
 	target_compile_definitions(McBetaCpp PRIVATE MC_WIN32)
@@ -380,9 +541,109 @@ target_include_directories(McBetaCpp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/extern
 target_include_directories(McBetaCpp PRIVATE "external/stb")
 target_include_directories(McBetaCpp PRIVATE "external/gzip-hpp/include")
 
+target_include_directories(McBetaCpp PRIVATE "external/cpp-httplib")
+
 target_include_directories(McBetaCpp PRIVATE "external/miniaudio")
+
+# OpenAL-Soft - build from source
+add_subdirectory("external/openal-soft" EXCLUDE_FROM_ALL)
+target_include_directories(McBetaCpp PRIVATE "external/openal-soft/include")
+
+# Link OpenAL
+if(WIN32)
+	target_link_libraries(McBetaCpp PRIVATE OpenAL32)
+else()
+	target_link_libraries(McBetaCpp PRIVATE openal)
+endif()
 
 # Output to bin/ directory
 set_target_properties(McBetaCpp PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 )
+
+# Post-build: copy OpenAL DLL next to executable (Windows)
+if(WIN32)
+	add_custom_command(TARGET McBetaCpp POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"$<TARGET_FILE:OpenAL32>"
+			"$<TARGET_FILE_DIR:McBetaCpp>"
+		COMMENT "Copying OpenAL32.dll to output directory"
+	)
+endif()
+
+# Post-build: copy resource folder next to executable
+add_custom_command(TARGET McBetaCpp POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+		"${CMAKE_SOURCE_DIR}/resource"
+		"$<TARGET_FILE_DIR:McBetaCpp>/resource"
+	COMMENT "Copying resource folder to output directory"
+)
+
+add_executable(VerifyWorldgen
+	${McBetaCpp_SOURCES}
+	"build/verify_worldgen.cpp"
+	"src/pc/CrashHandler.cpp"
+	"src/pc/CrashHandler.h"
+	"src/pc/OpenGL.h"
+	"src/pc/external/miniaudio.cpp"
+	"src/pc/external/SDLException.h"
+	"src/pc/external/stb_vorbis.cpp"
+	"src/pc/external/stb_vorbis.h"
+	"src/pc/lwjgl/Display.cpp"
+	"src/pc/lwjgl/Display.h"
+	"src/pc/lwjgl/GLContext.cpp"
+	"src/pc/lwjgl/GLContext.h"
+	"src/pc/lwjgl/Keyboard.cpp"
+	"src/pc/lwjgl/Keyboard.h"
+	"src/pc/lwjgl/Mouse.cpp"
+	"src/pc/lwjgl/Mouse.h"
+ )
+target_include_directories(VerifyWorldgen PRIVATE "src/pc")
+target_include_directories(VerifyWorldgen PRIVATE "src")
+
+if(WIN32)
+	target_sources(VerifyWorldgen PRIVATE
+		"src/pc/win32/java/File.cpp"
+		"src/pc/win32/java/Resource.cpp"
+		"src/pc/win32/java/Runtime.cpp"
+	)
+	
+target_compile_definitions(VerifyWorldgen PRIVATE MC_WIN32)
+elseif(APPLE)
+	target_sources(VerifyWorldgen PRIVATE
+		"src/pc/linux/java/File.cpp"
+		"src/pc/linux/java/Resource.cpp"
+		"src/pc/linux/java/Runtime.cpp"
+	)
+elseif(UNIX)
+	target_sources(VerifyWorldgen PRIVATE
+		"src/pc/linux/java/File.cpp"
+		"src/pc/linux/java/Resource.cpp"
+		"src/pc/linux/java/Runtime.cpp"
+	)
+	
+target_compile_definitions(VerifyWorldgen PRIVATE MC_LINUX)
+endif()
+
+set_target_properties(VerifyWorldgen PROPERTIES
+	CXX_STANDARD 11
+	CXX_STANDARD_REQUIRED YES
+	CXX_EXTENSIONS NO
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+)
+
+target_link_libraries(VerifyWorldgen PRIVATE glad)
+target_link_libraries(VerifyWorldgen PRIVATE SDL2-static)
+target_link_libraries(VerifyWorldgen PRIVATE zlibstatic)
+target_include_directories(VerifyWorldgen PRIVATE "external/zlib")
+target_include_directories(VerifyWorldgen PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/external/zlib")
+target_include_directories(VerifyWorldgen PRIVATE "external/stb")
+target_include_directories(VerifyWorldgen PRIVATE "external/gzip-hpp/include")
+target_include_directories(VerifyWorldgen PRIVATE "external/cpp-httplib")
+target_include_directories(VerifyWorldgen PRIVATE "external/miniaudio")
+target_include_directories(VerifyWorldgen PRIVATE "external/openal-soft/include")
+if(WIN32)
+	target_link_libraries(VerifyWorldgen PRIVATE OpenAL32)
+else()
+	target_link_libraries(VerifyWorldgen PRIVATE openal)
+endif()

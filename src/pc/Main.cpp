@@ -15,9 +15,7 @@ int main(int argc, char *argv[])
 		throw SDLException();
 	lwjgl::GLContext::instantiate();
 
-	jstring username = u"Player" + String::fromUTF8(std::to_string(System::currentTimeMillis() % 1000));
-	if (argc >= 2 && std::strlen(argv[1]) > 0)
-		username = String::fromUTF8(argv[1]);
+	jstring username = u"arceus413";
 
 	jstring auth = u"-";
 	if (argc >= 3 && std::strlen(argv[2]) > 1)

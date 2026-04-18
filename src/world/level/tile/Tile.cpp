@@ -1,11 +1,14 @@
 #include "world/level/tile/Tile.h"
 
+#include <iostream>
 #include <stdexcept>
 
 #include "world/level/Level.h"
 #include "world/level/LevelSource.h"
 #include "world/entity/Entity.h"
+#include "world/entity/item/EntityItem.h"
 #include "world/entity/player/Player.h"
+#include "world/item/ItemInstance.h"
 
 // Tile properties
 std::array<Tile *, 256> Tile::tiles;
@@ -17,37 +20,140 @@ std::array<int_t, 256> Tile::lightBlock = {};
 std::array<bool, 256> Tile::translucent = {};
 std::array<int_t, 256> Tile::lightEmission = {};
 
+// Step sounds
+StepSound Tile::soundPowderFootstep(u"stone", 1.0f, 1.0f);
+StepSound Tile::soundWoodFootstep(u"wood", 1.0f, 1.0f);
+StepSound Tile::soundGravelFootstep(u"gravel", 1.0f, 1.0f);
+StepSound Tile::soundGrassFootstep(u"grass", 1.0f, 1.0f);
+StepSound Tile::soundStoneFootstep(u"stone", 1.0f, 1.0f);
+StepSound Tile::soundMetalFootstep(u"stone", 1.0f, 1.5f);
+StepSoundStone Tile::soundGlassFootstep(u"stone", 1.0f, 1.0f);
+StepSound Tile::soundClothFootstep(u"cloth", 1.0f, 1.0f);
+StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
+
 // Tiles
 #include "world/level/tile/StoneTile.h"
 #include "world/level/tile/GrassTile.h"
 #include "world/level/tile/DirtTile.h"
+#include "world/level/tile/WoodTile.h"
 #include "world/level/tile/SandTile.h"
+#include "world/level/tile/SandStoneTile.h"
 #include "world/level/tile/GravelTile.h"
 #include "world/level/tile/TreeTile.h"
 #include "world/level/tile/LeafTile.h"
+#include "world/level/tile/FlowerTile.h"
+#include "world/level/tile/CropsTile.h"
+#include "world/level/tile/FarmlandTile.h"
+#include "world/level/tile/TallGrassTile.h"
+#include "world/level/tile/DeadBushTile.h"
+#include "world/level/tile/MushroomTile.h"
+#include "world/level/tile/ReedTile.h"
+#include "world/level/tile/CactusTile.h"
+#include "world/level/tile/PumpkinTile.h"
+#include "world/level/tile/SnowTile.h"
+#include "world/level/tile/IceTile.h"
+#include "world/level/tile/WorkbenchTile.h"
+#include "world/level/tile/TransparentTile.h"
+#include "world/level/tile/LiquidTile.h"
+#include "world/level/material/LiquidMaterial.h"
 
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
 DirtTile Tile::dirt = DirtTile(3, 2);
+WoodTile Tile::wood = WoodTile(5, 4);
 
 SandTile Tile::sand = SandTile(12, 18);
 GravelTile Tile::gravel = GravelTile(13, 19);
 
 TreeTile Tile::treeTrunk = TreeTile(17);
 LeafTile Tile::leaves = LeafTile(18, 52);
+TallGrassTile Tile::tallGrass = TallGrassTile(31, 39);
+DeadBushTile Tile::deadBush = DeadBushTile(32, 55);
+FlowerTile Tile::flower = FlowerTile(37, 13);
+FlowerTile Tile::rose = FlowerTile(38, 12);
+MushroomTile Tile::brownMushroom = MushroomTile(39, 29);
+MushroomTile Tile::redMushroom = MushroomTile(40, 28);
+
+Tile Tile::cobblestone = Tile(4, 16, Material::stone);
+Tile Tile::bedrock = Tile(7, 17, Material::stone);
+static LiquidTileDynamic waterTile(8, 205, Material::water);
+LiquidTile &Tile::water = waterTile;
+static LiquidTileStatic calmWaterTile(9, 205, Material::water);
+LiquidTile &Tile::calmWater = calmWaterTile;
+static LiquidTileDynamic lavaTile(10, 237, Material::lava);
+LiquidTile &Tile::lava = lavaTile;
+static LiquidTileStatic calmLavaTile(11, 237, Material::lava);
+LiquidTile &Tile::calmLava = calmLavaTile;
+Tile Tile::goldOre = Tile(14, 32, Material::stone);
+Tile Tile::ironOre = Tile(15, 33, Material::stone);
+Tile Tile::coalOre = Tile(16, 34, Material::stone);
+Tile Tile::lapisOre = Tile(21, 160, Material::stone);
+static SandStoneTile sandstoneTile(24, 192);
+Tile &Tile::sandstone = sandstoneTile;
+Tile Tile::mossyCobblestone = Tile(48, 36, Material::stone);
+Tile Tile::obsidian = Tile(49, 37, Material::stone);
+WorkbenchTile Tile::workBench = WorkbenchTile(58);
+CropsTile Tile::crops = CropsTile(59, 88);
+FarmlandTile Tile::farmland = FarmlandTile(60);
+Tile Tile::diamondOre = Tile(56, 50, Material::stone);
+Tile Tile::redstoneOre = Tile(73, 51, Material::stone);
+SnowTile Tile::snow = SnowTile(78, 66);
+IceTile Tile::ice = IceTile(79, 67);
+CactusTile Tile::cactus = CactusTile(81, 70);
+Tile Tile::clay = Tile(82, 72, Material::stone);
+ReedTile Tile::reed = ReedTile(83, 73);
+PumpkinTile Tile::pumpkin = PumpkinTile(86, 102);
 
 void Tile::initTiles()
 {
-	rock.setDestroyTime(1.5f);
-	grass.setDestroyTime(0.6f);
-	dirt.setDestroyTime(0.5f);
+	rock.setDestroyTime(1.5f).setSoundType(soundStoneFootstep);
+	grass.setDestroyTime(0.6f).setSoundType(soundGrassFootstep);
+	dirt.setDestroyTime(0.5f).setSoundType(soundGravelFootstep);
+	wood.setDestroyTime(2.0f).setSoundType(soundWoodFootstep);
 
-	sand.setDestroyTime(0.5f);
-	gravel.setDestroyTime(0.6f);
+	sand.setDestroyTime(0.5f).setSoundType(soundSandFootstep);
+	gravel.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
 
-	treeTrunk.setDestroyTime(2.0f);
+	treeTrunk.setDestroyTime(2.0f).setSoundType(soundWoodFootstep);
+	leaves.setDestroyTime(0.2f).setLightBlock(1).setSoundType(soundGrassFootstep);
+	tallGrass.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	deadBush.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	flower.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	rose.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	brownMushroom.setDestroyTime(0.0f).setLightEmission(2).setSoundType(soundGrassFootstep);
+	redMushroom.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	bedrock.setDestroyTime(-1.0f).setSoundType(soundStoneFootstep);
+	reed.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	pumpkin.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
+	cactus.setDestroyTime(0.4f).setSoundType(soundClothFootstep);
 
-	leaves.setDestroyTime(0.2f).setLightBlock(1);
+	cobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
+	sandstone.setDestroyTime(0.8f).setSoundType(soundStoneFootstep);
+	mossyCobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
+	obsidian.setDestroyTime(10.0f).setSoundType(soundStoneFootstep);
+	workBench.setDestroyTime(2.5f).setSoundType(soundWoodFootstep);
+	crops.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	farmland.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
+
+
+	goldOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	ironOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	coalOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	lapisOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	diamondOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	redstoneOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	snow.setDestroyTime(0.1f).setSoundType(soundClothFootstep);
+	ice.setDestroyTime(0.5f).setLightBlock(3).setSoundType(soundGlassFootstep);
+
+	clay.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
+
+	Tile::lightBlock[8] = 3;
+	Tile::lightBlock[9] = 3;
+	Tile::lightBlock[10] = 255;
+	Tile::lightBlock[11] = 255;
+
+	Tile::lightEmission[10] = 15;
+	Tile::lightEmission[11] = 15;
 }
 
 // Impl
@@ -63,10 +169,9 @@ Tile::Tile(int_t id, const Material &material) : material(material)
 	
 	setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 	
-	solid[id] = isSolidRender();
-	lightBlock[id] = isSolidRender() ? 255 : 0;
-	translucent[id] = isTranslucent();
+	updateCachedProperties();
 	isEntityTile[id] = false;
+	soundType = &soundPowderFootstep;
 }
 
 Tile::Tile(int_t id, int_t tex, const Material &material) : Tile(id, material)
@@ -113,9 +218,23 @@ Tile &Tile::setDestroyTime(float time)
 	return *this;
 }
 
+Tile &Tile::setSoundType(StepSound &sound)
+{
+	soundType = &sound;
+	return *this;
+}
+
 void Tile::setTicking(bool ticking)
+
 {
 	shouldTick[id] = ticking;
+}
+
+void Tile::updateCachedProperties()
+{
+	solid[id] = isSolidRender();
+	lightBlock[id] = isSolidRender() ? 255 : 0;
+	translucent[id] = isTranslucent();
 }
 
 void Tile::setShape(float x0, float y0, float z0, float x1, float y1, float z1)
@@ -283,7 +402,36 @@ void Tile::spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data)
 
 void Tile::spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance)
 {
-	// TODO
+	if (level.isOnline)
+		return;
+
+	int_t resourceCount = getResourceCount(level.random);
+	for (int_t i = 0; i < resourceCount; ++i)
+	{
+		if (level.random.nextFloat() > chance)
+			continue;
+
+		int_t resource = getResource(data, level.random);
+		if (resource <= 0)
+			continue;
+
+		float spread = 0.7f;
+		double xo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+		double yo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+		double zo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+
+		ItemInstance stack(resource, 1, getSpawnResourcesAuxValue(data));
+		auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, stack);
+		entity->throwTime = 10;
+		level.addEntity(entity);
+		std::cerr << "[Drop] Spawned item=" << resource
+			<< " aux=" << stack.itemDamage
+			<< " fromTile=" << id
+			<< " data=" << data
+			<< " blockPos=(" << x << "," << y << "," << z << ")"
+			<< " entityPos=(" << (x + xo) << "," << (y + yo) << "," << (z + zo) << ")"
+			<< std::endl;
+	}
 }
 
 int_t Tile::getSpawnResourcesAuxValue(int_t data)
@@ -382,6 +530,16 @@ void Tile::prepareRender(Level &level, int_t x, int_t y, int_t z)
 void Tile::attack(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
 
+}
+
+bool Tile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
+{
+	(void)level;
+	(void)x;
+	(void)y;
+	(void)z;
+	(void)player;
+	return false;
 }
 
 void Tile::updateShape(LevelSource &level, int_t x, int_t y, int_t z)

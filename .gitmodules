@@ -13,3 +13,7 @@
 [submodule "external/miniaudio"]
 	path = external/miniaudio
 	url = https://github.com/mackron/miniaudio
+
+[submodule "external/cpp-httplib"]
+	path = external/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib

@@ -22,6 +22,32 @@ static int_t staging_dz = 0;
 namespace detail
 {
 
+static int_t sdlButtonToLwjgl(Uint8 button)
+{
+	switch (button)
+	{
+		case SDL_BUTTON_LEFT: return 0;
+		case SDL_BUTTON_RIGHT: return 1;
+		case SDL_BUTTON_MIDDLE: return 2;
+		case SDL_BUTTON_X1: return 3;
+		case SDL_BUTTON_X2: return 4;
+		default: return button > 0 ? button - 1 : -1;
+	}
+}
+
+static Uint8 lwjglButtonToSdl(int_t button)
+{
+	switch (button)
+	{
+		case 0: return SDL_BUTTON_LEFT;
+		case 1: return SDL_BUTTON_RIGHT;
+		case 2: return SDL_BUTTON_MIDDLE;
+		case 3: return SDL_BUTTON_X1;
+		case 4: return SDL_BUTTON_X2;
+		default: return 0;
+	}
+}
+
 struct Event
 {
 	Sint8 button, down;
@@ -50,15 +76,16 @@ void pushEvent(const SDL_Event &e)
 			event_queue.emplace(-1, 0, e.wheel.mouseX, Display::getHeight() - e.wheel.mouseY - 1, 0, 0, e.wheel.y);
 			break;
 		case SDL_MOUSEBUTTONDOWN:
-			event_queue.emplace(e.button.button - 1, 1, e.button.x, Display::getHeight() - e.button.y - 1, 0, 0, 0);
+			event_queue.emplace(sdlButtonToLwjgl(e.button.button), 1, e.button.x, Display::getHeight() - e.button.y - 1, 0, 0, 0);
 			break;
 		case SDL_MOUSEBUTTONUP:
-			event_queue.emplace(e.button.button - 1, 0, e.button.x, Display::getHeight() - e.button.y - 1, 0, 0, 0);
+			event_queue.emplace(sdlButtonToLwjgl(e.button.button), 0, e.button.x, Display::getHeight() - e.button.y - 1, 0, 0, 0);
 			break;
 	}
 }
 
 }
+
 
 void setCursorPosition(int_t x, int_t y)
 {
@@ -145,7 +172,10 @@ int_t getDWheel()
 
 bool isButtonDown(int_t button)
 {
-	return SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(1 + button);
+	Uint8 sdlButton = detail::lwjglButtonToSdl(button);
+	if (sdlButton == 0)
+		return false;
+	return (SDL_GetMouseState(nullptr, nullptr) & SDL_BUTTON(sdlButton)) != 0;
 }
 
 bool isGrabbed()

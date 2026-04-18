@@ -2,6 +2,8 @@
 
 #include "java/Type.h"
 
+class Options;
+
 class ScreenSizeCalculator
 {
 private:
@@ -11,7 +13,7 @@ public:
 	int_t scale = 0;
 
 public:
-	ScreenSizeCalculator(int_t width, int_t height);
+	ScreenSizeCalculator(const Options &options, int_t width, int_t height);
 	int getWidth() const;
 	int getHeight() const;
 };

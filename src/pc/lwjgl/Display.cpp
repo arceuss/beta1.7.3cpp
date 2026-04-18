@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "java/String.h"
 #include "lwjgl/GLContext.h"
 #include "lwjgl/Mouse.h"
 #include "lwjgl/Keyboard.h"
@@ -39,8 +40,8 @@ DisplayMode getDisplayMode()
 
 void setTitle(const jstring &string)
 {
-	// I guess this gets ignored in favor of the frame title
-	// SDL_SetWindowTitle(GLContext::detail::getWindow(), string.c_str());
+	std::string utf8 = String::toUTF8(string);
+	SDL_SetWindowTitle(GLContext::detail::getWindow(), utf8.c_str());
 }
 
 void setFullscreen(bool fullscreen)

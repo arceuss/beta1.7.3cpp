@@ -3,9 +3,19 @@
 #include <algorithm>
 
 #include "client/Minecraft.h"
+#include "client/OpenGLCapabilities.h"
 #include "client/renderer/DirtyChunkSorter.h"
 #include "client/renderer/DistanceChunkSorter.h"
 #include "client/renderer/entity/EntityRenderDispatcher.h"
+
+#include "client/particle/BubbleParticle.h"
+#include "client/particle/SplashParticle.h"
+#include "client/particle/SmokeParticle.h"
+#include "client/particle/FlameParticle.h"
+#include "client/particle/LavaParticle.h"
+#include "client/particle/ExplodeParticle.h"
+#include "client/particle/RedDustParticle.h"
+#include "client/particle/PortalParticle.h"
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LeafTile.h"
@@ -136,8 +146,7 @@ void LevelRenderer::setLevel(std::shared_ptr<Level> level)
 	EntityRenderDispatcher::instance.setLevel(level);
 
 	this->level = level;
-	this->tileRenderer = Util::make_unique<TileRenderer>(this->level.get());
-
+	this->tileRenderer = Util::make_unique<TileRenderer>(this->level.get(), false);
 	if (level != nullptr)
 	{
 		level->addListener(*this);
@@ -148,8 +157,14 @@ void LevelRenderer::setLevel(std::shared_ptr<Level> level)
 void LevelRenderer::allChanged()
 {
 	Tile::leaves.setFancy(mc.options.fancyGraphics);
-
 	lastViewDistance = mc.options.viewDistance;
+	occlusionCheck = mc.options.advancedOpengl && OpenGLCapabilities::hasOcclusionChecks();
+
+	if (!occlusionCheckIds.empty())
+	{
+		glDeleteQueries(static_cast<GLsizei>(occlusionCheckIds.size()), reinterpret_cast<const GLuint *>(occlusionCheckIds.data()));
+		occlusionCheckIds.clear();
+	}
 
 	for (auto &chunk : chunks)
 		chunk->remove();
@@ -162,8 +177,15 @@ void LevelRenderer::allChanged()
 	yChunks = 8;
 	zChunks = dist / 16 + 1;
 
-	chunks.resize(xChunks * yChunks * zChunks);
-	sortedChunks.resize(xChunks * yChunks * zChunks);
+	int_t chunkCount = xChunks * yChunks * zChunks;
+	if (occlusionCheck)
+	{
+		occlusionCheckIds.resize(chunkCount);
+		glGenQueries(static_cast<GLsizei>(occlusionCheckIds.size()), reinterpret_cast<GLuint *>(occlusionCheckIds.data()));
+	}
+
+	chunks.resize(chunkCount);
+	sortedChunks.resize(chunkCount);
 
 	int_t id = 0;
 	int_t count = 0;
@@ -187,7 +209,7 @@ void LevelRenderer::allChanged()
 		{
 			for (int_t z = 0; z < zChunks; z++)
 			{
-				auto chunk = Util::make_shared<Chunk>(*level, renderableTileEntities, x * 16, y * 16, z * 16, 16, chunkLists + id);
+				auto chunk = Util::make_shared<Chunk>(*level, renderableTileEntities, x * 16, y * 16, z * 16, 16, chunkLists + id, mc.options.ambientOcclusion, mc.options.fancyGraphics);
 				chunks[(z * yChunks + y) * xChunks + x] = chunk;
 
 				if (occlusionCheck)
@@ -365,13 +387,70 @@ int_t LevelRenderer::render(Player &player, int_t layer, double alpha)
 	}
 
 	int_t count = 0;
-	if (occlusionCheck)
+	int_t totalSortedChunks = static_cast<int_t>(sortedChunks.size());
+	if (occlusionCheck && layer == 0 && !mc.options.anaglyph3d)
 	{
-		// TODO
+		int_t from = 0;
+		int_t to = std::min<int_t>(16, totalSortedChunks);
+		checkQueryResults(from, to);
+		for (int_t i = from; i < to; i++)
+			sortedChunks[i]->occlusion_visible = true;
+		count += renderChunks(from, to, layer, alpha);
+
+		while (to < totalSortedChunks)
+		{
+			int_t prev = to;
+			to = std::min<int_t>(to * 2, totalSortedChunks);
+
+			glDisable(GL_TEXTURE_2D);
+			glDisable(GL_LIGHTING);
+			glDisable(GL_ALPHA_TEST);
+			glDisable(GL_FOG);
+			glColorMask(false, false, false, false);
+			glDepthMask(false);
+
+			checkQueryResults(prev, to);
+
+			for (int_t i = prev; i < to; i++)
+			{
+				auto &chunk = sortedChunks[i];
+				if (chunk->isEmpty())
+				{
+					chunk->visible = false;
+					continue;
+				}
+				if (!chunk->visible)
+				{
+					chunk->occlusion_visible = true;
+					continue;
+				}
+				if (chunk->occlusion_querying)
+					continue;
+
+				float dist = std::sqrt(chunk->distanceToSqr(player));
+				int_t step = static_cast<int_t>(1.0f + dist / 128.0f);
+				if (step < 1)
+					step = 1;
+				if ((ticks % step) != (i % step))
+					continue;
+
+				glBeginQuery(GL_SAMPLES_PASSED, static_cast<GLuint>(chunk->occlusion_id));
+				chunk->renderBB();
+				glEndQuery(GL_SAMPLES_PASSED);
+				chunk->occlusion_querying = true;
+			}
+
+			glColorMask(true, true, true, true);
+			glDepthMask(true);
+			glEnable(GL_TEXTURE_2D);
+			glEnable(GL_ALPHA_TEST);
+			glEnable(GL_FOG);
+			count += renderChunks(prev, to, layer, alpha);
+		}
 	}
 	else
 	{
-		count += renderChunks(0, sortedChunks.size(), layer, alpha);
+		count += renderChunks(0, totalSortedChunks, layer, alpha);
 	}
 
 	/*
@@ -398,7 +477,22 @@ int_t LevelRenderer::render(Player &player, int_t layer, double alpha)
 
 void LevelRenderer::checkQueryResults(int_t from, int_t to)
 {
-	// TODO
+	for (int_t i = from; i < to; i++)
+	{
+		auto &chunk = sortedChunks[i];
+		if (!chunk->occlusion_querying)
+			continue;
+
+		GLuint available = 0;
+		glGetQueryObjectuiv(static_cast<GLuint>(chunk->occlusion_id), GL_QUERY_RESULT_AVAILABLE, &available);
+		if (available == 0)
+			continue;
+
+		chunk->occlusion_querying = false;
+		GLuint result = 0;
+		glGetQueryObjectuiv(static_cast<GLuint>(chunk->occlusion_id), GL_QUERY_RESULT, &result);
+		chunk->occlusion_visible = result != 0;
+	}
 }
 
 int_t LevelRenderer::renderChunks(int_t from, int_t to, int_t layer, double alpha)
@@ -550,7 +644,7 @@ void LevelRenderer::renderSky(float alpha)
 
 	// Sun, moon, stars
 	glEnable(GL_TEXTURE_2D);
-	glBlendFunc(GL_ONE, GL_ONE);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glPushMatrix();
 	
 	xp = 0.0f;
@@ -824,6 +918,10 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 			}
 		}
 	}
+
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glDisable(GL_BLEND);
+	glEnable(GL_CULL_FACE);
 }
 
 bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
@@ -986,20 +1084,23 @@ void LevelRenderer::renderHit(Player &player, HitResult &h, int_t mode, ItemInst
 			glPolygonOffset(-3.0f, -3.0f);
 			glEnable(GL_POLYGON_OFFSET_FILL);
 
-			t.begin();
-
 			double xo = player.xOld + (player.x - player.xOld) * a;
 			double yo = player.yOld + (player.y - player.yOld) * a;
 			double zo = player.zOld + (player.z - player.zOld) * a;
-			t.offset(-xo, -yo, -zo);
-			t.noColor();
 
 			if (tile == nullptr)
 				tile = reinterpret_cast<Tile*>(&Tile::rock);
 
+			glEnable(GL_ALPHA_TEST);
+			t.begin();
+
+			t.offset(-xo, -yo, -zo);
+			t.noColor();
+
 			tileRenderer->tesselateInWorld(*tile, h.x, h.y, h.z, 240 + static_cast<int_t>(destroyProgress * 10.0f));
 			t.end();
 			t.offset(0.0, 0.0, 0.0);
+			glDisable(GL_ALPHA_TEST);
 
 			glPolygonOffset(0.0f, 0.0f);
 			glDisable(GL_POLYGON_OFFSET_FILL);
@@ -1009,6 +1110,9 @@ void LevelRenderer::renderHit(Player &player, HitResult &h, int_t mode, ItemInst
 			glPopMatrix();
 		}
 	}
+
+	glDisable(GL_BLEND);
+	glDisable(GL_ALPHA_TEST);
 }
 
 void LevelRenderer::renderHitOutline(Player &player, HitResult &h, int_t mode, ItemInstance *inventoryItem, float a)
@@ -1127,17 +1231,44 @@ void LevelRenderer::cull(Culler &culler, float a)
 
 void LevelRenderer::playStreamingMusic(const jstring &name, int_t x, int_t y, int_t z)
 {
-
+	mc.soundEngine.playStreaming(name, (float)x, (float)y, (float)z, 1.0f, 1.0f);
 }
 
 void LevelRenderer::playSound(const jstring &name, double x, double y, double z, float volume, float pitch)
 {
-
+	mc.soundEngine.play(name, (float)x, (float)y, (float)z, volume, pitch);
 }
 
 void LevelRenderer::addParticle(const jstring &name, double x, double y, double z, double xa, double ya, double za)
 {
-
+	if (mc.player == nullptr || level == nullptr)
+		return;
+	
+	double dx = mc.player->x - x;
+	double dy = mc.player->y - y;
+	double dz = mc.player->z - z;
+	constexpr double particleDistance = 16.0;
+	if (dx * dx + dy * dy + dz * dz > particleDistance * particleDistance)
+		return;
+	
+	if (name == u"bubble")
+		mc.particleEngine.add(std::make_unique<BubbleParticle>(*level, x, y, z, xa, ya, za));
+	else if (name == u"splash")
+		mc.particleEngine.add(std::make_unique<SplashParticle>(*level, x, y, z, xa, ya, za));
+	else if (name == u"reddust")
+		mc.particleEngine.add(std::make_unique<RedDustParticle>(*level, x, y, z));
+	else if (name == u"portal")
+		mc.particleEngine.add(std::make_unique<PortalParticle>(*level, x, y, z, xa, ya, za));
+	else if (name == u"smoke")
+		mc.particleEngine.add(std::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za));
+	else if (name == u"largesmoke")
+		mc.particleEngine.add(std::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za, 2.5f));
+	else if (name == u"flame")
+		mc.particleEngine.add(std::make_unique<FlameParticle>(*level, x, y, z, xa, ya, za));
+	else if (name == u"lava")
+		mc.particleEngine.add(std::make_unique<LavaParticle>(*level, x, y, z));
+	else if (name == u"explode")
+		mc.particleEngine.add(std::make_unique<ExplodeParticle>(*level, x, y, z, xa, ya, za));
 }
 
 void LevelRenderer::playMusic(const jstring &name, double x, double y, double z, float songOffset)

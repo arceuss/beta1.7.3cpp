@@ -210,7 +210,7 @@ public:
 	virtual void awardKillScore(Entity &source, int_t dmg);
 
 	bool shouldRender(Vec3 &z);
-	bool shouldRenderAtSqrDistance(double distance);
+	virtual bool shouldRenderAtSqrDistance(double distance);
 
 	virtual jstring getTexture();
 

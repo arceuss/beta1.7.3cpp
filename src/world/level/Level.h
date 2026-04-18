@@ -3,6 +3,7 @@
 #include "world/level/LevelSource.h"
 
 #include <memory>
+#include <set>
 #include <unordered_set>
 
 #include "nbt/Tag.h"
@@ -34,11 +35,48 @@
 class Level : public LevelSource
 {
 private:
+	struct TickNextTickData
+	{
+		int_t x = 0;
+		int_t y = 0;
+		int_t z = 0;
+		int_t tileId = 0;
+		long_t delay = 0;
+		long_t order = 0;
+
+		bool operator==(const TickNextTickData &other) const
+		{
+			return x == other.x && y == other.y && z == other.z && tileId == other.tileId;
+		}
+	};
+
+	struct TickNextTickOrder
+	{
+		bool operator()(const TickNextTickData &a, const TickNextTickData &b) const
+		{
+			if (a.delay != b.delay)
+				return a.delay < b.delay;
+			return a.order < b.order;
+		}
+	};
+
+	struct TickNextTickHash
+	{
+		size_t operator()(const TickNextTickData &data) const
+		{
+			return static_cast<size_t>((((static_cast<long long>(data.x) * 128LL * 1024LL) + static_cast<long long>(data.z) * 128LL + data.y) * 256LL) + data.tileId);
+		}
+	};
+
 	static constexpr int_t MAX_TICK_TILES_PER_TICK = 1000;
+	long_t nextTickEntryId = 0;
+	std::set<TickNextTickData, TickNextTickOrder> tickNextTickList;
+	std::unordered_set<TickNextTickData, TickNextTickHash> tickNextTickSet;
+
 public:
 	static constexpr int_t MAX_LEVEL_SIZE = 32000000;
 	static constexpr short_t DEPTH = 128;
-	static constexpr short_t SEA_LEVEL = 63;
+	static constexpr short_t SEA_LEVEL = 64;
 	
 	bool instaTick = false;
 
@@ -105,44 +143,51 @@ private:
 
 public:
 	long_t sizeOnDisk = 0;
-
 	jstring name;
-
+	jstring levelName;
 	bool isFindingSpawn = false;
 
 private:
 	std::vector<AABB *> boxes;
-
 	int_t maxRecurse = 0;
-
 	bool spawnEnemies = true;
 	bool spawnFriendlies = true;
 
 public:
+	struct Summary
+	{
+		jstring folderName;
+		jstring levelName;
+		long_t lastPlayed = 0;
+		long_t sizeOnDisk = 0;
+		int_t version = 0;
+		bool requiresConversion = true;
+	};
+
 	static int_t maxLoop;
 
 private:
 	int_t delayUntilNextMoodSound = random.nextInt(12000);
-
 	std::vector<std::shared_ptr<Entity>> es;
 
 public:
 	bool isOnline = false;
-
 	static std::shared_ptr<CompoundTag> getDataTagFor(File &workingDirectory, const jstring &name);
-
+	static std::vector<Summary> getLevelList(File &workingDirectory);
+	static bool renameLevel(File &workingDirectory, const jstring &folderName, const jstring &levelName);
 	static void deleteLevel(File &workingDirectory, const jstring &name);
 	static void deleteRecursive(std::vector<std::unique_ptr<File>> &files);
 
 	BiomeSource &getBiomeSource() override;
-
 	static long_t getLevelSize(File &workingDirectory, const jstring &name);
 	static long_t calcSize(std::vector<std::unique_ptr<File>> &files);
 
 	Level(File *workingDirectory, const jstring &name);
 	Level(const jstring &name, int_t dimension, long_t seed);
 	Level(Level &level, int_t dimension);
+	Level(File *workingDirectory, const jstring &name, const jstring &levelName, long_t seed);
 	Level(File *workingDirectory, const jstring &name, long_t seed);
+	Level(File *workingDirectory, const jstring &name, const jstring &levelName, long_t seed, int_t dimension);
 	Level(File *workingDirectory, const jstring &name, long_t seed, int_t dimension);
 
 protected:
@@ -151,6 +196,8 @@ protected:
 public:
 	void validateSpawn();
 	int_t getTopTile(int_t x, int_t z);
+
+	void centerChunkSource(int_t chunkX, int_t chunkZ);
 
 	void clearLoadedPlayerData();
 	void loadPlayer(std::shared_ptr<Player> player);
@@ -230,6 +277,12 @@ public:
 	void addListener(LevelListener &listener);
 	void removeListener(LevelListener &listener);
 
+	// Sound dispatch to listeners (World.java:855-874)
+	void playSoundAtEntity(Entity &entity, const jstring &name, float volume, float pitch);
+	void playSoundEffect(double x, double y, double z, const jstring &name, float volume, float pitch);
+	void playRecord(const jstring &name, int_t x, int_t y, int_t z);
+	void addParticle(const jstring &name, double x, double y, double z, double xa, double ya, double za);
+
 	const std::vector<AABB *> &getCubes(Entity &entity, AABB &bb);
 
 	int_t getSkyDarken(float a);
@@ -244,7 +297,7 @@ public:
 
 	float getStarBrightness(float a);
 
-	void addToTickNextTick(int_t x, int_t y, int_t z, int_t delay);
+	void addToTickNextTick(int_t x, int_t y, int_t z, int_t tileId);
 
 	void tickEntities();
 	void tick(std::shared_ptr<Entity> entity);
@@ -252,6 +305,8 @@ public:
 
 	bool isUnobstructed(AABB &bb);
 	bool containsAnyLiquid(AABB &bb);
+	bool isMaterialInBB(AABB &bb, const Material &material);
+	bool handleMaterialAcceleration(AABB &bb, const Material &material, Entity &entity);
 	bool containsFireTile(AABB &bb);
 
 	void extinguishFire(int_t x, int_t y, int_t z, Facing f);

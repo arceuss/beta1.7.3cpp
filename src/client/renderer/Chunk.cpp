@@ -12,7 +12,7 @@ int_t Chunk::updates = 0;
 
 Tesselator &Chunk::t = Tesselator::instance;
 
-Chunk::Chunk(Level &level, std::vector<std::shared_ptr<TileEntity>> &globalRenderableTileEntities, int_t x, int_t y, int_t z, int_t size, int_t lists) : level(level), globalRenderableTileEntities(globalRenderableTileEntities)
+Chunk::Chunk(Level &level, std::vector<std::shared_ptr<TileEntity>> &globalRenderableTileEntities, int_t x, int_t y, int_t z, int_t size, int_t lists, bool ambientOcclusion, bool fancyGraphics) : level(level), globalRenderableTileEntities(globalRenderableTileEntities), ambientOcclusion(ambientOcclusion), fancyGraphics(fancyGraphics)
 {
 	xs = ys = zs = size;
 	radius = Mth::sqrt(static_cast<float>(xs * xs + ys * ys + zs * zs)) / 2.0f;
@@ -80,7 +80,7 @@ void Chunk::rebuild()
 
 	int_t r = 1;
 	Region region(level, x0 - r, y0 - r, z0 - r, x1 + r, y1 + r, z1 + r);
-	TileRenderer tileRenderer(&region);
+	TileRenderer tileRenderer(&region, ambientOcclusion, fancyGraphics);
 
 	for (int_t i = 0; i < 2; i++)
 	{

@@ -2,18 +2,15 @@
 
 #include "client/gui/SmallButton.h"
 
-ConfirmScreen::ConfirmScreen(Minecraft &minecraft, std::shared_ptr<Screen> parent, jstring title1, jstring title2, int_t id) : Screen(minecraft)
+ConfirmScreen::ConfirmScreen(Minecraft &minecraft, std::shared_ptr<Screen> parent, jstring title1, jstring title2, int_t id, jstring yesButtonLabel, jstring noButtonLabel) : Screen(minecraft), parent(parent), title1(title1), title2(title2), yesButtonLabel(yesButtonLabel), noButtonLabel(noButtonLabel), id(id)
 {
-	this->parent = parent;
-	this->title1 = title1;
-	this->title2 = title2;
-	this->id = id;
+
 }
 
 void ConfirmScreen::init()
 {
-	buttons.push_back(Util::make_shared<SmallButton>(0, width / 2 - 155 + 0, height / 6 + 96, u"Yes"));
-	buttons.push_back(Util::make_shared<SmallButton>(1, width / 2 - 155 + 160, height / 6 + 96, u"No"));
+	buttons.push_back(Util::make_shared<SmallButton>(0, width / 2 - 155 + 0, height / 6 + 96, yesButtonLabel));
+	buttons.push_back(Util::make_shared<SmallButton>(1, width / 2 - 155 + 160, height / 6 + 96, noButtonLabel));
 }
 
 void ConfirmScreen::buttonClicked(Button &button)

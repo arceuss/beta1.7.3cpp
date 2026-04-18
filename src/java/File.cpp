@@ -6,7 +6,10 @@
 
 jstring File::getName() const
 {
-	return u"";
+	size_t pos = path.find_last_of(u"/\\");
+	if (pos != jstring::npos)
+		return path.substr(pos + 1);
+	return path;
 }
 
 jstring File::toString() const

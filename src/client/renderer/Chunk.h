@@ -55,9 +55,11 @@ public:
 
 private:
 	std::vector<std::shared_ptr<TileEntity>> &globalRenderableTileEntities;
+	bool ambientOcclusion = false;
+	bool fancyGraphics = false;
 
 public:
-	Chunk(Level &level, std::vector<std::shared_ptr<TileEntity>> &globalRenderableTileEntities, int_t x, int_t y, int_t z, int_t size, int_t lists);
+	Chunk(Level &level, std::vector<std::shared_ptr<TileEntity>> &globalRenderableTileEntities, int_t x, int_t y, int_t z, int_t size, int_t lists, bool ambientOcclusion, bool fancyGraphics);
 
 	void setPos(int_t x, int_t y, int_t z);
 

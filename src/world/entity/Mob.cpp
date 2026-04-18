@@ -41,7 +41,7 @@ float Mob::getHeadHeight()
 
 int_t Mob::getAmbientSoundInterval()
 {
-	return 0;
+	return 80;
 }
 
 void Mob::baseTick()
@@ -62,7 +62,17 @@ void Mob::baseTick()
 	if (attackTime > 0) attackTime--;
 	if (hurtTime > 0) hurtTime--;
 	if (invulnerableTime > 0) invulnerableTime--;
-	
+	if (isAlive() && level.random.nextInt(1000) < ambientSoundTime++)
+	{
+		const jstring &ambientSound = getAmbientSound();
+		ambientSoundTime = -getAmbientSoundInterval();
+		if (!ambientSound.empty())
+		{
+			level.playSoundAtEntity(*this, ambientSound, getSoundVolume(),
+				(level.random.nextFloat() - level.random.nextFloat()) * 0.2f + 1.0f);
+		}
+	}
+
 	if (health <= 0)
 	{
 		deathTime++;
@@ -171,27 +181,99 @@ void Mob::setSize(float width, float height)
 
 void Mob::heal(int_t heal)
 {
-
+	if (health > 0)
+	{
+		health += heal;
+		if (health > 20)
+			health = 20;
+		invulnerableTime = invulnerableDuration / 2;
+	}
 }
 
 bool Mob::hurt(Entity *source, int_t dmg)
 {
-	return false;
+	if (level.isOnline)
+		return false;
+	noActionTime = 0;
+	if (health <= 0)
+		return false;
+
+	walkAnimSpeed = 1.5f;
+	bool playEffects = true;
+
+	if (static_cast<float>(invulnerableTime) > static_cast<float>(invulnerableDuration) / 2.0f)
+	{
+		if (dmg <= lastHurt)
+			return false;
+		actuallyHurt(dmg - lastHurt);
+		lastHurt = dmg;
+		playEffects = false;
+	}
+	else
+	{
+		lastHurt = dmg;
+		lastHealth = health;
+		invulnerableTime = invulnerableDuration;
+		actuallyHurt(dmg);
+		hurtTime = hurtDuration = 10;
+	}
+
+	hurtDir = 0.0f;
+	if (playEffects)
+	{
+		markHurt();
+		if (source != nullptr)
+		{
+			double dx = source->x - x;
+			double dz = source->z - z;
+			while (dx * dx + dz * dz < 1.0E-4)
+			{
+				dx = (random.nextFloat() - random.nextFloat()) * 0.01;
+				dz = (random.nextFloat() - random.nextFloat()) * 0.01;
+			}
+			hurtDir = static_cast<float>(std::atan2(dz, dx) * 180.0 / Mth::PI) - yRot;
+			knockback(*source, dmg, dx, dz);
+		}
+		else
+		{
+			hurtDir = static_cast<float>(static_cast<int_t>(random.nextFloat() * 2.0f) * 180);
+		}
+	}
+
+	if (health <= 0)
+	{
+		if (playEffects)
+		{
+			jstring deathSound = getDeathSound();
+			if (!deathSound.empty())
+				level.playSoundAtEntity(*this, deathSound, getSoundVolume(), (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+		}
+		die(source);
+	}
+	else if (playEffects)
+	{
+		jstring hurtSound = getHurtSound();
+		if (!hurtSound.empty())
+			level.playSoundAtEntity(*this, hurtSound, getSoundVolume(), (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+	}
+
+	return true;
 }
 
 void Mob::animateHurt()
 {
-
+	hurtTime = hurtDuration = 10;
+	hurtDir = 0.0f;
 }
 
 void Mob::actuallyHurt(int_t dmg)
 {
-
+	health -= dmg;
 }
 
 float Mob::getSoundVolume()
 {
-	return 0.0f;
+	return 1.0f;
 }
 
 jstring Mob::getAmbientSound()
@@ -201,22 +283,40 @@ jstring Mob::getAmbientSound()
 
 jstring Mob::getHurtSound()
 {
-	return u"";
+	return u"random.hurt";
 }
 
 jstring Mob::getDeathSound()
 {
-	return u"";
+	return u"random.hurt";
 }
 
 void Mob::knockback(Entity &source, int_t unknown, double x, double z)
 {
+	float dist = Mth::sqrt(x * x + z * z);
+	if (dist <= 0.0f)
+		return;
+	float strength = 0.4f;
 
+	xd /= 2.0;
+	yd /= 2.0;
+	zd /= 2.0;
+
+	xd -= x / dist * strength;
+	yd += 0.4f;
+	zd -= z / dist * strength;
+
+	if (yd > 0.4f)
+		yd = 0.4f;
 }
 
 void Mob::die(Entity *source)
 {
-
+	if (deathScore > 0 && source != nullptr)
+		source->awardKillScore(*this, deathScore);
+	dead = true;
+	if (!level.isOnline)
+		dropDeathLoot();
 }
 
 void Mob::dropDeathLoot()
@@ -231,7 +331,25 @@ int_t Mob::getDeathLoot()
 
 void Mob::causeFallDamage(float distance)
 {
+	int_t fallDamage = Mth::ceil(distance - 3.0f);
+	if (fallDamage <= 0)
+		return;
 
+	hurt(nullptr, fallDamage);
+
+	int_t tileX = Mth::floor(x);
+	int_t tileY = Mth::floor(y - 0.2 - heightOffset);
+	int_t tileZ = Mth::floor(z);
+	int_t tile = level.getTile(tileX, tileY, tileZ);
+	if (tile <= 0)
+		return;
+
+	Tile *landedTile = Tile::tiles[tile];
+	if (landedTile == nullptr || landedTile->soundType == nullptr)
+		return;
+
+	StepSound *ss = landedTile->soundType;
+	level.playSoundAtEntity(*this, ss->stepSoundDir(), ss->getVolume() * 0.5f, ss->getPitch() * 0.75f);
 }
 
 void Mob::travel(float x, float z)
@@ -337,7 +455,7 @@ void Mob::readAdditionalSaveData(CompoundTag &tag)
 
 bool Mob::isAlive()
 {
-	return false;
+	return !removed && health > 0;
 }
 
 bool Mob::isWaterMob()

@@ -5,8 +5,10 @@
 class TreeTile : public Tile
 {
 public:
-	static constexpr int_t DARK_TRUNK = 1;
+	static constexpr int_t OAK_TRUNK = 0;
+	static constexpr int_t SPRUCE_TRUNK = 1;
 	static constexpr int_t BIRCH_TRUNK = 2;
+	static constexpr int_t TRUNK_TYPE_MASK = 0x3;
 
 	TreeTile(int_t id);
 	

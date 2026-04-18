@@ -43,6 +43,7 @@ protected:
 public:
 	jstring getClipboard();
 	void setClipboard(const jstring &text);
+	virtual void selectNextField();
 
 private:
 	std::shared_ptr<Button> clickedButton = nullptr;
@@ -50,6 +51,7 @@ private:
 protected:
 	virtual void mouseClicked(int_t x, int_t y, int_t buttonNum);
 	virtual void mouseReleased(int_t x, int_t y, int_t buttonNum);
+	virtual void mouseScrolled(int_t x, int_t y, int_t scrollAmount);
 
 	virtual void buttonClicked(Button &button);
 

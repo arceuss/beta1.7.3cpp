@@ -13,10 +13,17 @@ private:
 
 	bool xFlipTexture = false;
 	bool noCulling = false;
+	bool ambientOcclusion = false;
+	bool fancyGrass = false;
+	bool enableAO = false;
+	float colorR0 = 1.0f, colorG0 = 1.0f, colorB0 = 1.0f;
+	float colorR1 = 1.0f, colorG1 = 1.0f, colorB1 = 1.0f;
+	float colorR2 = 1.0f, colorG2 = 1.0f, colorB2 = 1.0f;
+	float colorR3 = 1.0f, colorG3 = 1.0f, colorB3 = 1.0f;
 
 public:
-	TileRenderer(LevelSource *levelSource);
-	TileRenderer();
+	TileRenderer(LevelSource *levelSource, bool ambientOcclusion = false, bool fancyGrass = false);
+	TileRenderer(bool ambientOcclusion = false, bool fancyGrass = false);
 
 	void tesselateInWorld(Tile &tile, int_t x, int_t y, int_t z, int_t fixedTexture);
 	void tesselateInWorldNoCulling(Tile &tile, int_t x, int_t y, int_t z);
@@ -24,6 +31,11 @@ public:
 
 	bool tesselateBlockInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateBlockInWorld(Tile &tt, int_t x, int_t y, int_t z, float r, float g, float b);
+	bool tesselateCrossTextureInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	bool tesselateCactusInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	bool tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z);
+
+	float getLiquidHeight(int_t x, int_t y, int_t z, const Material &material);
 
 	void renderFaceUp(Tile &tt, double x, double y, double z, int_t tex);
 	void renderFaceDown(Tile &tt, double x, double y, double z, int_t tex);
@@ -33,4 +45,6 @@ public:
 	void renderEast(Tile &tt, double x, double y, double z, int_t tex);
 
 	void renderCube(Tile &tile, float alpha);
+	void renderTile(Tile &tile, int_t data);
+	static bool canRender(int_t renderShape);
 };

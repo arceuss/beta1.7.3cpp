@@ -1,8 +1,26 @@
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 
+#include "client/renderer/entity/FallingTileRenderer.h"
+#include "client/renderer/entity/ItemRenderer.h"
 #include "client/renderer/entity/PlayerRenderer.h"
-
+#include "world/entity/item/EntityItem.h"
+#include "world/entity/item/FallingTile.h"
 #include "OpenGL.h"
+
+
+FallingTileRenderer &EntityRenderDispatcher::getFallingTileRenderer()
+{
+	static FallingTileRenderer renderer(instance);
+	return renderer;
+}
+
+
+ItemRenderer &EntityRenderDispatcher::getItemRenderer()
+{
+	static ItemRenderer renderer(instance);
+	return renderer;
+}
+
 
 EntityRenderDispatcher EntityRenderDispatcher::instance;
 
@@ -33,7 +51,7 @@ void EntityRenderDispatcher::render(Entity &entity, float a)
 	double y = entity.yOld + (entity.y - entity.yOld) * a;
 	double z = entity.zOld + (entity.z - entity.zOld) * a;
 	float rot = entity.yRotO + (entity.yRot - entity.yRotO) * a;
-	
+
 	float brightness = entity.getBrightness(a);
 	glColor3f(brightness, brightness, brightness);
 	render(entity, x - xOff, y - yOff, z - zOff, rot, a);
@@ -41,6 +59,22 @@ void EntityRenderDispatcher::render(Entity &entity, float a)
 
 void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z, float rot, float a)
 {
+	if (dynamic_cast<FallingTile *>(&entity) != nullptr)
+	{
+		FallingTileRenderer &fallingTileRenderer = getFallingTileRenderer();
+		fallingTileRenderer.render(entity, x, y, z, rot, a);
+		fallingTileRenderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<EntityItem *>(&entity) != nullptr)
+	{
+		ItemRenderer &itemRenderer = getItemRenderer();
+		itemRenderer.render(entity, x, y, z, rot, a);
+		itemRenderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
 	playerRenderer.render(entity, x, y, z, rot, a);
 	playerRenderer.postRender(entity, x, y, z, rot, a);
 }

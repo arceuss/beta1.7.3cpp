@@ -1,6 +1,10 @@
 #include "world/entity/Entity.h"
 
 #include "world/level/Level.h"
+#include "world/level/material/LiquidMaterial.h"
+#include "world/level/tile/LiquidTile.h"
+#include "world/level/tile/SnowTile.h"
+#include "world/level/tile/StepSound.h"
 
 #include "util/Mth.h"
 
@@ -114,11 +118,31 @@ void Entity::baseTick()
 	{
 		if (!wasInWater && !firstTick)
 		{
-			// TODO: splash
+			float splashVolume = Mth::sqrt(xd * xd * 0.2f + yd * yd + zd * zd * 0.2f) * 0.2f;
+			if (splashVolume > 1.0f)
+				splashVolume = 1.0f;
+			level.playSoundAtEntity(*this, u"random.splash", splashVolume, 1.0f + (random.nextFloat() - random.nextFloat()) * 0.4f);
+
+			float waterY = static_cast<float>(Mth::floor(bb.y0));
+			for (int_t i = 0; i < static_cast<int_t>(1.0f + bbWidth * 20.0f); i++)
+			{
+				float offsetX = (random.nextFloat() * 2.0f - 1.0f) * bbWidth;
+				float offsetZ = (random.nextFloat() * 2.0f - 1.0f) * bbWidth;
+				level.addParticle(u"bubble", x + offsetX, waterY + 1.0f, z + offsetZ, xd, yd - random.nextFloat() * 0.2f, zd);
+			}
+
+			for (int_t i = 0; i < static_cast<int_t>(1.0f + bbWidth * 20.0f); i++)
+			{
+				float offsetX = (random.nextFloat() * 2.0f - 1.0f) * bbWidth;
+				float offsetZ = (random.nextFloat() * 2.0f - 1.0f) * bbWidth;
+				level.addParticle(u"splash", x + offsetX, waterY + 1.0f, z + offsetZ, xd, yd, zd);
+			}
 		}
 
 		fallDistance = 0.0f;
 		wasInWater = true;
+		if (onFire > 0)
+			level.playSoundAtEntity(*this, u"random.fizz", 0.7f, 1.6f + (random.nextFloat() - random.nextFloat()) * 0.4f);
 		onFire = 0;
 	}
 	else
@@ -326,7 +350,7 @@ void Entity::move(double xd, double yd, double zd)
 	onGround = oyd != yd && oyd < 0.0;
 	collision = horizontalCollision || verticalCollision;
 	
-	checkFallDamage(yd, onGround);
+	checkFallDamage(oyd, onGround);
 
 	if (oxd != xd)
 		this->xd = 0.0;
@@ -352,8 +376,15 @@ void Entity::move(double xd, double yd, double zd)
 		{
 			nextStep++;
 
-			// TODO: play footsteps
-
+			if (Tile::tiles[stile]->soundType != nullptr)
+			{
+				StepSound *ss = Tile::tiles[stile]->soundType;
+				// Check for snow on top of block (Java Entity.java:450-451)
+				int_t aboveTile = level.getTile(sx, Mth::floor(y), sz);
+				if (aboveTile == Tile::snow.id)
+					ss = Tile::snow.soundType;
+				level.playSoundAtEntity(*this, ss->stepSoundDir(), ss->getVolume() * 0.15f, ss->getPitch());
+			}
 			Tile::tiles[stile]->stepOn(level, sx, sy, sz, *this);
 		}
 	}
@@ -393,7 +424,18 @@ void Entity::move(double xd, double yd, double zd)
 
 void Entity::checkFallDamage(double yd, bool onGround)
 {
-
+	if (onGround)
+	{
+		if (fallDistance > 0.0f)
+		{
+			causeFallDamage(fallDistance);
+			fallDistance = 0.0f;
+		}
+	}
+	else if (yd < 0.0)
+	{
+		fallDistance = static_cast<float>(fallDistance - yd);
+	}
 }
 
 AABB *Entity::getCollideBox()
@@ -413,11 +455,23 @@ void Entity::causeFallDamage(float distance)
 
 bool Entity::isInWater()
 {
-	return false;
+	return level.handleMaterialAcceleration(*bb.grow(0.0, -0.4, 0.0)->grow(-0.001, -0.001, -0.001), Material::water, *this);
 }
 
 bool Entity::isUnderLiquid(const Material &material)
 {
+	double eyeY = y + static_cast<double>(getHeadHeight());
+	int_t bx = Mth::floor(x);
+	int_t by = Mth::floor(static_cast<float>(Mth::floor(eyeY)));
+	int_t bz = Mth::floor(z);
+	int_t t = level.getTile(bx, by, bz);
+	if (t != 0 && Tile::tiles[t] != nullptr && &Tile::tiles[t]->material == &material)
+	{
+		int_t meta = level.getData(bx, by, bz);
+		float pct = LiquidTile::getHeight(meta) - 1.0f / 9.0f;
+		float surface = static_cast<float>(by + 1) - pct;
+		return eyeY < static_cast<double>(surface);
+	}
 	return false;
 }
 
@@ -428,7 +482,7 @@ float Entity::getHeadHeight()
 
 bool Entity::isInLava()
 {
-	return false;
+	return level.isMaterialInBB(*bb.grow(-0.1, -0.4, -0.1), Material::lava);
 }
 
 void Entity::moveRelative(float x, float z, float acc)
@@ -536,7 +590,7 @@ void Entity::push(double x, double y, double z)
 
 void Entity::markHurt()
 {
-
+	hurtMarked = true;
 }
 
 bool Entity::hurt(Entity *source, int_t dmg)
@@ -681,7 +735,7 @@ float Entity::getShadowHeightOffs()
 
 bool Entity::isAlive()
 {
-	return false;
+	return !removed;
 }
 
 bool Entity::isInWall()

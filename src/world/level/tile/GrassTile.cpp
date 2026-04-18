@@ -3,6 +3,7 @@
 #include "world/level/tile/DirtTile.h"
 
 #include "world/level/LevelSource.h"
+#include "world/level/material/Material.h"
 #include "world/level/GrassColor.h"
 
 GrassTile::GrassTile(int_t id) : Tile(id, Material::dirt)
@@ -14,10 +15,10 @@ int_t GrassTile::getTexture(LevelSource &level, int_t x, int_t y, int_t z, Facin
 {
 	if (face == Facing::UP)
 		return 0;
-	else if (face == Facing::DOWN)
+	if (face == Facing::DOWN)
 		return 2;
-	// TODO: snow check
-	return 3;
+
+	return &level.getMaterial(x, y + 1, z) == &Material::snow() ? 68 : 3;
 }
 
 int_t GrassTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)

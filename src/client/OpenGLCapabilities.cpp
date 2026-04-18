@@ -2,7 +2,7 @@
 
 #include "lwjgl/GLContext.h"
 
-bool OpenGLCapabilities::USE_OCCLUSION_QUERY = false;
+bool OpenGLCapabilities::USE_OCCLUSION_QUERY = true;
 
 bool OpenGLCapabilities::hasOcclusionChecks()
 {

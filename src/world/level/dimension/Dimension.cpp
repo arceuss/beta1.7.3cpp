@@ -8,7 +8,7 @@
 #include "util/Mth.h"
 
 #include "world/level/levelgen/RandomLevelSource.h"
-#include "world/level/chunk/storage/OldChunkStorage.h"
+#include "world/level/chunk/storage/McRegionChunkStorage.h"
 
 Dimension::Dimension(Level &level) : level(level)
 {
@@ -44,7 +44,7 @@ ChunkSource *Dimension::createRandomLevelSource()
 
 ChunkStorage *Dimension::createStorage(std::shared_ptr<File> dir)
 {
-	return new OldChunkStorage(dir, true);
+	return new McRegionChunkStorage(dir, true);
 }
 
 bool Dimension::isValidSpawn(int_t x, int_t z)

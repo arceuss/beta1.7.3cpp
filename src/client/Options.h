@@ -50,16 +50,21 @@ public:
 		static Element VIEW_BOBBING;
 		static Element ANAGLYPH;
 		static Element LIMIT_FRAMERATE;
+		static Element GUI_SCALE;
+		static Element AMBIENT_OCCLUSION;
+		static Element ADVANCED_OPENGL;
 		static Element DIFFICULTY;
 		static Element GRAPHICS;
 
-		static constexpr Element *values[10] = {
-			&MUSIC, &SOUND, &INVERT_MOUSE, &SENSITIVITY, &RENDER_DISTANCE, &VIEW_BOBBING, &ANAGLYPH, &LIMIT_FRAMERATE, &DIFFICULTY, &GRAPHICS
+		static constexpr Element *values[13] = {
+			&MUSIC, &SOUND, &INVERT_MOUSE, &SENSITIVITY, &RENDER_DISTANCE, &VIEW_BOBBING, &ANAGLYPH, &LIMIT_FRAMERATE, &GUI_SCALE, &AMBIENT_OCCLUSION, &ADVANCED_OPENGL, &DIFFICULTY, &GRAPHICS
 		};
 	};
 
 private:
 	static const char16_t *RENDER_DISTANCE_NAMES[4];
+	static const char16_t *LIMIT_FRAMERATE_NAMES[3];
+	static const char16_t *GUI_SCALE_NAMES[4];
 	static const char16_t *DIFFICULTY_NAMES[4];
 
 public:
@@ -72,7 +77,10 @@ public:
 	int_t viewDistance = 0;
 	bool bobView = true;
 	bool anaglyph3d = false;
-	bool limitFramerate = false;
+	int_t limitFramerate = 1;
+	int_t guiScale = 0;
+	bool ambientOcclusion = true;
+	bool advancedOpengl = false;
 	bool fancyGraphics = true;
 
 	jstring skin = u"Default";

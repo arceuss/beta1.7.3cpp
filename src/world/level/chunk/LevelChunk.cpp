@@ -3,6 +3,8 @@
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
 
+#include "util/Mth.h"
+
 bool LevelChunk::touchedSky = false;
 
 LevelChunk::LevelChunk(Level &level, int_t x, int_t z) : level(level)
@@ -241,7 +243,40 @@ int_t LevelChunk::getTile(int_t x, int_t y, int_t z)
 
 bool LevelChunk::setTileAndData(int_t x, int_t y, int_t z, int_t tile, int_t data)
 {
-	return false;
+	int_t oldHeight = heightmap[(z * 16) | x];
+	int_t index = (x * 128 * 16) | (z * 128) | y;
+	int_t oldTile = blocks[index];
+	int_t oldData = this->data.get(x, y, z);
+	if (oldTile == tile && oldData == data)
+		return false;
+
+	int_t wx = this->x * 16 + x;
+	int_t wz = this->z * 16 + z;
+
+	blocks[index] = tile;
+	this->data.set(x, y, z, data);
+
+	if (oldTile != 0 && oldTile != tile)
+		Tile::tiles[oldTile]->onRemove(level, wx, y, wz);
+
+	if (Tile::lightBlock[tile] != 0)
+	{
+		if (y >= oldHeight)
+			recalcHeight(x, y + 1, z);
+	}
+	else if (y == oldHeight - 1)
+	{
+		recalcHeight(x, y, z);
+	}
+
+	level.updateLight(LightLayer::Sky, wx, y, wz, wx, y, wz);
+	level.updateLight(LightLayer::Block, wx, y, wz, wx, y, wz);
+	lightGaps(x, z);
+	if (tile != 0 && !level.isOnline && oldTile != tile)
+		Tile::tiles[tile]->onPlace(level, wx, y, wz);
+
+	unsaved = true;
+	return true;
 }
 
 bool LevelChunk::setTile(int_t x, int_t y, int_t z, int_t tile)
@@ -323,17 +358,33 @@ int_t LevelChunk::getRawBrightness(int_t x, int_t y, int_t z, int_t darken)
 
 void LevelChunk::addEntity(std::shared_ptr<Entity> entity)
 {
+	lastSaveHadEntities = true;
 
+	int_t y = Mth::floor(entity->y / 16.0);
+	if (y < 0)
+		y = 0;
+	if (y >= static_cast<int_t>(entityBlocks.size()))
+		y = static_cast<int_t>(entityBlocks.size()) - 1;
+
+	entity->inChunk = true;
+	entity->xChunk = x;
+	entity->yChunk = y;
+	entity->zChunk = z;
+	entityBlocks[y].insert(entity);
 }
 
 void LevelChunk::removeEntity(std::shared_ptr<Entity> entity)
 {
-
+	removeEntity(entity, entity->yChunk);
 }
 
 void LevelChunk::removeEntity(std::shared_ptr<Entity> entity, int_t y)
 {
-
+	if (y < 0)
+		y = 0;
+	if (y >= static_cast<int_t>(entityBlocks.size()))
+		y = static_cast<int_t>(entityBlocks.size()) - 1;
+	entityBlocks[y].erase(entity);
 }
 
 bool LevelChunk::isSkyLit(int_t x, int_t y, int_t z)
@@ -393,12 +444,40 @@ void LevelChunk::markUnsaved()
 
 void LevelChunk::getEntities(Entity *ignore, AABB &aabb, std::vector<std::shared_ptr<Entity>> &entities)
 {
+	int_t y0 = Mth::floor((aabb.y0 - 2.0) / 16.0);
+	int_t y1 = Mth::floor((aabb.y1 + 2.0) / 16.0);
+	if (y0 < 0)
+		y0 = 0;
+	if (y1 >= static_cast<int_t>(entityBlocks.size()))
+		y1 = static_cast<int_t>(entityBlocks.size()) - 1;
 
+	for (int_t y = y0; y <= y1; y++)
+	{
+		for (const auto &entity : entityBlocks[y])
+		{
+			if (entity.get() != ignore && entity->bb.intersects(aabb))
+				entities.push_back(entity);
+		}
+	}
 }
 
 void LevelChunk::getEntitiesOfCondition(bool (*condition)(Entity &), AABB &aabb, std::vector<std::shared_ptr<Entity>> &entities)
 {
+	int_t y0 = Mth::floor((aabb.y0 - 2.0) / 16.0);
+	int_t y1 = Mth::floor((aabb.y1 + 2.0) / 16.0);
+	if (y0 < 0)
+		y0 = 0;
+	if (y1 >= static_cast<int_t>(entityBlocks.size()))
+		y1 = static_cast<int_t>(entityBlocks.size()) - 1;
 
+	for (int_t y = y0; y <= y1; y++)
+	{
+		for (const auto &entity : entityBlocks[y])
+		{
+			if (condition(*entity) && entity->bb.intersects(aabb))
+				entities.push_back(entity);
+		}
+	}
 }
 
 int_t LevelChunk::countEntities()
