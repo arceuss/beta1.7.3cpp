@@ -5,6 +5,7 @@
 TransparentTile::TransparentTile(int_t id, int_t tex, const Material &material, bool allowSame) : Tile(id, tex, material)
 {
 	this->allowSame = allowSame;
+	updateCachedProperties();
 }
 
 bool TransparentTile::isSolidRender()

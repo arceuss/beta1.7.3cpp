@@ -57,8 +57,19 @@ int_t Region::getRawBrightness(int_t x, int_t y, int_t z, bool neighbors)
 	if (neighbors)
 	{
 		int_t tile = getTile(x, y, z);
-		// TODO
-		// stoneSlabHalf farmland
+		if (tile == 60)
+		{
+			int_t brightness = getRawBrightness(x, y + 1, z, false);
+			int_t east = getRawBrightness(x + 1, y, z, false);
+			int_t west = getRawBrightness(x - 1, y, z, false);
+			int_t south = getRawBrightness(x, y, z + 1, false);
+			int_t north = getRawBrightness(x, y, z - 1, false);
+			if (east > brightness) brightness = east;
+			if (west > brightness) brightness = west;
+			if (south > brightness) brightness = south;
+			if (north > brightness) brightness = north;
+			return brightness;
+		}
 	}
 
 	if (y < 0)

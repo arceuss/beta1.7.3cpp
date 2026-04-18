@@ -1,6 +1,7 @@
 #include "client/gamemode/SurvivalMode.h"
 
 #include "client/Minecraft.h"
+#include "world/level/tile/StepSound.h"
 
 SurvivalMode::SurvivalMode(Minecraft &minecraft) : GameMode(minecraft)
 {
@@ -21,12 +22,21 @@ bool SurvivalMode::destroyBlock(int_t x, int_t y, int_t z, Facing face)
 {
 	int_t t = minecraft.level->getTile(x, y, z);
 	int_t data = minecraft.level->getData(x, y, z);
+	Tile *tile = Tile::tiles[t];
 	bool changed = GameMode::destroyBlock(x, y, z, face);
-	bool couldDestroy = minecraft.player->canDestroy(*Tile::tiles[t]);
-
-	if (changed && couldDestroy)
-		Tile::tiles[t]->playerDestroy(*minecraft.level, x, y, z, data);
-
+	bool couldDestroy = tile != nullptr && minecraft.player->canDestroy(*tile);
+	if (changed)
+	{
+		ItemInstance *selected = minecraft.player->getSelectedItem();
+		if (selected != nullptr)
+		{
+			selected->mineBlock(t, x, y, z, *minecraft.player);
+			if (selected->isEmpty())
+				minecraft.player->removeSelectedItem();
+		}
+		if (couldDestroy)
+			tile->playerDestroy(*minecraft.level, x, y, z, data);
+	}
 	return changed;
 }
 
@@ -63,7 +73,13 @@ void SurvivalMode::continueDestroyBlock(int_t x, int_t y, int_t z, Facing face)
 		destroyProgress += tile.getDestroyProgress(*minecraft.player);
 		if (std::fmod(destroyTicks, 4.0f) == 0.0f)
 		{
-			// TODO sound engine
+			if (tile.soundType != nullptr)
+			{
+				StepSound *ss = tile.soundType;
+				minecraft.soundEngine.play(ss->getStepResourcePath(),
+					(float)x + 0.5f, (float)y + 0.5f, (float)z + 0.5f,
+					(ss->getVolume() + 1.0f) / 8.0f, ss->getPitch() * 0.5f);
+			}
 		}
 
 		destroyTicks++;

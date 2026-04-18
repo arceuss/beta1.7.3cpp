@@ -1,11 +1,417 @@
 #include "client/renderer/Textures.h"
+#include "client/renderer/texturefx/TextureFX.h"
 
 #include <cassert>
+#include <mutex>
+#include <thread>
 
 #include "client/Options.h"
 #include "client/skins/TexturePackRepository.h"
+#include "java/File.h"
 
 #include "OpenGL.h"
+#include "httplib.h"
+#include "stb_image.h"
+
+struct HttpTexture
+{
+	std::mutex mutex;
+	BufferedImage loadedImage;
+	int_t count = 1;
+	int_t id = -1;
+	bool hasLoadedImage = false;
+	bool isUploaded = false;
+};
+
+namespace
+{
+struct ParsedHttpUrl
+{
+	std::string host;
+	std::string path;
+	int port = 80;
+	bool valid = false;
+};
+
+constexpr const char *BETACRAFT_PROXY_HOST = "betacraft.uk";
+constexpr int BETACRAFT_PROXY_PORT = 11705;
+
+bool usesBetacraftTextureProxy(const ParsedHttpUrl &parsed)
+{
+	if (parsed.host != "s3.amazonaws.com")
+	{
+		return false;
+	}
+
+	return parsed.path.rfind("/MinecraftSkins/", 0) == 0 || parsed.path.rfind("/MinecraftCloaks/", 0) == 0;
+}
+
+bool isSkinTextureUrl(const jstring &url)
+{
+	return url.find(u"MinecraftSkins") != jstring::npos || url.find(u"/skin/") != jstring::npos;
+}
+
+std::string makeHttpTextureCacheName(const ParsedHttpUrl &parsed)
+{
+	std::string name = parsed.host + parsed.path;
+	for (char &c : name)
+	{
+		bool isAlphaNum = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+		if (!isAlphaNum && c != '.' && c != '-' && c != '_')
+		{
+			c = '_';
+		}
+	}
+	return name;
+}
+
+File *openHttpTextureCacheFile(const ParsedHttpUrl &parsed)
+{
+	std::unique_ptr<File> workDir(File::openWorkingDirectory(u".mcbetacpp"));
+	if (workDir == nullptr)
+	{
+		return nullptr;
+	}
+
+	std::unique_ptr<File> cacheDir(File::open(*workDir, u"http-textures"));
+	if (cacheDir == nullptr)
+	{
+		return nullptr;
+	}
+
+	if (!cacheDir->exists() && !cacheDir->mkdirs())
+	{
+		return nullptr;
+	}
+
+	return File::open(*cacheDir, String::fromUTF8(makeHttpTextureCacheName(parsed)));
+}
+
+BufferedImage loadHttpTextureFromCache(const ParsedHttpUrl &parsed)
+{
+	std::unique_ptr<File> cacheFile(openHttpTextureCacheFile(parsed));
+	if (cacheFile == nullptr || !cacheFile->exists() || !cacheFile->isFile())
+	{
+		return {};
+	}
+
+	std::unique_ptr<std::istream> is(cacheFile->toStreamIn());
+	if (!is)
+	{
+		return {};
+	}
+
+	try
+	{
+		return BufferedImage::ImageIO_read(*is);
+	}
+	catch (...)
+	{
+		return {};
+	}
+}
+
+bool storeHttpTextureCache(const ParsedHttpUrl &parsed, const std::string &body)
+{
+	std::unique_ptr<File> cacheFile(openHttpTextureCacheFile(parsed));
+	if (cacheFile == nullptr)
+	{
+		return false;
+	}
+
+	std::unique_ptr<std::ostream> os(cacheFile->toStreamOut());
+	if (!os)
+	{
+		return false;
+	}
+
+	os->write(body.data(), static_cast<std::streamsize>(body.size()));
+	return os->good();
+}
+
+ParsedHttpUrl parseHttpUrl(const jstring &url)
+{
+	const std::string urlUtf8 = String::toUTF8(url);
+	const std::string prefix = "http://";
+	if (urlUtf8.compare(0, prefix.size(), prefix) != 0)
+	{
+		return {};
+	}
+
+	ParsedHttpUrl parsed;
+	std::string hostAndPath = urlUtf8.substr(prefix.size());
+	size_t pathPos = hostAndPath.find('/');
+	if (pathPos == std::string::npos)
+	{
+		return {};
+	}
+
+	parsed.host = hostAndPath.substr(0, pathPos);
+	parsed.path = hostAndPath.substr(pathPos);
+
+	size_t portPos = parsed.host.find(':');
+	if (portPos != std::string::npos)
+	{
+		try
+		{
+			parsed.port = std::stoi(parsed.host.substr(portPos + 1));
+		}
+		catch (...)
+		{
+			return {};
+		}
+
+		parsed.host = parsed.host.substr(0, portPos);
+	}
+
+	if (parsed.host.empty() || parsed.path.empty())
+	{
+		return {};
+	}
+
+	parsed.valid = true;
+	return parsed;
+}
+
+BufferedImage readImageFromMemory(const std::string &data)
+{
+	int w = 0;
+	int h = 0;
+	int comp = 0;
+	stbi_uc *rawData = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data.data()), static_cast<int>(data.size()), &w, &h, &comp, 0);
+	if (rawData == nullptr)
+	{
+		return {};
+	}
+
+	std::unique_ptr<unsigned char[]> pixels = Util::make_unique<unsigned char[]>(w * h * 4);
+
+	if (comp == 1)
+	{
+		for (int i = 0; i < w * h; i++)
+		{
+			pixels[i * 4 + 0] = rawData[i];
+			pixels[i * 4 + 1] = rawData[i];
+			pixels[i * 4 + 2] = rawData[i];
+			pixels[i * 4 + 3] = 255;
+		}
+	}
+	else if (comp == 2)
+	{
+		for (int i = 0; i < w * h; i++)
+		{
+			pixels[i * 4 + 0] = rawData[i * 2 + 0];
+			pixels[i * 4 + 1] = rawData[i * 2 + 0];
+			pixels[i * 4 + 2] = rawData[i * 2 + 0];
+			pixels[i * 4 + 3] = rawData[i * 2 + 1];
+		}
+	}
+	else if (comp == 3)
+	{
+		for (int i = 0; i < w * h; i++)
+		{
+			pixels[i * 4 + 0] = rawData[i * 3 + 0];
+			pixels[i * 4 + 1] = rawData[i * 3 + 1];
+			pixels[i * 4 + 2] = rawData[i * 3 + 2];
+			pixels[i * 4 + 3] = 255;
+		}
+	}
+	else if (comp == 4)
+	{
+		for (int i = 0; i < w * h; i++)
+		{
+			pixels[i * 4 + 0] = rawData[i * 4 + 0];
+			pixels[i * 4 + 1] = rawData[i * 4 + 1];
+			pixels[i * 4 + 2] = rawData[i * 4 + 2];
+			pixels[i * 4 + 3] = rawData[i * 4 + 3];
+		}
+	}
+	else
+	{
+		stbi_image_free(rawData);
+		return {};
+	}
+
+	stbi_image_free(rawData);
+	return BufferedImage(w, h, std::move(pixels));
+}
+
+bool hasAlpha(const unsigned char *pixels, int_t imgWidth, int_t x0, int_t y0, int_t x1, int_t y1)
+{
+	for (int_t x = x0; x < x1; x++)
+	{
+		for (int_t y = y0; y < y1; y++)
+		{
+			if (pixels[(y * imgWidth + x) * 4 + 3] < 128)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void setForceAlpha(unsigned char *pixels, int_t imgWidth, int_t x0, int_t y0, int_t x1, int_t y1)
+{
+	if (hasAlpha(pixels, imgWidth, x0, y0, x1, y1))
+	{
+		return;
+	}
+
+	for (int_t x = x0; x < x1; x++)
+	{
+		for (int_t y = y0; y < y1; y++)
+		{
+			pixels[(y * imgWidth + x) * 4 + 3] = 0;
+		}
+	}
+}
+
+void setNoAlpha(unsigned char *pixels, int_t imgWidth, int_t x0, int_t y0, int_t x1, int_t y1)
+{
+	for (int_t x = x0; x < x1; x++)
+	{
+		for (int_t y = y0; y < y1; y++)
+		{
+			pixels[(y * imgWidth + x) * 4 + 3] = 255;
+		}
+	}
+}
+
+BufferedImage processMobSkin(BufferedImage &in)
+{
+	if (in.getWidth() == 0 || in.getHeight() == 0)
+	{
+		return {};
+	}
+
+	BufferedImage out(64, 32);
+	unsigned char *dstPixels = const_cast<unsigned char *>(out.getRawPixels());
+	const unsigned char *srcPixels = in.getRawPixels();
+	int_t srcW = in.getWidth();
+	int_t srcH = in.getHeight();
+
+	for (int_t y = 0; y < 32; y++)
+	{
+		int_t srcY = (y * srcH) / 32;
+		for (int_t x = 0; x < 64; x++)
+		{
+			int_t srcX = (x * srcW) / 64;
+			int_t srcIdx = (srcY * srcW + srcX) * 4;
+			int_t dstIdx = (y * 64 + x) * 4;
+			dstPixels[dstIdx + 0] = srcPixels[srcIdx + 0];
+			dstPixels[dstIdx + 1] = srcPixels[srcIdx + 1];
+			dstPixels[dstIdx + 2] = srcPixels[srcIdx + 2];
+			dstPixels[dstIdx + 3] = srcPixels[srcIdx + 3];
+		}
+	}
+
+	setNoAlpha(dstPixels, 64, 0, 0, 32, 16);
+	setForceAlpha(dstPixels, 64, 32, 0, 64, 32);
+	setNoAlpha(dstPixels, 64, 0, 16, 64, 32);
+
+	return out;
+}
+
+void downloadHttpTexture(const std::shared_ptr<HttpTexture> &texture, const jstring &url)
+{
+	const std::string urlUtf8 = String::toUTF8(url);
+	try
+	{
+		ParsedHttpUrl parsed = parseHttpUrl(url);
+		if (!parsed.valid)
+		{
+			std::cerr << "[HTTP Texture] Invalid URL: " << urlUtf8 << std::endl;
+			return;
+		}
+
+		BufferedImage image = loadHttpTextureFromCache(parsed);
+		if (image.getWidth() > 0 && image.getHeight() > 0)
+		{
+			std::cerr << "[HTTP Texture] Cache hit " << urlUtf8 << " size=" << image.getWidth() << "x" << image.getHeight() << std::endl;
+		}
+		else
+		{
+			const bool useBetacraftProxy = usesBetacraftTextureProxy(parsed);
+			std::cerr << "[HTTP Texture] Downloading " << urlUtf8
+				<< " host=" << parsed.host
+				<< " port=" << parsed.port
+				<< " path=" << parsed.path;
+			if (useBetacraftProxy)
+			{
+				std::cerr << " proxyHost=" << BETACRAFT_PROXY_HOST << " proxyPort=" << BETACRAFT_PROXY_PORT;
+			}
+			std::cerr << std::endl;
+
+			httplib::Client client(parsed.host.c_str(), parsed.port);
+			if (useBetacraftProxy)
+			{
+				client.set_proxy(BETACRAFT_PROXY_HOST, BETACRAFT_PROXY_PORT);
+			}
+			client.set_connection_timeout(30);
+			client.set_read_timeout(30);
+			client.set_follow_location(true);
+
+			auto response = client.Get(parsed.path.c_str());
+			if (!response)
+			{
+				std::cerr << "[HTTP Texture] Request failed: " << urlUtf8 << " (null response)" << std::endl;
+				return;
+			}
+
+			const std::string location = response->get_header_value("Location");
+			std::cerr << "[HTTP Texture] Response " << urlUtf8 << " status=" << response->status
+				<< " bytes=" << response->body.size();
+			if (!location.empty())
+			{
+				std::cerr << " location=" << location;
+			}
+			std::cerr << std::endl;
+			if (response->status < 200 || response->status >= 400)
+			{
+				return;
+			}
+
+			image = readImageFromMemory(response->body);
+			if (image.getWidth() == 0 || image.getHeight() == 0)
+			{
+				std::cerr << "[HTTP Texture] Decode failed: " << urlUtf8 << std::endl;
+				return;
+			}
+
+			if (storeHttpTextureCache(parsed, response->body))
+			{
+				std::cerr << "[HTTP Texture] Cached " << urlUtf8 << std::endl;
+			}
+		}
+
+		if (isSkinTextureUrl(url))
+		{
+			image = processMobSkin(image);
+		}
+
+		std::lock_guard<std::mutex> lock(texture->mutex);
+		if (image.getWidth() == 0 || image.getHeight() == 0)
+		{
+			std::cerr << "[HTTP Texture] Decode failed: " << urlUtf8 << std::endl;
+			return;
+		}
+
+		std::cerr << "[HTTP Texture] Decoded " << urlUtf8 << " size=" << image.getWidth() << "x" << image.getHeight() << std::endl;
+		texture->loadedImage = std::move(image);
+		texture->hasLoadedImage = true;
+	}
+	catch (const std::exception &e)
+	{
+		std::cerr << "[HTTP Texture] Exception for " << urlUtf8 << ": " << e.what() << std::endl;
+	}
+	catch (...)
+	{
+		std::cerr << "[HTTP Texture] Unknown exception for " << urlUtf8 << std::endl;
+	}
+}
+}
 
 Textures::Textures(TexturePackRepository &skins, Options &options) : skins(skins), options(options)
 {
@@ -195,24 +601,117 @@ void Textures::releaseTexture(int_t id)
 
 int_t Textures::loadHttpTexture(const jstring &url, const jstring *backup)
 {
-	// TODO
-	return 0;
+	auto it = httpTextures.find(url);
+	if (it == httpTextures.end())
+	{
+		addHttpTexture(url);
+		it = httpTextures.find(url);
+	}
+
+	if (it != httpTextures.end())
+	{
+		HttpTexture *texture = it->second.get();
+		std::lock_guard<std::mutex> lock(texture->mutex);
+		if (texture->hasLoadedImage && !texture->isUploaded)
+		{
+			if (texture->id < 0)
+			{
+				texture->id = getTexture(texture->loadedImage);
+			}
+			else
+			{
+				loadTexture(texture->loadedImage, texture->id);
+			}
+			texture->isUploaded = true;
+			std::cerr << "[HTTP Texture] Uploaded " << String::toUTF8(url) << " to GL id=" << texture->id << std::endl;
+		}
+
+		if (texture->id >= 0)
+		{
+			return texture->id;
+		}
+	}
+
+	if (backup != nullptr)
+	{
+		return loadTexture(*backup);
+	}
+
+	return -1;
 }
 
 int_t Textures::loadHttpTexture(const jstring &url)
 {
-	// TODO
-	return 0;
+	return loadHttpTexture(url, nullptr);
+}
+
+HttpTexture *Textures::addHttpTexture(const jstring &url)
+{
+	auto it = httpTextures.find(url);
+	if (it != httpTextures.end())
+	{
+		it->second->count++;
+		std::cerr << "[HTTP Texture] Reusing cached URL " << String::toUTF8(url) << " refCount=" << it->second->count << std::endl;
+		return it->second.get();
+	}
+
+	std::cerr << "[HTTP Texture] Queueing download for " << String::toUTF8(url) << std::endl;
+	auto texture = Util::make_shared<HttpTexture>();
+	HttpTexture *ptr = texture.get();
+	httpTextures.emplace(url, texture);
+	std::thread([texture, url]()
+	{
+		downloadHttpTexture(texture, url);
+	}).detach();
+	return ptr;
 }
 
 void Textures::removeHttpTexture(const jstring &url)
 {
+	auto it = httpTextures.find(url);
+	if (it == httpTextures.end())
+	{
+		return;
+	}
 
+	HttpTexture *texture = it->second.get();
+	texture->count--;
+	std::cerr << "[HTTP Texture] Release URL " << String::toUTF8(url) << " refCount=" << texture->count << std::endl;
+	if (texture->count == 0)
+	{
+		if (texture->id >= 0)
+		{
+			releaseTexture(texture->id);
+		}
+		httpTextures.erase(it);
+	}
+}
+
+void Textures::registerTextureFX(std::unique_ptr<TextureFX> fx)
+{
+	fx->onTick();
+	textureList.push_back(std::move(fx));
 }
 
 void Textures::tick()
 {
-	
+	for (auto &fx : textureList)
+	{
+		fx->anaglyphEnabled = options.anaglyph3d;
+		fx->onTick();
+
+		// Upload animated texture to terrain atlas
+		for (int_t tx = 0; tx < fx->tileSize; ++tx)
+		{
+			for (int_t ty = 0; ty < fx->tileSize; ++ty)
+			{
+				glTexSubImage2D(GL_TEXTURE_2D, 0,
+					(fx->iconIndex % 16) * 16 + tx * 16,
+					(fx->iconIndex / 16) * 16 + ty * 16,
+					16, 16, GL_RGBA, GL_UNSIGNED_BYTE, fx->imageData);
+			}
+		}
+	}
 }
 
 int_t Textures::smoothBlend(int_t c0, int_t c1)

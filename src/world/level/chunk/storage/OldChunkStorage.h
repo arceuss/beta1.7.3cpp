@@ -24,7 +24,7 @@ public:
 	std::shared_ptr<LevelChunk> load(Level &level, int_t x, int_t z) override;
 	void save(Level &level, LevelChunk &chunk) override;
 
-	void save(LevelChunk &chunk, Level &level, CompoundTag &tag);
+	static void save(LevelChunk &chunk, Level &level, CompoundTag &tag);
 	static std::shared_ptr<LevelChunk> load(Level &level, CompoundTag &tag);
 
 	void tick() override;

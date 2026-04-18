@@ -3,16 +3,45 @@
 #include "world/level/Level.h"
 
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/TransparentTile.h"
+#include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/StoneTile.h"
 #include "world/level/tile/GrassTile.h"
 #include "world/level/tile/DirtTile.h"
 #include "world/level/tile/SandTile.h"
 #include "world/level/tile/GravelTile.h"
+#include "world/level/tile/FlowerTile.h"
+#include "world/level/tile/TallGrassTile.h"
+#include "world/level/tile/DeadBushTile.h"
+#include "world/level/tile/MushroomTile.h"
+#include "world/level/tile/ReedTile.h"
+#include "world/level/tile/CactusTile.h"
+#include "world/level/tile/PumpkinTile.h"
+#include "world/level/tile/SnowTile.h"
+#include "world/level/tile/IceTile.h"
 
 #include "world/level/levelgen/feature/TreeFeature.h"
+#include "world/level/levelgen/feature/BigTreeFeature.h"
+#include "world/level/levelgen/feature/ForestFeature.h"
+#include "world/level/levelgen/feature/Taiga1Feature.h"
+#include "world/level/levelgen/feature/Taiga2Feature.h"
+#include "world/level/levelgen/feature/FlowerFeature.h"
+#include "world/level/levelgen/feature/TallGrassFeature.h"
+#include "world/level/levelgen/feature/DeadBushFeature.h"
+#include "world/level/levelgen/feature/ReedFeature.h"
+#include "world/level/levelgen/feature/PumpkinFeature.h"
+#include "world/level/levelgen/feature/CactusFeature.h"
+#include "world/level/levelgen/feature/OreFeature.h"
+#include "world/level/levelgen/feature/ClayFeature.h"
+#include "world/level/levelgen/feature/LakeFeature.h"
+#include "world/level/levelgen/feature/SpringFeature.h"
 #include "world/level/levelgen/LargeCaveFeature.h"
 
 TreeFeature tree_feature_lol;
+BigTreeFeature big_tree_feature;
+ForestFeature forest_feature;
+Taiga1Feature taiga1_feature;
+Taiga2Feature taiga2_feature;
 LargeCaveFeature large_cave_feature;
 
 RandomLevelSource::RandomLevelSource(Level &level, long_t seed) : level(level),
@@ -75,9 +104,12 @@ void RandomLevelSource::prepareHeights(int_t x, int_t z, ubyte_t *tiles, double 
 
 							int_t tile = 0;
 
-							if ((yi * CHUNK_HEIGHT + cyi) <= Level::SEA_LEVEL)
+							if ((yi * CHUNK_HEIGHT + cyi) < Level::SEA_LEVEL)
 							{
-								
+								if (temperature < 0.5 && (yi * CHUNK_HEIGHT + cyi) >= Level::SEA_LEVEL - 1)
+									tile = Tile::ice.id;
+								else
+									tile = Tile::calmWater.id;
 							}
 
 							if (vxx0 > 0.0)
@@ -105,7 +137,7 @@ void RandomLevelSource::prepareHeights(int_t x, int_t z, ubyte_t *tiles, double 
 
 void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 {
-	int_t seaLevel = Level::SEA_LEVEL + 1;
+	int_t seaLevel = Level::SEA_LEVEL;
 
 	double scale = 1.0 / 32.0;
 	perlinNoise2.getRegion(sandBuffer.data(), x * 16, z * 16, 0.0, 16, 16, 1, scale, scale, 1.0);
@@ -121,9 +153,10 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 
 			int_t depth = static_cast<int_t>(depthBuffer[x + z * 16] / 3.0 + 3.0 + random.nextDouble() * 0.25);
 			int_t depthI = 0;
+			const BiomeInfo &biomeInfo = level.getBiomeSource().getBiomeInfo(level.getBiomeSource().biomes[x * 16 + z]);
 
-			int_t topTile = Tile::grass.id;
-			int_t fillerTile = Tile::dirt.id;
+			int_t topTile = biomeInfo.topTileId;
+			int_t fillerTile = biomeInfo.fillerTileId;
 
 			for (int_t y = Level::DEPTH - 1; y >= 0; y--)
 			{
@@ -132,6 +165,7 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 				// Bedrock
 				if (y <= 0 + random.nextInt(5))
 				{
+					tiles[i] = Tile::bedrock.id;
 					continue;
 				}
 
@@ -164,6 +198,8 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 						}
 
 						depthI = depth;
+						if (y < seaLevel && topTile == 0)
+							topTile = Tile::calmWater.id;
 						if (y >= seaLevel - 1)
 							tiles[i] = topTile;
 						else
@@ -174,6 +210,11 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 					{
 						depthI--;
 						tiles[i] = fillerTile;
+						if (depthI == 0 && fillerTile == Tile::sand.id)
+						{
+							depthI = random.nextInt(4);
+							fillerTile = Tile::sandstone.id;
+						}
 					}
 				}
 			}
@@ -314,24 +355,275 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 	long_t cs1 = random.nextLong() / 2LL * 2LL + 1LL;
 	random.setSeed((x * cs0 + z * cs1) ^ level.seed);
 
-	double scale;
+	int_t px, py, pz;
 
-	// SPAWN TREES AND HAVE FUN
-	scale = 0.5;
-	int_t forest_value = (forestNoise.getValue(cx * scale, cz * scale) / 8.0 + random.nextDouble() * 4.0 + 4.0) / 3.0;
+	// Water lakes (25% chance)
+	if (random.nextInt(4) == 0)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		LakeFeature(Tile::calmWater.id).place(level, random, px, py, pz);
+	}
 
-	int_t trees = 0;
-	if (random.nextInt(10) == 0)
-		trees++;
+	// Lava lakes (12.5% chance, below y64 or 10% above)
+	if (random.nextInt(8) == 0)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(random.nextInt(120) + 8);
+		pz = cz + random.nextInt(16) + 8;
+		if (py < 64 || random.nextInt(10) == 0)
+			LakeFeature(Tile::calmLava.id).place(level, random, px, py, pz);
+	}
 
-	trees += forest_value + 5; // My awesome fun forest
+	// Clay (10 attempts)
+	for (int_t i = 0; i < 10; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16);
+		ClayFeature(32).place(level, random, px, py, pz);
+	}
 
+	// Dirt veins (20 attempts)
+	for (int_t i = 0; i < 20; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::dirt.id, 32).place(level, random, px, py, pz);
+	}
+
+	// Gravel veins (10 attempts)
+	for (int_t i = 0; i < 10; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::gravel.id, 32).place(level, random, px, py, pz);
+	}
+
+	// Coal ore (20 attempts, y 0-128)
+	for (int_t i = 0; i < 20; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::coalOre.id, 16).place(level, random, px, py, pz);
+	}
+
+	// Iron ore (20 attempts, y 0-64)
+	for (int_t i = 0; i < 20; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(64);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::ironOre.id, 8).place(level, random, px, py, pz);
+	}
+
+	// Gold ore (2 attempts, y 0-32)
+	for (int_t i = 0; i < 2; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(32);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::goldOre.id, 8).place(level, random, px, py, pz);
+	}
+
+	// Redstone ore (8 attempts, y 0-16)
+	for (int_t i = 0; i < 8; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(16);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::redstoneOre.id, 7).place(level, random, px, py, pz);
+	}
+
+	// Diamond ore (1 attempt, y 0-16)
+	for (int_t i = 0; i < 1; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(16);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::diamondOre.id, 7).place(level, random, px, py, pz);
+	}
+
+	// Lapis ore (1 attempt, y 0-32 triangular)
+	for (int_t i = 0; i < 1; i++)
+	{
+		px = cx + random.nextInt(16);
+		py = random.nextInt(16) + random.nextInt(16);
+		pz = cz + random.nextInt(16);
+		OreFeature(Tile::lapisOre.id, 6).place(level, random, px, py, pz);
+	}
+
+	BiomeId biome = level.getBiomeSource().getBiome(cx + 16, cz + 16);
+	const BiomeInfo &biomeInfo = level.getBiomeSource().getBiomeInfo(biome);
+
+	// Trees
+	double scale = 0.5;
+	int_t forestValue = static_cast<int_t>((forestNoise.getValue(cx * scale, cz * scale) / 8.0 + random.nextDouble() * 4.0 + 4.0) / 3.0);
+	int_t trees = random.nextInt(10) == 0 ? 1 : 0;
+	trees += forestValue + biomeInfo.treeCountAdjustment;
 	for (int_t i = 0; i < trees; i++)
 	{
 		int_t tx = cx + random.nextInt(16) + 8;
 		int_t tz = cz + random.nextInt(16) + 8;
-		tree_feature_lol.init(1.0, 1.0, 1.0);
-		tree_feature_lol.place(level, random, tx, level.getHeightmap(tx, tz), tz);
+		Feature *treeFeature = &tree_feature_lol;
+		switch (biomeInfo.treeStyle)
+		{
+		case TreeStyle::Rainforest:
+			treeFeature = random.nextInt(3) == 0 ? static_cast<Feature *>(&big_tree_feature) : static_cast<Feature *>(&tree_feature_lol);
+			break;
+		case TreeStyle::Forest:
+			if (random.nextInt(5) == 0)
+				treeFeature = &forest_feature;
+			else if (random.nextInt(3) == 0)
+				treeFeature = &big_tree_feature;
+			else
+				treeFeature = &tree_feature_lol;
+			break;
+		case TreeStyle::Taiga:
+			treeFeature = random.nextInt(3) == 0 ? static_cast<Feature *>(&taiga1_feature) : static_cast<Feature *>(&taiga2_feature);
+			break;
+		default:
+			treeFeature = random.nextInt(10) == 0 ? static_cast<Feature *>(&big_tree_feature) : static_cast<Feature *>(&tree_feature_lol);
+			break;
+		}
+		treeFeature->init(1.0, 1.0, 1.0);
+		treeFeature->place(level, random, tx, level.getHeightmap(tx, tz), tz);
+	}
+
+	int_t yellowFlowers = 0;
+	if (biome == BiomeId::Forest) yellowFlowers = 2;
+	if (biome == BiomeId::SeasonalForest) yellowFlowers = 4;
+	if (biome == BiomeId::Taiga) yellowFlowers = 2;
+	if (biome == BiomeId::Plains) yellowFlowers = 3;
+
+	for (int_t i = 0; i < yellowFlowers; ++i)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		FlowerFeature(Tile::flower.id).place(level, random, px, py, pz);
+	}
+
+	int_t tallGrassCount = 0;
+	if (biome == BiomeId::Forest) tallGrassCount = 2;
+	if (biome == BiomeId::Rainforest) tallGrassCount = 10;
+	if (biome == BiomeId::SeasonalForest) tallGrassCount = 2;
+	if (biome == BiomeId::Taiga) tallGrassCount = 1;
+	if (biome == BiomeId::Plains) tallGrassCount = 10;
+
+	for (int_t i = 0; i < tallGrassCount; ++i)
+	{
+		int_t tallGrassData = 1;
+		if (biome == BiomeId::Rainforest && random.nextInt(3) != 0)
+			tallGrassData = 2;
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		TallGrassFeature(Tile::tallGrass.id, tallGrassData).place(level, random, px, py, pz);
+	}
+
+	int_t deadBushCount = biome == BiomeId::Desert ? 2 : 0;
+	for (int_t i = 0; i < deadBushCount; ++i)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		DeadBushFeature(Tile::deadBush.id).place(level, random, px, py, pz);
+	}
+
+	if (random.nextInt(2) == 0)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		FlowerFeature(Tile::rose.id).place(level, random, px, py, pz);
+	}
+
+	if (random.nextInt(4) == 0)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		FlowerFeature(Tile::brownMushroom.id).place(level, random, px, py, pz);
+	}
+
+	if (random.nextInt(8) == 0)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		FlowerFeature(Tile::redMushroom.id).place(level, random, px, py, pz);
+	}
+
+	for (int_t i = 0; i < 10; ++i)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		ReedFeature().place(level, random, px, py, pz);
+	}
+
+	if (random.nextInt(32) == 0)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		PumpkinFeature().place(level, random, px, py, pz);
+	}
+
+	int_t cactusCount = biome == BiomeId::Desert ? 10 : 0;
+	for (int_t i = 0; i < cactusCount; ++i)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		CactusFeature().place(level, random, px, py, pz);
+	}
+
+	// Flowing water springs (50 attempts)
+	for (int_t i = 0; i < 50; i++)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(random.nextInt(120) + 8);
+		pz = cz + random.nextInt(16) + 8;
+		SpringFeature(Tile::water.id).place(level, random, px, py, pz);
+	}
+
+	// Flowing lava springs (20 attempts)
+	for (int_t i = 0; i < 20; i++)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(random.nextInt(random.nextInt(112) + 8) + 8);
+		pz = cz + random.nextInt(16) + 8;
+		SpringFeature(Tile::lava.id).place(level, random, px, py, pz);
+	}
+
+	level.getBiomeSource().getBiomeBlock(cx + 8, cz + 8, 16, 16);
+	double *temperatures = level.getBiomeSource().temperatures.data();
+
+	for (int_t snowX = cx + 8; snowX < cx + 24; ++snowX)
+	{
+		for (int_t snowZ = cz + 8; snowZ < cz + 24; ++snowZ)
+		{
+			int_t tempX = snowX - (cx + 8);
+			int_t tempZ = snowZ - (cz + 8);
+			int_t snowY = level.getTopSolidBlock(snowX, snowZ);
+			double temperature = temperatures[tempX * 16 + tempZ] - static_cast<double>(snowY - 64) / 64.0 * 0.3;
+			if (temperature >= 0.5 || snowY <= 0 || snowY >= Level::DEPTH || !level.isEmptyTile(snowX, snowY, snowZ))
+				continue;
+
+			int_t belowTile = level.getTile(snowX, snowY - 1, snowZ);
+			if (belowTile == 0 || !Tile::solid[belowTile])
+				continue;
+
+			const Material &belowMaterial = level.getMaterial(snowX, snowY - 1, snowZ);
+			if (belowMaterial.blocksMotion() && &belowMaterial != &Material::ice())
+				level.setTile(snowX, snowY, snowZ, Tile::snow.id);
+		}
 	}
 }
 

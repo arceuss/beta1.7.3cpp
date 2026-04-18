@@ -17,7 +17,17 @@ void EntityRenderer::bindTexture(const jstring &resourceName)
 
 void EntityRenderer::bindTexture(const jstring &urlTexture, const jstring &backupTexture)
 {
-	// TODO
+	Textures &t = *entityRenderDispatcher.textures;
+	if (!urlTexture.empty())
+	{
+		int_t id = t.loadHttpTexture(urlTexture, &backupTexture);
+		if (id >= 0)
+		{
+			t.bind(id);
+			return;
+		}
+	}
+
 	bindTexture(backupTexture);
 }
 

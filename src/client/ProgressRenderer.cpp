@@ -37,7 +37,7 @@ void ProgressRenderer::_progressStart(const jstring &title)
 
 	this->title = title;
 
-	ScreenSizeCalculator ssc(minecraft.width, minecraft.height);
+	ScreenSizeCalculator ssc(minecraft.options, minecraft.width, minecraft.height);
 	int_t screenWidth = ssc.getWidth();
 	int_t screenHeight = ssc.getHeight();
 
@@ -76,7 +76,7 @@ void ProgressRenderer::progressStagePercentage(int_t i)
 	if (now - lastTime < 20) return;
 	lastTime = now;
 
-	ScreenSizeCalculator ssc(minecraft.width, minecraft.height);
+	ScreenSizeCalculator ssc(minecraft.options, minecraft.width, minecraft.height);
 	int_t screenWidth = ssc.getWidth();
 	int_t screenHeight = ssc.getHeight();
 

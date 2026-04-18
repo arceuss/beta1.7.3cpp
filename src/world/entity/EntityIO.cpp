@@ -4,7 +4,8 @@
 
 #include "world/entity/Entity.h"
 #include "world/entity/Mob.h"
-
+#include "world/entity/item/EntityItem.h"
+#include "world/entity/item/FallingTile.h"
 namespace EntityIO
 {
 

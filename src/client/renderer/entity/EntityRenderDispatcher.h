@@ -7,6 +7,8 @@
 #include "client/gui/Font.h"
 
 class PlayerRenderer;
+class FallingTileRenderer;
+class ItemRenderer;
 
 class EntityRenderDispatcher
 {
@@ -16,8 +18,9 @@ public:
 	static PlayerRenderer playerRenderer;
 
 private:
+	static FallingTileRenderer &getFallingTileRenderer();
+	static ItemRenderer &getItemRenderer();
 	Font *font = nullptr;
-
 public:
 	static double xOff;
 	static double yOff;

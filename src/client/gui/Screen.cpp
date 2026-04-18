@@ -7,6 +7,7 @@
 
 #include "lwjgl/Keyboard.h"
 #include "lwjgl/Mouse.h"
+#include "SDL.h"
 
 #include <iostream>
 
@@ -32,10 +33,21 @@ void Screen::keyPressed(char_t eventCharacter, int_t eventKey)
 
 jstring Screen::getClipboard()
 {
-	return u"";
+	char *text = SDL_GetClipboardText();
+	if (text == nullptr)
+		return u"";
+
+	jstring result = String::fromUTF8(text);
+	SDL_free(text);
+	return result;
 }
 
 void Screen::setClipboard(const jstring &text)
+{
+	SDL_SetClipboardText(String::toUTF8(text).c_str());
+}
+
+void Screen::selectNextField()
 {
 
 }
@@ -49,8 +61,7 @@ void Screen::mouseClicked(int_t x, int_t y, int_t buttonNum)
 			if (button->clicked(minecraft, x, y))
 			{
 				clickedButton = button;
-				// TODO
-				// this.minecraft.soundEngine.playUI("random.click", 1.0f, 1.0f);
+				minecraft.soundEngine.playUI(u"random.click", 1.0f, 1.0f);
 				buttonClicked(*button);
 			}
 		}
@@ -64,6 +75,11 @@ void Screen::mouseReleased(int_t x, int_t y, int_t buttonNum)
 		clickedButton->released(x, y);
 		clickedButton = nullptr;
 	}
+}
+
+void Screen::mouseScrolled(int_t x, int_t y, int_t scrollAmount)
+{
+
 }
 
 void Screen::buttonClicked(Button &button)
@@ -100,18 +116,20 @@ void Screen::updateEvents()
 
 void Screen::mouseEvent()
 {
+	int_t xm = lwjgl::Mouse::getEventX() * width / minecraft.width;
+	int_t ym = height - lwjgl::Mouse::getEventY() * height / minecraft.height - 1;
+	int_t scrollAmount = lwjgl::Mouse::getEventDWheel();
+	if (scrollAmount != 0)
+		mouseScrolled(xm, ym, scrollAmount);
+
+	int_t button = lwjgl::Mouse::getEventButton();
+	if (button < 0)
+		return;
+
 	if (lwjgl::Mouse::getEventButtonState())
-	{
-		int_t xm = lwjgl::Mouse::getEventX() * width / minecraft.width;
-		int_t ym = height - lwjgl::Mouse::getEventY() * height / minecraft.height - 1;
-		mouseClicked(xm, ym, lwjgl::Mouse::getEventButton());
-	}
+		mouseClicked(xm, ym, button);
 	else
-	{
-		int_t xm = lwjgl::Mouse::getEventX() * width / minecraft.width;
-		int_t ym = height - lwjgl::Mouse::getEventY() * height / minecraft.height - 1;
-		mouseReleased(xm, ym, lwjgl::Mouse::getEventButton());
-	}
+		mouseReleased(xm, ym, button);
 }
 
 void Screen::keyboardEvent()

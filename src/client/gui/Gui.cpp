@@ -2,11 +2,18 @@
 
 #include "client/Lighting.h"
 #include "client/gui/ScreenSizeCalculator.h"
+#include "client/renderer/entity/EntityRenderDispatcher.h"
+#include "client/renderer/entity/ItemRenderer.h"
 
 #include "client/Minecraft.h"
 #include "world/level/Level.h"
 
 #include "java/Runtime.h"
+
+#ifndef GL_RESCALE_NORMAL
+#define GL_RESCALE_NORMAL 32826
+#endif
+
 
 Gui::Gui(Minecraft &minecraft) : minecraft(minecraft)
 {
@@ -15,7 +22,7 @@ Gui::Gui(Minecraft &minecraft) : minecraft(minecraft)
 
 void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 {
-	ScreenSizeCalculator ssc(minecraft.width, minecraft.height);
+	ScreenSizeCalculator ssc(minecraft.options, minecraft.width, minecraft.height);
 	int_t width = ssc.getWidth();
 	int_t height = ssc.getHeight();
 
@@ -37,7 +44,7 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 	glBindTexture(GL_TEXTURE_2D, minecraft.textures.loadTexture(u"/gui/gui.png"));
 
 	blit(width / 2 - 91, height - 22, 0, 0, 182, 22);
-	blit(width / 2 - 91 - 1 + 0 * 20, height - 22 - 1, 0, 22, 24, 22);
+	blit(width / 2 - 91 - 1 + minecraft.player->inventory.currentItem * 20, height - 22 - 1, 0, 22, 24, 22);
 
 	// Cross
 	glBindTexture(GL_TEXTURE_2D, minecraft.textures.loadTexture(u"/gui/icons.png"));
@@ -54,12 +61,11 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 	int_t nowHealth = minecraft.player->health;
 	int_t lastHealth = minecraft.player->lastHealth;
 
-	random.setSeed(tickCount * 312871);
+	random.setSeed(static_cast<long_t>(minecraft.player->tickCount) * 312871L);
 
 	if (minecraft.gameMode->canHurtPlayer())
 	{
-		// TODO ARMOR
-		int_t armor = 0;
+		int_t armor = minecraft.player->inventory.getArmorValue();
 
 		for (int_t x = 0; x < 10; x++)
 		{
@@ -88,8 +94,20 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 		}
 	}
 
+	glDisable(GL_BLEND);
+	glEnable(GL_RESCALE_NORMAL);
+	glPushMatrix();
+	glRotatef(180.0f, 1.0f, 0.0f, 0.0f);
 	Lighting::turnOn();
+	glPopMatrix();
+	for (int_t i = 0; i < 9; i++)
+	{
+		int_t x = width / 2 - 90 + i * 20 + 2;
+		int_t y = height - 16 - 3;
+		renderSlot(i, x, y, a);
+	}
 	Lighting::turnOff();
+	glDisable(GL_RESCALE_NORMAL);
 
 	// Debug text
 	if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
@@ -117,11 +135,33 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 		// drawString(font, u"yRot: " + String::toString(minecraft.player->yRot), 2, 96, 0xE0E0E0);
 		// drawString(font, u"tilt: " + String::toString(minecraft.player->tilt), 2, 104, 0xE0E0E0);
 	}
-	else
-	{
-		font.drawShadow(Minecraft::VERSION_STRING, 2, 2, 0xFFFFFF);
-	}
 }
+
+void Gui::renderSlot(int_t slot, int_t x, int_t y, float a)
+{
+	static ItemRenderer itemRenderer(EntityRenderDispatcher::instance);
+	ItemInstance &stack = minecraft.player->inventory.mainInventory[slot];
+	if (stack.isEmpty())
+		return;
+
+	float pop = static_cast<float>(stack.popTime) - a;
+	if (pop > 0.0f)
+	{
+		glPushMatrix();
+		float scale = 1.0f + pop / 5.0f;
+		glTranslatef(static_cast<float>(x + 8), static_cast<float>(y + 12), 0.0f);
+		glScalef(1.0f / scale, (scale + 1.0f) / 2.0f, 1.0f);
+		glTranslatef(static_cast<float>(-(x + 8)), static_cast<float>(-(y + 12)), 0.0f);
+	}
+
+	itemRenderer.renderGuiItem(*minecraft.font, minecraft.textures, stack, x, y);
+
+	if (pop > 0.0f)
+		glPopMatrix();
+
+	itemRenderer.renderGuiItemDecorations(*minecraft.font, minecraft.textures, stack, x, y);
+}
+
 
 void Gui::tick()
 {

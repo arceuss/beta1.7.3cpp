@@ -41,15 +41,15 @@ public:
 	void readAdditionalSaveData(CompoundTag &tag) override;
 
 	void closeContainer() override;
-
+	void take(Entity &entity, int_t count) override;
+	void respawn() override;
+	void startCrafting(int_t x, int_t y, int_t z);
 	// TODO
 	// openTextEdit
 	// openContainer
-	// startCrafing
 	// openFurnace
 	// openTrap
 	
 	void prepareForTick();
-
 	bool isSneaking() override;
 };

@@ -16,7 +16,7 @@ public:
 
 protected:
 	void scale(Mob &mob, float a) override;
-
+	void additionalRendering(Mob &mob, float a) override;
 public:
 	void renderHand();
 };

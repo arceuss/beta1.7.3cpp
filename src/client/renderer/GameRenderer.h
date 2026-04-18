@@ -43,6 +43,8 @@ public:
 	GameRenderer(Minecraft &mc);
 
 	void tick();
+	void itemPlaced();
+	void itemUsed();
 	void pick(float a);
 
 private:

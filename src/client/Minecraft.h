@@ -17,8 +17,11 @@
 #include "client/renderer/LevelRenderer.h"
 #include "client/renderer/GameRenderer.h"
 #include "client/renderer/Textures.h"
+#include "client/particle/ParticleEngine.h"
 
 #include "client/skins/TexturePackRepository.h"
+
+#include "client/sound/SoundEngine.h"
 
 #include "client/gamemode/GameMode.h"
 
@@ -56,6 +59,9 @@ private:
 
 public:
 	std::shared_ptr<Level> level;
+	Options options = Options(*this);
+	TexturePackRepository texturePackRepository = TexturePackRepository(*this);
+	Textures textures = Textures(texturePackRepository, options);
 	LevelRenderer levelRenderer = LevelRenderer(*this, textures);
 
 	std::shared_ptr<LocalPlayer> player;
@@ -64,14 +70,14 @@ public:
 	jstring serverDomain;
 
 	volatile bool pause = false;
-
-	Textures textures = Textures(texturePackRepository, options);
 	std::unique_ptr<Font> font;
 
 	std::shared_ptr<Screen> screen;
 	std::shared_ptr<ProgressRenderer> progressRenderer = Util::make_unique<ProgressRenderer>(*this);
 
 	GameRenderer gameRenderer = GameRenderer(*this);
+
+	ParticleEngine particleEngine = ParticleEngine(nullptr, &textures);
 
 private:
 	int_t ticks = 0;
@@ -87,10 +93,8 @@ public:
 
 	HitResult hitResult = HitResult();
 
-	Options options = Options(*this);
-
 	MouseHandler mouseHandler = MouseHandler(*this);
-	TexturePackRepository texturePackRepository = TexturePackRepository(*this);
+	SoundEngine soundEngine;
 
 	std::shared_ptr<File> workingDirectory;
 
@@ -134,6 +138,8 @@ public:
 private:
 	void renderLoadingScreen();
 	void blit(int_t dstx, int_t dsty, int_t srcx, int_t srcy, int_t w, int_t h);
+	void loadAllSounds(File *dir, const jstring &prefix);
+	void fileDownloaded(const jstring &name, File *file);
 
 public:
 	static const std::shared_ptr<File> &getWorkingDirectory();
@@ -174,6 +180,7 @@ public:
 	bool isOnline();
 
 	void selectLevel(const jstring &name);
+	void selectLevel(const jstring &name, const jstring &levelName, long_t seed);
 
 	void toggleDimension();
 

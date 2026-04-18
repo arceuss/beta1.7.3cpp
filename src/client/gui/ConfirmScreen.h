@@ -8,10 +8,12 @@ private:
 	std::shared_ptr<Screen> parent;
 	jstring title1;
 	jstring title2;
+	jstring yesButtonLabel;
+	jstring noButtonLabel;
 	int_t id;
 
 public:
-	ConfirmScreen(Minecraft &minecraft, std::shared_ptr<Screen> parent, jstring title1, jstring title2, int_t id);
+	ConfirmScreen(Minecraft &minecraft, std::shared_ptr<Screen> parent, jstring title1, jstring title2, int_t id, jstring yesButtonLabel, jstring noButtonLabel);
 
 	void init() override;
 

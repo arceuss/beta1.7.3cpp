@@ -6,6 +6,8 @@
 #include "Facing.h"
 #include "locale/Descriptive.h"
 
+
+#include "world/level/tile/StepSound.h"
 #include "world/level/material/Material.h"
 #include "world/phys/AABB.h"
 
@@ -21,11 +23,26 @@ class Player;
 class StoneTile;
 class GrassTile;
 class DirtTile;
+class WoodTile;
 class SandTile;
 class GravelTile;
 class TreeTile;
 class LeafTile;
+class FlowerTile;
+class CropsTile;
+class FarmlandTile;
+class TallGrassTile;
+class DeadBushTile;
+class MushroomTile;
+class ReedTile;
+class CactusTile;
+class PumpkinTile;
+class SnowTile;
+class IceTile;
+class WorkbenchTile;
 
+class TransparentTile;
+class LiquidTile;
 class Tile //: public Descriptive<Tile>
 {
 private:
@@ -61,16 +78,59 @@ public:
 	static std::array<bool, 256> translucent;
 	static std::array<int_t, 256> lightEmission;
 
+
+	// Step sounds
+	static StepSound soundPowderFootstep;
+	static StepSound soundWoodFootstep;
+	static StepSound soundGravelFootstep;
+	static StepSound soundGrassFootstep;
+	static StepSound soundStoneFootstep;
+	static StepSound soundMetalFootstep;
+	static StepSoundStone soundGlassFootstep;
+	static StepSound soundClothFootstep;
+	static StepSoundSand soundSandFootstep;
 	// Tiles
 	static StoneTile rock;
 	static GrassTile grass;
 	static DirtTile dirt;
+	static WoodTile wood;
 
 	static SandTile sand;
 	static GravelTile gravel;
 
 	static TreeTile treeTrunk;
 	static LeafTile leaves;
+	static TallGrassTile tallGrass;
+	static DeadBushTile deadBush;
+	static FlowerTile flower;
+	static FlowerTile rose;
+	static MushroomTile brownMushroom;
+	static MushroomTile redMushroom;
+
+	static Tile cobblestone;
+	static Tile bedrock;
+	static LiquidTile &water;
+	static LiquidTile &calmWater;
+	static LiquidTile &lava;
+	static LiquidTile &calmLava;
+	static Tile goldOre;
+	static Tile ironOre;
+	static Tile coalOre;
+	static Tile lapisOre;
+	static Tile &sandstone;
+	static Tile mossyCobblestone;
+	static Tile obsidian;
+	static WorkbenchTile workBench;
+	static CropsTile crops;
+	static FarmlandTile farmland;
+	static Tile diamondOre;
+	static Tile redstoneOre;
+	static SnowTile snow;
+	static IceTile ice;
+	static CactusTile cactus;
+	static Tile clay;
+	static ReedTile reed;
+	static PumpkinTile pumpkin;
 
 	static void initTiles();
 
@@ -84,6 +144,8 @@ protected:
 	float explosionResistance = 0.0f;
 
 public:
+	StepSound *soundType = nullptr;
+
 	double xx0 = 0.0;
 	double yy0 = 0.0;
 	double zz0 = 0.0;
@@ -98,7 +160,7 @@ public:
 
 	float friction = 0.6f;
 
-protected:
+public:
 	Tile(int_t id, const Material &material);
 	Tile(int_t id, int_t tex, const Material &material);
 
@@ -117,7 +179,9 @@ public:
 
 protected:
 	Tile &setDestroyTime(float time);
+	Tile &setSoundType(StepSound &sound);
 	void setTicking(bool ticking);
+	void updateCachedProperties();
 
 public:
 	void setShape(float x0, float y0, float z0, float x1, float y1, float z1);
@@ -176,6 +240,7 @@ public:
 	virtual void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face);
 	virtual void prepareRender(Level &level, int_t x, int_t y, int_t z);
 	virtual void attack(Level &level, int_t x, int_t y, int_t z, Player &player);
+	virtual bool use(Level &level, int_t x, int_t y, int_t z, Player &player);
 
 	virtual void updateShape(LevelSource &level, int_t x, int_t y, int_t z);
 	virtual int_t getColor(LevelSource &level, int_t x, int_t y, int_t z);

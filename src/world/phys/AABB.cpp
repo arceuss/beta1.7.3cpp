@@ -224,17 +224,17 @@ HitResult AABB::clip(const Vec3 &a, const Vec3 &b) const
 	Vec3 *clipz0 = a.clipZ(b, z0);
 	Vec3 *clipz1 = a.clipZ(b, z1);
 
-	if (!containsX(*clipx0))
+	if (!containsX(clipx0))
 		clipx0 = nullptr;
-	if (!containsX(*clipx1))
+	if (!containsX(clipx1))
 		clipx1 = nullptr;
-	if (!containsY(*clipy0))
+	if (!containsY(clipy0))
 		clipy0 = nullptr;
-	if (!containsY(*clipy1))
+	if (!containsY(clipy1))
 		clipy1 = nullptr;
-	if (!containsZ(*clipz0))
+	if (!containsZ(clipz0))
 		clipz0 = nullptr;
-	if (!containsZ(*clipz1))
+	if (!containsZ(clipz1))
 		clipz1 = nullptr;
 
 	Vec3 *closest = nullptr;
@@ -271,19 +271,19 @@ HitResult AABB::clip(const Vec3 &a, const Vec3 &b) const
 	return HitResult(closest->x, closest->y, closest->z, f, *closest);
 }
 
-bool AABB::containsX(const Vec3 &other) const
+bool AABB::containsX(const Vec3 *other) const
 {
-	return other.y >= y0 && other.y <= y1 && other.z >= z0 && other.z <= z1;
+	return other != nullptr && other->y >= y0 && other->y <= y1 && other->z >= z0 && other->z <= z1;
 }
 
-bool AABB::containsY(const Vec3 &other) const
+bool AABB::containsY(const Vec3 *other) const
 {
-	return other.x >= x0 && other.x <= x1 && other.z >= z0 && other.z <= z1;
+	return other != nullptr && other->x >= x0 && other->x <= x1 && other->z >= z0 && other->z <= z1;
 }
 
-bool AABB::containsZ(const Vec3 &other) const
+bool AABB::containsZ(const Vec3 *other) const
 {
-	return other.x >= x0 && other.x <= x1 && other.y >= y0 && other.y <= y1;
+	return other != nullptr && other->x >= x0 && other->x <= x1 && other->y >= y0 && other->y <= y1;
 }
 
 void AABB::set(const AABB &other)

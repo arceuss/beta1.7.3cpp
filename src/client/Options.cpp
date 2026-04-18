@@ -14,7 +14,10 @@ Options::Option::Element Options::Option::SENSITIVITY = { true, false, u"options
 Options::Option::Element Options::Option::RENDER_DISTANCE = { false, false, u"options.renderDistance" };
 Options::Option::Element Options::Option::VIEW_BOBBING = { false, true, u"options.viewBobbing" };
 Options::Option::Element Options::Option::ANAGLYPH = { false, true, u"options.anaglyph" };
-Options::Option::Element Options::Option::LIMIT_FRAMERATE = { false, true, u"options.limitFramerate" };
+Options::Option::Element Options::Option::LIMIT_FRAMERATE = { false, false, u"options.framerateLimit" };
+Options::Option::Element Options::Option::GUI_SCALE = { false, false, u"options.guiScale" };
+Options::Option::Element Options::Option::AMBIENT_OCCLUSION = { false, true, u"options.ao" };
+Options::Option::Element Options::Option::ADVANCED_OPENGL = { false, true, u"options.advancedOpengl" };
 Options::Option::Element Options::Option::DIFFICULTY = { false, false, u"options.difficulty" };
 Options::Option::Element Options::Option::GRAPHICS = { false, false, u"options.graphics" };
 
@@ -23,6 +26,17 @@ const char16_t *Options::RENDER_DISTANCE_NAMES[] = {
 	u"options.renderDistance.normal",
 	u"options.renderDistance.short",
 	u"options.renderDistance.tiny"
+};
+const char16_t *Options::LIMIT_FRAMERATE_NAMES[] = {
+	u"performance.max",
+	u"performance.balanced",
+	u"performance.powersaver"
+};
+const char16_t *Options::GUI_SCALE_NAMES[] = {
+	u"options.guiScale.auto",
+	u"options.guiScale.small",
+	u"options.guiScale.normal",
+	u"options.guiScale.large"
 };
 const char16_t *Options::DIFFICULTY_NAMES[] = {
 	u"options.difficulty.peaceful",
@@ -63,9 +77,15 @@ void Options::setKey(int_t i, int_t key)
 void Options::set(Option::Element &option, float value)
 {
 	if (&option == &Option::MUSIC)
+	{
 		music = value;
+		minecraft.reloadSound();
+	}
 	else if (&option == &Option::SOUND)
+	{
 		sound = value;
+		minecraft.reloadSound();
+	}
 	else if (&option == &Option::SENSITIVITY)
 		mouseSensitivity = value;
 }
@@ -84,7 +104,19 @@ void Options::toggle(Option::Element &option, int_t add)
 		minecraft.textures.reloadAll();
 	}
 	else if (&option == &Option::LIMIT_FRAMERATE)
-		limitFramerate = !limitFramerate;
+		limitFramerate = (limitFramerate + add + 3) % 3;
+	else if (&option == &Option::GUI_SCALE)
+		guiScale = (guiScale + add) & 3;
+	else if (&option == &Option::AMBIENT_OCCLUSION)
+	{
+		ambientOcclusion = !ambientOcclusion;
+		minecraft.levelRenderer.allChanged();
+	}
+	else if (&option == &Option::ADVANCED_OPENGL)
+	{
+		advancedOpengl = !advancedOpengl;
+		minecraft.levelRenderer.allChanged();
+	}
 	else if (&option == &Option::DIFFICULTY)
 		difficulty = (difficulty + add) & 3;
 	else if (&option == &Option::GRAPHICS)
@@ -115,8 +147,10 @@ bool Options::getBooleanValue(Option::Element &option)
 		return bobView;
 	else if (&option == &Option::ANAGLYPH)
 		return anaglyph3d;
-	else if (&option == &Option::LIMIT_FRAMERATE)
-		return limitFramerate;
+	else if (&option == &Option::AMBIENT_OCCLUSION)
+		return ambientOcclusion;
+	else if (&option == &Option::ADVANCED_OPENGL)
+		return advancedOpengl;
 	return false;
 }
 
@@ -156,6 +190,14 @@ jstring Options::getMessage(Option::Element &option)
 	else if (&option == &Option::RENDER_DISTANCE)
 	{
 		return result + l.getElement(RENDER_DISTANCE_NAMES[viewDistance]);
+	}
+	else if (&option == &Option::LIMIT_FRAMERATE)
+	{
+		return result + l.getElement(LIMIT_FRAMERATE_NAMES[limitFramerate]);
+	}
+	else if (&option == &Option::GUI_SCALE)
+	{
+		return result + l.getElement(GUI_SCALE_NAMES[guiScale]);
 	}
 	else if (&option == &Option::DIFFICULTY)
 	{
@@ -209,7 +251,21 @@ void Options::load()
 		if (key == "anaglyph3d")
 			anaglyph3d = value == "true";
 		if (key == "limitFramerate")
-			limitFramerate = value == "true";
+		{
+			limitFramerate = static_cast<int_t>(readFloat(value));
+			if (limitFramerate < 0) limitFramerate = 0;
+			if (limitFramerate > 2) limitFramerate = 2;
+		}
+		if (key == "guiScale")
+		{
+			guiScale = std::stoi(value);
+			if (guiScale < 0) guiScale = 0;
+			if (guiScale > 3) guiScale = 3;
+		}
+		if (key == "ao")
+			ambientOcclusion = value == "true";
+		if (key == "advancedOpengl")
+			advancedOpengl = value == "true";
 		if (key == "difficulty")
 			difficulty = std::stoi(value);
 		if (key == "fancyGraphics")
@@ -253,6 +309,9 @@ void Options::save()
 	*os << "bobView:" << bobView << '\n';
 	*os << "anaglyph3d:" << anaglyph3d << '\n';
 	*os << "limitFramerate:" << limitFramerate << '\n';
+	*os << "guiScale:" << guiScale << '\n';
+	*os << "ao:" << ambientOcclusion << '\n';
+	*os << "advancedOpengl:" << advancedOpengl << '\n';
 	*os << "difficulty:" << difficulty << '\n';
 	*os << "fancyGraphics:" << fancyGraphics << '\n';
 	*os << "skin:" << String::toUTF8(skin) << '\n';

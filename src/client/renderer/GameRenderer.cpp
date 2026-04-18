@@ -18,6 +18,8 @@
 
 #include "OpenGL.h"
 
+#include "world/level/material/LiquidMaterial.h"
+
 GameRenderer::GameRenderer(Minecraft &mc) : mc(mc), itemInHandRenderer(ItemInHandRenderer(mc))
 {
 
@@ -36,6 +38,16 @@ void GameRenderer::tick()
 	itemInHandRenderer.tick();
 
 	// TODO tickRain rain
+}
+
+void GameRenderer::itemPlaced()
+{
+	itemInHandRenderer.itemPlaced();
+}
+
+void GameRenderer::itemUsed()
+{
+	itemInHandRenderer.itemUsed();
 }
 
 void GameRenderer::pick(float a)
@@ -121,20 +133,36 @@ float GameRenderer::getFov(float a)
 
 void GameRenderer::bobHurt(float a)
 {
+	auto &player = *mc.player;
+	float hurtTime = static_cast<float>(player.hurtTime) - a;
 
+	if (player.health <= 0)
+	{
+		float deathTime = static_cast<float>(player.deathTime) + a;
+		glRotatef(40.0f - 8000.0f / (deathTime + 200.0f), 0.0f, 0.0f, 1.0f);
+	}
+
+	if (hurtTime >= 0.0f)
+	{
+		hurtTime /= static_cast<float>(player.hurtDuration);
+		hurtTime = Mth::sin(hurtTime * hurtTime * hurtTime * hurtTime * Mth::PI);
+		float yaw = player.hurtDir;
+		glRotatef(-yaw, 0.0f, 1.0f, 0.0f);
+		glRotatef(-hurtTime * 14.0f, 0.0f, 0.0f, 1.0f);
+		glRotatef(yaw, 0.0f, 1.0f, 0.0f);
+	}
 }
 
 void GameRenderer::bobView(float a)
 {
-	if (mc.options.thirdPersonView) return;
-
 	auto &localPlayer = *mc.player;
-	float walkDist = localPlayer.walkDist + (localPlayer.walkDist - localPlayer.walkDistO) * a;
+	float walkDelta = localPlayer.walkDist - localPlayer.walkDistO;
+	float walkDist = -(localPlayer.walkDist + walkDelta * a);
 	float bob = localPlayer.oBob + (localPlayer.bob - localPlayer.oBob) * a;
 	float tilt = localPlayer.oTilt + (localPlayer.tilt - localPlayer.oTilt) * a;
 	glTranslatef(Mth::sin(walkDist * Mth::PI) * bob * 0.5F, -std::abs(Mth::cos(walkDist * Mth::PI) * bob), 0.0F);
 	glRotatef(Mth::sin(walkDist * Mth::PI) * bob * 3.0F, 0.0F, 0.0F, 1.0F);
-	glRotatef(std::abs(Mth::cos(walkDist * Mth::PI + 0.2F) * bob) * 5.0F, 1.0F, 0.0F, 0.0F);
+	glRotatef(std::abs(Mth::cos(walkDist * Mth::PI - 0.2F) * bob) * 5.0F, 1.0F, 0.0F, 0.0F);
 	glRotatef(tilt, 1.0F, 0.0F, 0.0F);
 }
 
@@ -192,6 +220,8 @@ void GameRenderer::moveCameraToPlayer(float a)
 
 	glRotatef(player.xRotO + (player.xRot - player.xRotO) * a, 1.0f, 0.0f, 0.0f);
 	glRotatef(player.yRotO + (player.yRot - player.yRotO) * a + 180.0f, 0.0f, 1.0f, 0.0f);
+
+	glTranslatef(0.0f, player.heightOffset - 1.62f, 0.0f);
 }
 
 void GameRenderer::setupCamera(float a, int_t eye)
@@ -282,7 +312,7 @@ void GameRenderer::render(float a)
 	if (mc.noRender)
 		return;
 
-	ScreenSizeCalculator ssc(mc.width, mc.height);
+	ScreenSizeCalculator ssc(mc.options, mc.width, mc.height);
 	int_t w = ssc.getWidth();
 	int_t h = ssc.getHeight();
 
@@ -305,10 +335,11 @@ void GameRenderer::render(float a)
 		setupGuiScreen();
 	}
 
-	if (mc.screen != nullptr)
+	auto screen = mc.screen; // Keep the current screen alive if render() replaces it.
+	if (screen != nullptr)
 	{
 		glClear(GL_DEPTH_BUFFER_BIT);
-		mc.screen->render(xm, ym, a);
+		screen->render(xm, ym, a);
 	}
 }
 
@@ -337,15 +368,16 @@ void GameRenderer::renderLevel(float a)
 		if (mc.options.anaglyph3d)
 		{
 			if (eye == 0)
-				glColorMask(false, true, true, false);
+				glColorMask(false, true, true, true);
 			else
-				glColorMask(true, false, false, false);
+				glColorMask(true, false, false, true);
 		}
 
 		glViewport(0, 0, mc.width, mc.height);
 		setupClearColor(a);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_CULL_FACE);
+		glEnable(GL_DEPTH_TEST);
 
 		setupCamera(a, eye);
 		Frustum::getFrustum();
@@ -370,14 +402,21 @@ void GameRenderer::renderLevel(float a)
 		glEnable(GL_FOG);
 		glBindTexture(GL_TEXTURE_2D, mc.textures.loadTexture(u"/terrain.png"));
 
+		if (mc.options.ambientOcclusion)
+			glShadeModel(GL_SMOOTH);
+
 		Lighting::turnOff();
 		levelRenderer.render(*player, 0, a);
+		glShadeModel(GL_FLAT);
 
 		Lighting::turnOn();
 		levelRenderer.renderEntities(*player->getPos(a), culler, a);
+		mc.particleEngine.renderLit(*player, a);
 		Lighting::turnOff();
 
 		setupFog(0);
+
+		mc.particleEngine.render(*player, a);
 
 		// TODO
 		// water material
@@ -398,6 +437,9 @@ void GameRenderer::renderLevel(float a)
 
 		if (mc.options.fancyGraphics)
 		{
+			if (mc.options.ambientOcclusion)
+				glShadeModel(GL_SMOOTH);
+
 			glColorMask(false, false, false, false);
 			int_t count = levelRenderer.render(*player, 1, a);
 			glColorMask(true, true, true, true);
@@ -405,17 +447,24 @@ void GameRenderer::renderLevel(float a)
 			if (mc.options.anaglyph3d)
 			{
 				if (eye == 0)
-					glColorMask(false, true, true, false);
+					glColorMask(false, true, true, true);
 				else
-					glColorMask(true, false, false, false);
+					glColorMask(true, false, false, true);
 			}
 		
 			if (count > 0)
 				levelRenderer.renderSameAsLast(1, a);
+
+			glShadeModel(GL_FLAT);
 		}
 		else
 		{
+			if (mc.options.ambientOcclusion)
+				glShadeModel(GL_SMOOTH);
+
 			levelRenderer.render(*player, 1, a);
+
+			glShadeModel(GL_FLAT);
 		}
 
 		glDepthMask(true);
@@ -457,12 +506,12 @@ void GameRenderer::renderLevel(float a)
 			return;
 	}
 
-	glColorMask(true, true, true, false);
+	glColorMask(true, true, true, true);
 }
 
 void GameRenderer::setupGuiScreen()
 {
-	ScreenSizeCalculator ssc(mc.width, mc.height);
+	ScreenSizeCalculator ssc(mc.options, mc.width, mc.height);
 	int_t w = ssc.getWidth();
 	int_t h = ssc.getHeight();
 
@@ -497,8 +546,19 @@ void GameRenderer::setupClearColor(float a)
 	fg += (sg - fg) * dist;
 	fb += (sb - fb) * dist;
 
-	// TODO material water lava
-
+	// Underwater/lava clear color override
+	if (mc.player->isUnderLiquid(Material::water))
+	{
+		fr = 0.02f;
+		fg = 0.02f;
+		fb = 0.2f;
+	}
+	else if (mc.player->isUnderLiquid(Material::lava))
+	{
+		fr = 0.6f;
+		fg = 0.1f;
+		fb = 0.0f;
+	}
 	float fogBrNow = fogBrO + (fogBr - fogBrO) * a;
 	fr *= fogBrNow;
 	fg *= fogBrNow;
@@ -526,14 +586,16 @@ void GameRenderer::setupFog(int_t mode)
 	glNormal3f(0.0f, -1.0f, 0.0f);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-	// TODO material water lava
-	if (false)
+	// Underwater/lava fog
+	if (mc.player->isUnderLiquid(Material::water))
 	{
-
+		glFogi(GL_FOG_MODE, GL_EXP);
+		glFogf(GL_FOG_DENSITY, 0.1f);
 	}
-	else if (false)
+	else if (mc.player->isUnderLiquid(Material::lava))
 	{
-
+		glFogi(GL_FOG_MODE, GL_EXP);
+		glFogf(GL_FOG_DENSITY, 2.0f);
 	}
 	else
 	{
@@ -544,7 +606,7 @@ void GameRenderer::setupFog(int_t mode)
 		if (mode < 0)
 		{
 			glFogf(GL_FOG_START, 0.0f);
-			glFogf(GL_FOG_END, renderDistance);
+		glFogf(GL_FOG_END, renderDistance * 0.8f);
 		}
 
 		if (lwjgl::GLContext::getCapabilities()["GL_NV_fog_distance"])

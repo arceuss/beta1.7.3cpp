@@ -6,5 +6,5 @@ private:
 	static bool USE_OCCLUSION_QUERY;
 
 public:
-	bool hasOcclusionChecks();
+	static bool hasOcclusionChecks();
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -15,12 +16,16 @@
 
 class TexturePackRepository;
 class Options;
+class TextureFX;
+struct HttpTexture;
 
 class Textures
 {
 private:
-	std::unordered_map<jstring, int_t> idMap;
+	std::vector<std::unique_ptr<TextureFX>> textureList;
 
+	std::unordered_map<jstring, int_t> idMap;
+	std::unordered_map<jstring, std::shared_ptr<HttpTexture>> httpTextures;
 public:
 	static constexpr bool MIPMAP = false;
 
@@ -43,7 +48,7 @@ public:
 
 private:
 	BufferedImage makeStrip(BufferedImage &source);
-	
+	HttpTexture *addHttpTexture(const jstring &url);
 public:
 	int_t getTexture(BufferedImage &img);
 	void loadTexture(BufferedImage &img, int_t id);
@@ -52,6 +57,7 @@ public:
 	int_t loadHttpTexture(const jstring &url);
 	void removeHttpTexture(const jstring &url);
 
+	void registerTextureFX(std::unique_ptr<TextureFX> fx);
 	void tick();
 
 private:

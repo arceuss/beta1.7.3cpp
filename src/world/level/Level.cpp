@@ -1,6 +1,8 @@
 #include "world/level/Level.h"
 
 #include <algorithm>
+#include <set>
+#include <stdexcept>
 
 #include "nbt/NbtIo.h"
 
@@ -14,20 +16,130 @@
 
 int_t Level::maxLoop = 0;
 
+namespace
+{
+
+jstring getFileName(const File &file)
+{
+	jstring path = file.toString();
+	size_t pos = path.find_last_of(u"/\\");
+	return pos == jstring::npos ? path : path.substr(pos + 1);
+}
+
+std::shared_ptr<CompoundTag> readLevelData(File &worldDir)
+{
+	std::unique_ptr<File> levelDat(File::open(worldDir, u"level.dat"));
+	if (!levelDat->exists())
+		return nullptr;
+
+	std::unique_ptr<std::istream> is(levelDat->toStreamIn());
+	if (!is)
+		return nullptr;
+
+	try
+	{
+		std::unique_ptr<CompoundTag> tag(NbtIo::readCompressed(*is));
+		return tag->getCompound(u"Data");
+	}
+	catch (const std::exception &)
+	{
+		return nullptr;
+	}
+}
+
+void writeLevelData(File &worldDir, const std::shared_ptr<CompoundTag> &data)
+{
+	std::shared_ptr<CompoundTag> root = Util::make_shared<CompoundTag>();
+	root->put(u"Data", data);
+
+	std::unique_ptr<File> fileNewDat(File::open(worldDir, u"level.dat_new"));
+	std::unique_ptr<File> fileOldDat(File::open(worldDir, u"level.dat_old"));
+	std::unique_ptr<File> fileDat(File::open(worldDir, u"level.dat"));
+
+	std::unique_ptr<std::ostream> os(fileNewDat->toStreamOut());
+	if (!os)
+		throw std::runtime_error("Failed to open level.dat_new for writing");
+	NbtIo::writeCompressed(*root, *os);
+	os->flush();
+	os.reset();
+
+	if (fileOldDat->exists())
+		fileOldDat->remove();
+	fileDat->renameTo(*fileOldDat);
+	if (fileDat->exists())
+		fileDat->remove();
+	fileNewDat->renameTo(*fileDat);
+	if (fileNewDat->exists())
+		fileNewDat->remove();
+}
+
+}
+
 std::shared_ptr<CompoundTag> Level::getDataTagFor(File &workingDirectory, const jstring &name)
 {
 	std::unique_ptr<File> saves(File::open(workingDirectory, u"saves"));
 	std::unique_ptr<File> world(File::open(*saves, name));
 	if (!world->exists())
 		return nullptr;
+	return readLevelData(*world);
+}
 
-	std::unique_ptr<File> levelDat(File::open(*world, u"level.dat"));
-	if (!levelDat->exists())
-		return nullptr;
+std::vector<Level::Summary> Level::getLevelList(File &workingDirectory)
+{
+	std::vector<Summary> levels;
+	std::unique_ptr<File> saves(File::open(workingDirectory, u"saves"));
+	if (!saves->exists())
+		return levels;
 
-	std::unique_ptr<std::istream> is(levelDat->toStreamIn());
-	std::unique_ptr<CompoundTag> tag(NbtIo::readCompressed(*is));
-	return tag->getCompound(u"Data");
+	for (auto &world : saves->listFiles())
+	{
+		if (!world->isDirectory())
+			continue;
+
+		std::shared_ptr<CompoundTag> data = readLevelData(*world);
+		if (data == nullptr)
+			continue;
+
+		Summary summary;
+		summary.folderName = getFileName(*world);
+		summary.levelName = data->contains(u"LevelName") ? data->getString(u"LevelName") : summary.folderName;
+		if (summary.levelName.empty())
+			summary.levelName = summary.folderName;
+		summary.lastPlayed = data->getLong(u"LastPlayed");
+		summary.sizeOnDisk = data->contains(u"SizeOnDisk") ? data->getLong(u"SizeOnDisk") : 0;
+		if (summary.sizeOnDisk <= 0)
+		{
+			auto worldFiles = world->listFiles();
+			summary.sizeOnDisk = calcSize(worldFiles);
+		}
+		summary.version = data->contains(u"version") ? data->getInt(u"version") : 0;
+		summary.requiresConversion = summary.version != 19132;
+		levels.push_back(summary);
+	}
+
+	std::sort(levels.begin(), levels.end(), [](const Summary &a, const Summary &b) {
+		if (a.lastPlayed != b.lastPlayed)
+			return a.lastPlayed > b.lastPlayed;
+		return a.folderName < b.folderName;
+	});
+
+	return levels;
+}
+
+bool Level::renameLevel(File &workingDirectory, const jstring &folderName, const jstring &levelName)
+{
+	std::unique_ptr<File> saves(File::open(workingDirectory, u"saves"));
+	std::unique_ptr<File> world(File::open(*saves, folderName));
+	if (!world->exists())
+		return false;
+
+	std::shared_ptr<CompoundTag> data = readLevelData(*world);
+	if (data == nullptr)
+		return false;
+
+	data->putString(u"LevelName", levelName);
+	writeLevelData(*world, data);
+	return true;
 }
 
 void Level::deleteLevel(File &workingDirectory, const jstring &name)
@@ -88,7 +200,7 @@ long_t Level::calcSize(std::vector<std::unique_ptr<File>> &files)
 	return sizeOnDisk;
 }
 
-Level::Level(File *workingDirectory, const jstring &name) : Level(workingDirectory, name, Random().nextLong())
+Level::Level(File *workingDirectory, const jstring &name) : Level(workingDirectory, name, name, Random().nextLong())
 {
 
 }
@@ -96,6 +208,7 @@ Level::Level(File *workingDirectory, const jstring &name) : Level(workingDirecto
 Level::Level(const jstring &name, int_t dimension, long_t seed)
 {
 	this->name = name;
+	this->levelName = name;
 	this->seed = seed;
 	this->dimension.reset(Dimension::getNew(*this, dimension));
 	this->chunkSource.reset(createChunkSource(dir));
@@ -107,6 +220,8 @@ Level::Level(Level &level, int_t dimension)
 	this->sessionId = level.sessionId;
 	this->workDir = std::move(level.workDir);
 	this->dir = std::move(level.dir);
+	this->name = level.name;
+	this->levelName = level.levelName;
 	this->seed = level.seed;
 	this->time = level.time;
 	this->xSpawn = level.xSpawn;
@@ -118,20 +233,25 @@ Level::Level(Level &level, int_t dimension)
 	updateSkyBrightness();
 }
 
-Level::Level(File *workingDirectory, const jstring &name, long_t seed) : Level(workingDirectory, name, seed, Dimension::Id_None)
+Level::Level(File *workingDirectory, const jstring &name, const jstring &levelName, long_t seed) : Level(workingDirectory, name, levelName, seed, Dimension::Id_None)
 {
 
 }
 
-Level::Level(File *workingDirectory, const jstring &name, long_t seed, int_t dimension)
+Level::Level(File *workingDirectory, const jstring &name, long_t seed) : Level(workingDirectory, name, name, seed, Dimension::Id_None)
+{
+
+}
+
+Level::Level(File *workingDirectory, const jstring &name, const jstring &levelName, long_t seed, int_t dimension)
 {
 	this->workDir.reset(workingDirectory);
 	this->name = name;
+	this->levelName = levelName;
 
 	workingDirectory->mkdirs();
 	dir.reset(File::open(*workingDirectory, name));
 	dir->mkdirs();
-	
 	{
 		std::unique_ptr<File> session_lock(File::open(*dir, u"session.lock"));
 		std::unique_ptr<std::ostream> os(session_lock->toStreamOut());
@@ -141,20 +261,24 @@ Level::Level(File *workingDirectory, const jstring &name, long_t seed, int_t dim
 	}
 
 	int_t new_dimension = Dimension::Id_Normal;
-
 	std::unique_ptr<File> fileDat(File::open(*dir, u"level.dat"));
 	isNew = !fileDat->exists();
 
 	if (fileDat->exists())
 	{
-		std::shared_ptr<CompoundTag> root(NbtIo::readCompressed(*std::unique_ptr<std::istream>(fileDat->toStreamIn())));
-		std::shared_ptr<CompoundTag> data(root->getCompound(u"Data"));
-		seed = data->getLong(u"RandomSeed");
+		std::shared_ptr<CompoundTag> data = readLevelData(*dir);
+		if (data == nullptr)
+			throw std::runtime_error("Failed to load level.dat");
+
+		this->seed = data->getLong(u"RandomSeed");
 		xSpawn = data->getInt(u"SpawnX");
 		ySpawn = data->getInt(u"SpawnY");
 		zSpawn = data->getInt(u"SpawnZ");
 		time = data->getLong(u"Time");
 		sizeOnDisk = data->getLong(u"SizeOnDisk");
+		this->levelName = data->contains(u"LevelName") ? data->getString(u"LevelName") : name;
+		if (this->levelName.empty())
+			this->levelName = name;
 
 		if (data->contains(u"Player"))
 		{
@@ -176,6 +300,9 @@ Level::Level(File *workingDirectory, const jstring &name, long_t seed, int_t dim
 		findSpawn = true;
 	}
 
+	if (this->levelName.empty())
+		this->levelName = name;
+
 	this->dimension.reset(Dimension::getNew(*this, new_dimension));
 	this->chunkSource.reset(createChunkSource(dir));
 
@@ -192,6 +319,11 @@ Level::Level(File *workingDirectory, const jstring &name, long_t seed, int_t dim
 		}
 		isFindingSpawn = false;
 	}
+}
+
+Level::Level(File *workingDirectory, const jstring &name, long_t seed, int_t dimension) : Level(workingDirectory, name, name, seed, dimension)
+{
+
 }
 
 ChunkSource *Level::createChunkSource(std::shared_ptr<File> dir)
@@ -215,6 +347,16 @@ void Level::clearLoadedPlayerData()
 {
 
 }
+
+void Level::centerChunkSource(int_t chunkX, int_t chunkZ)
+{
+	if (chunkSource->isChunkCache())
+	{
+		ChunkCache &chunkCache = static_cast<ChunkCache &>(*chunkSource);
+		chunkCache.centerOn(chunkX, chunkZ);
+	}
+}
+
 
 void Level::loadPlayer(std::shared_ptr<Player> player)
 {
@@ -260,6 +402,8 @@ void Level::saveLevelData()
 	data->putLong(u"Time", time);
 	data->putLong(u"SizeOnDisk", sizeOnDisk);
 	data->putLong(u"LastPlayed", System::currentTimeMillis());
+	data->putString(u"LevelName", levelName);
+	data->putInt(u"version", 19132);
 
 	std::shared_ptr<Player> player;
 	if (!players.empty())
@@ -272,26 +416,7 @@ void Level::saveLevelData()
 		data->put(u"Player", playerTag);
 	}
 
-	std::shared_ptr<CompoundTag> root = Util::make_shared<CompoundTag>();
-	root->put(u"Data", data);
-
-	std::unique_ptr<File> fileNewDat(File::open(*dir, u"level.dat_new"));
-	std::unique_ptr<File> fileOldDat(File::open(*dir, u"level.dat_old"));
-	std::unique_ptr<File> fileDat(File::open(*dir, u"level.dat"));
-
-	std::unique_ptr<std::ostream> os(fileNewDat->toStreamOut());
-	NbtIo::writeCompressed(*root, *os);
-	os->flush();
-	os.reset();
-
-	if (fileOldDat->exists())
-		fileOldDat->remove();
-	fileDat->renameTo(*fileOldDat);
-	if (fileDat->exists())
-		fileDat->remove();
-	fileNewDat->renameTo(*fileDat);
-	if (fileNewDat->exists())
-		fileNewDat->remove();
+	writeLevelData(*dir, data);
 }
 
 bool Level::pauseSave(int_t saveStep)
@@ -530,8 +655,19 @@ int_t Level::getRawBrightness(int_t x, int_t y, int_t z, bool neighbors)
 	if (neighbors)
 	{
 		int_t tile = getTile(x, y, z);
-		// TODO
-		// stoneSlabHalf farmland
+		if (tile == 60)
+		{
+			int_t brightness = getRawBrightness(x, y + 1, z, false);
+			int_t east = getRawBrightness(x + 1, y, z, false);
+			int_t west = getRawBrightness(x - 1, y, z, false);
+			int_t south = getRawBrightness(x, y, z + 1, false);
+			int_t north = getRawBrightness(x, y, z - 1, false);
+			if (east > brightness) brightness = east;
+			if (west > brightness) brightness = west;
+			if (south > brightness) brightness = south;
+			if (north > brightness) brightness = north;
+			return brightness;
+		}
 	}
 
 	if (y < 0)
@@ -820,6 +956,32 @@ void Level::removeListener(LevelListener &listener)
 	listeners.erase(&listener);
 }
 
+// World.java:855-860
+void Level::playSoundAtEntity(Entity &entity, const jstring &name, float volume, float pitch)
+{
+	for (LevelListener *listener : listeners)
+		listener->playSound(name, entity.x, entity.y - (double)entity.heightOffset, entity.z, volume, pitch);
+}
+
+// World.java:862-867
+void Level::playSoundEffect(double x, double y, double z, const jstring &name, float volume, float pitch)
+{
+	for (LevelListener *listener : listeners)
+		listener->playSound(name, x, y, z, volume, pitch);
+}
+
+// World.java:869-874
+void Level::playRecord(const jstring &name, int_t x, int_t y, int_t z)
+{
+	for (LevelListener *listener : listeners)
+		listener->playStreamingMusic(name, x, y, z);
+}
+void Level::addParticle(const jstring &name, double x, double y, double z, double xa, double ya, double za)
+{
+	for (LevelListener *listener : listeners)
+		listener->addParticle(name, x, y, z, xa, ya, za);
+}
+
 const std::vector<AABB *> &Level::getCubes(Entity &entity, AABB &bb)
 {
 	boxes.clear();
@@ -1022,9 +1184,38 @@ float Level::getStarBrightness(float a)
 	return curve * curve * 0.5f;
 }
 
-void Level::addToTickNextTick(int_t x, int_t y, int_t z, int_t delay)
+void Level::addToTickNextTick(int_t x, int_t y, int_t z, int_t tileId)
 {
+	TickNextTickData entry;
+	entry.x = x;
+	entry.y = y;
+	entry.z = z;
+	entry.tileId = tileId;
+	entry.order = nextTickEntryId++;
 
+	constexpr int_t chunkRadius = 8;
+	if (instaTick)
+	{
+		if (hasChunksAt(entry.x - chunkRadius, entry.y - chunkRadius, entry.z - chunkRadius, entry.x + chunkRadius, entry.y + chunkRadius, entry.z + chunkRadius))
+		{
+			int_t tile = getTile(entry.x, entry.y, entry.z);
+			if (tile == entry.tileId && tile > 0 && Tile::tiles[tile] != nullptr)
+				Tile::tiles[tile]->tick(*this, entry.x, entry.y, entry.z, random);
+		}
+		return;
+	}
+
+	if (!hasChunksAt(x - chunkRadius, y - chunkRadius, z - chunkRadius, x + chunkRadius, y + chunkRadius, z + chunkRadius))
+		return;
+
+	if (tileId > 0 && Tile::tiles[tileId] != nullptr)
+		entry.delay = static_cast<long_t>(Tile::tiles[tileId]->getTickDelay()) + time;
+
+	if (tickNextTickSet.find(entry) != tickNextTickSet.end())
+		return;
+
+	tickNextTickSet.insert(entry);
+	tickNextTickList.insert(entry);
 }
 
 void Level::tickEntities()
@@ -1074,8 +1265,6 @@ void Level::tickEntities()
 			int_t zc = entity->zChunk;
 			if (entity->inChunk && hasChunk(xc, zc))
 				getChunk(xc, zc)->removeEntity(entity);
-			entities.erase(entity);
-
 			it = entities.erase(it);
 			entityRemoved(entity);
 			continue;
@@ -1185,8 +1374,97 @@ bool Level::isUnobstructed(AABB &bb)
 
 bool Level::containsAnyLiquid(AABB &bb)
 {
-	// TODO
+	int_t x0 = Mth::floor(bb.x0);
+	int_t x1 = Mth::floor(bb.x1 + 1.0);
+	int_t y0 = Mth::floor(bb.y0);
+	int_t y1 = Mth::floor(bb.y1 + 1.0);
+	int_t z0 = Mth::floor(bb.z0);
+	int_t z1 = Mth::floor(bb.z1 + 1.0);
+
+	if (!hasChunksAt(x0, y0, z0, x1, y1, z1))
+		return false;
+
+	for (int_t x = x0; x < x1; ++x)
+		for (int_t y = y0; y < y1; ++y)
+			for (int_t z = z0; z < z1; ++z)
+			{
+				int_t t = getTile(x, y, z);
+				if (t > 0 && Tile::tiles[t] != nullptr && Tile::tiles[t]->material.isLiquid())
+					return true;
+			}
+
 	return false;
+}
+
+bool Level::isMaterialInBB(AABB &bb, const Material &material)
+{
+	int_t x0 = Mth::floor(bb.x0);
+	int_t x1 = Mth::floor(bb.x1 + 1.0);
+	int_t y0 = Mth::floor(bb.y0);
+	int_t y1 = Mth::floor(bb.y1 + 1.0);
+	int_t z0 = Mth::floor(bb.z0);
+	int_t z1 = Mth::floor(bb.z1 + 1.0);
+
+	for (int_t x = x0; x < x1; ++x)
+		for (int_t y = y0; y < y1; ++y)
+			for (int_t z = z0; z < z1; ++z)
+			{
+				int_t t = getTile(x, y, z);
+				if (t > 0 && Tile::tiles[t] != nullptr && &Tile::tiles[t]->material == &material)
+					return true;
+			}
+
+	return false;
+}
+
+bool Level::handleMaterialAcceleration(AABB &bb, const Material &material, Entity &entity)
+{
+	int_t x0 = Mth::floor(bb.x0);
+	int_t x1 = Mth::floor(bb.x1 + 1.0);
+	int_t y0 = Mth::floor(bb.y0);
+	int_t y1 = Mth::floor(bb.y1 + 1.0);
+	int_t z0 = Mth::floor(bb.z0);
+	int_t z1 = Mth::floor(bb.z1 + 1.0);
+
+	if (!hasChunksAt(x0, y0, z0, x1, y1, z1))
+		return false;
+
+	bool found = false;
+	double vx = 0.0, vy = 0.0, vz = 0.0;
+
+	for (int_t x = x0; x < x1; ++x)
+	{
+		for (int_t y = y0; y < y1; ++y)
+		{
+			for (int_t z = z0; z < z1; ++z)
+			{
+				int_t t = getTile(x, y, z);
+				if (t > 0 && Tile::tiles[t] != nullptr && &Tile::tiles[t]->material == &material)
+				{
+					// Liquid surface height based on metadata
+					int_t meta = getData(x, y, z);
+					float pct = static_cast<float>((meta >= 8 ? 0 : meta) + 1) / 9.0f;
+					double surface = static_cast<double>(y + 1) - static_cast<double>(pct);
+					if (static_cast<double>(y1) >= surface)
+					{
+						found = true;
+						// Flow vector would be applied here if fluid flow was implemented
+					}
+				}
+			}
+		}
+	}
+
+	if (vx * vx + vy * vy + vz * vz > 0.0)
+	{
+		double len = Mth::sqrt(vx * vx + vy * vy + vz * vz);
+		double push = 0.014;
+		entity.xd += (vx / len) * push;
+		entity.yd += (vy / len) * push;
+		entity.zd += (vz / len) * push;
+	}
+
+	return found;
 }
 
 bool Level::containsFireTile(AABB &bb)
@@ -1379,18 +1657,167 @@ void Level::tick()
 
 void Level::tickTiles()
 {
-	// TODO
+	constexpr int_t activeChunkRadius = 9;
+	constexpr int_t moodSearchRadius = 8;
+	constexpr int_t maxMoodSoundAttempts = 32;
+	constexpr int_t randomTicksPerChunk = 80;
+
+	std::set<std::pair<int_t, int_t>> activeChunks;
+	int_t activePlayers = 0;
+	for (const auto &player : players)
+	{
+		if (player == nullptr || player->removed)
+			continue;
+		activePlayers++;
+		int_t chunkX = Mth::floor(player->x / 16.0);
+		int_t chunkZ = Mth::floor(player->z / 16.0);
+		for (int_t dx = -activeChunkRadius; dx <= activeChunkRadius; ++dx)
+		{
+			for (int_t dz = -activeChunkRadius; dz <= activeChunkRadius; ++dz)
+				activeChunks.insert(std::make_pair(chunkX + dx, chunkZ + dz));
+		}
+	}
+	if (activePlayers == 0)
+		return;
+
+	if (delayUntilNextMoodSound > 0)
+		delayUntilNextMoodSound--;
+
+	if (delayUntilNextMoodSound == 0)
+	{
+		for (int_t attempt = 0; attempt < maxMoodSoundAttempts; attempt++)
+		{
+			std::shared_ptr<Player> anchorPlayer;
+			int_t choice = random.nextInt(activePlayers);
+			for (const auto &player : players)
+			{
+				if (player == nullptr || player->removed)
+					continue;
+				if (choice-- != 0)
+					continue;
+
+				anchorPlayer = player;
+				break;
+			}
+
+			if (anchorPlayer == nullptr)
+				continue;
+
+			int_t chunkX = Mth::floor(anchorPlayer->x / 16.0) + random.nextInt(moodSearchRadius * 2 + 1) - moodSearchRadius;
+			int_t chunkZ = Mth::floor(anchorPlayer->z / 16.0) + random.nextInt(moodSearchRadius * 2 + 1) - moodSearchRadius;
+			if (!hasChunk(chunkX, chunkZ))
+				continue;
+
+			randValue = randValue * 3 + addend;
+			int_t moodValue = randValue >> 2;
+			int_t x = (chunkX << 4) + (moodValue & 15);
+			int_t y = (moodValue >> 16) & (DEPTH - 1);
+			int_t z = (chunkZ << 4) + ((moodValue >> 8) & 15);
+
+			if (!hasChunkAt(x, y, z) || !isEmptyTile(x, y, z))
+				continue;
+			if (getBrightness(LightLayer::Sky, x, y, z) > 0)
+				continue;
+			if (getRawBrightness(x, y, z) > random.nextInt(8))
+				continue;
+
+			double soundX = static_cast<double>(x) + 0.5;
+			double soundY = static_cast<double>(y) + 0.5;
+			double soundZ = static_cast<double>(z) + 0.5;
+			double nearestPlayerDistSqr = 64.0;
+			for (const auto &player : players)
+			{
+				if (player == nullptr || player->removed)
+					continue;
+				double distSqr = player->distanceToSqr(soundX, soundY, soundZ);
+				if (distSqr < nearestPlayerDistSqr)
+					nearestPlayerDistSqr = distSqr;
+			}
+			if (nearestPlayerDistSqr <= 4.0 || nearestPlayerDistSqr >= 64.0)
+				continue;
+
+			playSoundEffect(soundX, soundY, soundZ, u"ambient.cave.cave", 0.7f, 0.8f + random.nextFloat() * 0.2f);
+			delayUntilNextMoodSound = random.nextInt(12000) + 6000;
+			break;
+		}
+	}
+
+	for (const auto &chunkPos : activeChunks)
+	{
+		if (!hasChunk(chunkPos.first, chunkPos.second))
+			continue;
+
+		std::shared_ptr<LevelChunk> chunk = getChunk(chunkPos.first, chunkPos.second);
+		if (chunk == nullptr)
+			continue;
+
+		for (int_t i = 0; i < randomTicksPerChunk; ++i)
+		{
+			randValue = randValue * 3 + addend;
+			int_t tickValue = randValue >> 2;
+			int_t localX = tickValue & 15;
+			int_t localZ = (tickValue >> 8) & 15;
+			int_t y = (tickValue >> 16) & (DEPTH - 1);
+			int_t tile = chunk->getTile(localX, y, localZ);
+			if (tile <= 0 || !Tile::shouldTick[tile] || Tile::tiles[tile] == nullptr)
+				continue;
+			Tile::tiles[tile]->tick(*this, (chunkPos.first << 4) + localX, y, (chunkPos.second << 4) + localZ, random);
+		}
+	}
 }
 
 bool Level::tickPendingTicks(bool unknown)
 {
-	// TODO
-	return false;
+	int_t size = static_cast<int_t>(tickNextTickList.size());
+	if (size != static_cast<int_t>(tickNextTickSet.size()))
+		throw std::runtime_error("TickNextTick list out of synch");
+
+	if (size > MAX_TICK_TILES_PER_TICK)
+		size = MAX_TICK_TILES_PER_TICK;
+
+	for (int_t i = 0; i < size; i++)
+	{
+		auto it = tickNextTickList.begin();
+		if (it == tickNextTickList.end())
+			break;
+
+		TickNextTickData entry = *it;
+		if (!unknown && entry.delay > time)
+			break;
+
+		tickNextTickList.erase(it);
+		tickNextTickSet.erase(entry);
+
+		constexpr int_t chunkRadius = 8;
+		if (!hasChunksAt(entry.x - chunkRadius, entry.y - chunkRadius, entry.z - chunkRadius, entry.x + chunkRadius, entry.y + chunkRadius, entry.z + chunkRadius))
+			continue;
+
+		int_t tile = getTile(entry.x, entry.y, entry.z);
+		if (tile == entry.tileId && tile > 0 && Tile::tiles[tile] != nullptr)
+			Tile::tiles[tile]->tick(*this, entry.x, entry.y, entry.z, random);
+	}
+
+	return !tickNextTickList.empty();
 }
 
 void Level::animateTick(int_t x, int_t y, int_t z)
 {
-	// TODO
+	constexpr int_t range = 16;
+	Random tickRandom;
+
+	for (int_t i = 0; i < 1000; i++)
+	{
+		int_t xt = x + random.nextInt(range) - random.nextInt(range);
+		int_t yt = y + random.nextInt(range) - random.nextInt(range);
+		int_t zt = z + random.nextInt(range) - random.nextInt(range);
+
+		if (!hasChunkAt(xt, yt, zt))
+			continue;
+
+		int_t tile = getTile(xt, yt, zt);
+		if (tile > 0 && Tile::tiles[tile] != nullptr)
+			Tile::tiles[tile]->animateTick(*this, xt, yt, zt, tickRandom);
+	}
 }
 
 const std::vector<std::shared_ptr<Entity>> &Level::getEntities(Entity *ignore, AABB &aabb)

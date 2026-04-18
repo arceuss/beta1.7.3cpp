@@ -8,6 +8,8 @@
 
 #include "client/renderer/Chunk.h"
 #include "client/renderer/Tesselator.h"
+#include "client/gui/DeathScreen.h"
+#include "client/gui/InventoryScreen.h"
 #include "client/gui/ScreenSizeCalculator.h"
 #include "client/gui/PauseScreen.h"
 #include "client/title/TitleScreen.h"
@@ -20,6 +22,7 @@
 #include "world/level/chunk/ChunkCache.h"
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
+#include "world/item/Items.h"
 
 #include "java/System.h"
 #include "java/Runtime.h"
@@ -31,6 +34,11 @@
 #include "lwjgl/Keyboard.h"
 
 #include "CrashHandler.h"
+
+#include "client/renderer/texturefx/TextureWaterFX.h"
+#include "client/renderer/texturefx/TextureWaterFlowFX.h"
+#include "client/renderer/texturefx/TextureLavaFX.h"
+#include "client/renderer/texturefx/TextureLavaFlowFX.h"
 
 const jstring Minecraft::VERSION_STRING = u"Minecraft " + SharedConstants::VERSION_STRING;
 
@@ -58,7 +66,7 @@ void Minecraft::onCrash(const std::string &message, const std::exception &e)
 void Minecraft::init()
 {
 	Tile::initTiles();
-
+	Items::initItems();
 	// Setup LWJGL
 	if (fullscreen)
 	{
@@ -75,7 +83,7 @@ void Minecraft::init()
 		lwjgl::Display::setDisplayMode(lwjgl::DisplayMode(width, height));
 	}
 
-	lwjgl::Display::setTitle(u"Minecraft " + VERSION_STRING);
+	lwjgl::Display::setTitle(VERSION_STRING);
 
 	lwjgl::Display::create();
 
@@ -107,19 +115,23 @@ void Minecraft::init()
 
 	checkGlError("Startup");
 
-	// TODO
-	// soundEngine
-
-	// TODO
-	// dynamic textures
-	//textures.addDynamicTexture();
+	// Initialize sound engine and load all sounds from resource directory
+	soundEngine.init(&options);
+	std::unique_ptr<File> resourceDir(File::openResourceDirectory());
+	if (resourceDir && resourceDir->exists() && resourceDir->isDirectory())
+		loadAllSounds(resourceDir.get(), u"");
+	// Dynamic textures
+	textures.registerTextureFX(std::make_unique<TextureWaterFX>());
+	textures.registerTextureFX(std::make_unique<TextureWaterFlowFX>());
+	textures.registerTextureFX(std::make_unique<TextureLavaFX>());
+	textures.registerTextureFX(std::make_unique<TextureLavaFlowFX>());
 
 	setScreen(Util::make_shared<TitleScreen>(*this));
 }
 
 void Minecraft::renderLoadingScreen()
 {
-	ScreenSizeCalculator ssc(width, height);
+	ScreenSizeCalculator ssc(options, width, height);
 	int_t w = ssc.getWidth();
 	int_t h = ssc.getHeight();
 
@@ -199,14 +211,14 @@ void Minecraft::setScreen(std::shared_ptr<Screen> screen)
 
 	if (screen == nullptr && level == nullptr)
 		screen = Util::make_shared<TitleScreen>(*this);
-	else if (screen == nullptr) // TODO player check
-		;// TODO death
+	else if (screen == nullptr && player != nullptr && player->health <= 0)
+		screen = Util::make_shared<DeathScreen>(*this);
 
 	this->screen = std::move(screen);
 	if (this->screen != nullptr)
 	{
 		releaseMouse();
-		ScreenSizeCalculator ssc(width, height);
+		ScreenSizeCalculator ssc(options, width, height);
 		int_t w = ssc.getWidth();
 		int_t h = ssc.getHeight();
 		this->screen->init(w, h);
@@ -406,6 +418,7 @@ void Minecraft::run()
 
 		while (running)
 		{
+			long_t frameStartNano = System::nanoTime();
 			AABB::resetPool();
 			Vec3::resetPool();
 
@@ -433,6 +446,10 @@ void Minecraft::run()
 			}
 			long_t tickNanos = System::nanoTime() - tickNano;
 
+			// Update sound listener position every frame
+			if (player != nullptr)
+				soundEngine.update(player.get(), timer.a);
+
 			checkGlError("Pre render");
 
 			glEnable(GL_TEXTURE_2D);
@@ -444,8 +461,6 @@ void Minecraft::run()
 			if (level != nullptr && level->isOnline)
 				level->updateLights();
 
-			if (options.limitFramerate)
-				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
 			if (!lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F7))
 				lwjgl::Display::update();
@@ -463,7 +478,19 @@ void Minecraft::run()
 					toggleFullscreen();
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			}
-
+			if (options.limitFramerate == 1)
+			{
+				long_t remaining = 1000000000L / 120 - (System::nanoTime() - frameStartNano);
+				if (remaining > 0)
+					std::this_thread::sleep_for(std::chrono::nanoseconds(remaining));
+			}
+			else if (options.limitFramerate == 2)
+			{
+				long_t remaining = 1000000000L / 40 - (System::nanoTime() - frameStartNano);
+				if (remaining > 0)
+					std::this_thread::sleep_for(std::chrono::nanoseconds(remaining));
+			}
+			
 			if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
 			{
 				renderFpsMeter(tickNanos);
@@ -650,8 +677,7 @@ void Minecraft::handleMouseDown(int_t button, bool down)
 		int_t y = hitResult.y;
 		int_t z = hitResult.z;
 		gameMode->continueDestroyBlock(x, y, z, hitResult.f);
-		// TODO
-		// particleEngine
+		particleEngine.crack(x, y, z, static_cast<int_t>(hitResult.f));
 	}
 	else
 	{
@@ -666,7 +692,9 @@ void Minecraft::handleMouseClick(int_t button)
 	if (button == 0)
 		player->swing();
 
-	bool canUseItem = false;
+	bool canUseItem = true;
+
+	auto player = std::static_pointer_cast<Player>(this->player);
 
 	if (hitResult.type == HitResult::Type::NONE)
 	{
@@ -675,8 +703,6 @@ void Minecraft::handleMouseClick(int_t button)
 	}
 	else if (hitResult.type == HitResult::Type::ENTITY)
 	{
-		auto player = std::static_pointer_cast<Player>(this->player);
-
 		if (button == 0)
 			gameMode->attack(player, hitResult.entity);
 		else if (button == 1)
@@ -689,8 +715,6 @@ void Minecraft::handleMouseClick(int_t button)
 		int_t z = hitResult.z;
 		Facing f = hitResult.f;
 
-		Tile &t = *Tile::tiles[level->getTile(x, y, z)];
-
 		if (button == 0)
 		{
 			level->extinguishFire(x, y, z, hitResult.f);
@@ -700,13 +724,28 @@ void Minecraft::handleMouseClick(int_t button)
 		}
 		else
 		{
-			// TODO
+			ItemInstance *selected = player->getSelectedItem();
+			int_t selectedCount = selected != nullptr ? selected->stackSize : 0;
+			if (gameMode->useItemOn(player, *level, selected, x, y, z, f))
+			{
+				canUseItem = false;
+				this->player->swing();
+			}
+
+			if (selected == nullptr)
+				return;
+			if (selected->isEmpty())
+				return;
+			if (selected->stackSize != selectedCount)
+				gameRenderer.itemPlaced();
 		}
 	}
 
 	if (canUseItem && button == 1)
 	{
-		// TODO
+		ItemInstance *selected = player->getSelectedItem();
+		if (selected != nullptr && gameMode->useItem(player, *level, selected))
+			gameRenderer.itemUsed();
 	}
 }
 
@@ -752,7 +791,7 @@ void Minecraft::resize(int_t w, int_t h)
 
 	if (screen != nullptr)
 	{
-		ScreenSizeCalculator ssc(width, height);
+		ScreenSizeCalculator ssc(options, width, height);
 		int_t w = ssc.getWidth();
 		int_t h = ssc.getHeight();
 		screen->init(w, h);
@@ -770,6 +809,8 @@ void Minecraft::handleGrabTexture()
 
 void Minecraft::tick()
 {
+
+	soundEngine.playMusicTick();
 
 	gameRenderer.pick(1.0f);
 
@@ -798,7 +839,7 @@ void Minecraft::tick()
 		textures.tick();
 
 	// Show death screen when dead
-	if (screen == nullptr && player != nullptr && player->health == 0)
+	if (screen == nullptr && player != nullptr && player->health <= 0)
 		setScreen(nullptr);
 
 	// Tick screen
@@ -822,7 +863,8 @@ void Minecraft::tick()
 				continue;
 
 			int_t dwheel = lwjgl::Mouse::getEventDWheel();
-			// TODO inventory
+			if (dwheel != 0 && screen == nullptr && player != nullptr)
+				player->inventory.changeCurrentItem(dwheel);
 
 			if (screen == nullptr)
 			{
@@ -876,13 +918,16 @@ void Minecraft::tick()
 						reloadSound();
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F5)
 						options.thirdPersonView = !options.thirdPersonView;
+					if (lwjgl::Keyboard::getEventKey() == options.keyDrop.key && player != nullptr)
+						player->drop();
+					if (lwjgl::Keyboard::getEventKey() == options.keyInventory.key && player != nullptr)
+						setScreen(Util::make_shared<InventoryScreen>(*this));
 				}
 
 				for (int_t i = 0; i < 9; i++)
 				{
-					// TODO: inventory
-					// if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_1 + i)
-					// 	player->inventory.selected = i;
+					if (player != nullptr && lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_1 + i)
+						player->inventory.currentItem = i;
 				}
 
 				if (lwjgl::Keyboard::getEventKey() == options.keyFog.key)
@@ -937,9 +982,8 @@ void Minecraft::tick()
 		}
 		if (!pause && level != nullptr)
 			level->animateTick(Mth::floor(player->x), Mth::floor(player->y), Mth::floor(player->z));
-		// TODO
-		// if (!pause)
-		// 	particleEngine.tick();
+		if (!pause)
+			particleEngine.tick();
 	}
 
 	lastTickTime = System::currentTimeMillis();
@@ -947,8 +991,57 @@ void Minecraft::tick()
 
 void Minecraft::reloadSound()
 {
-	std::cout << "FORCING RELOAD!\n";
-	// TODO
+	soundEngine.updateOptions();
+}
+
+void Minecraft::loadAllSounds(File *dir, const jstring &prefix)
+{
+	if (!dir || !dir->exists() || !dir->isDirectory())
+		return;
+
+	auto files = dir->listFiles();
+	for (auto &file : files)
+	{
+		if (file->isDirectory())
+		{
+			jstring newPrefix = prefix + file->getName() + u"/";
+			loadAllSounds(file.get(), newPrefix);
+		}
+		else
+		{
+			jstring name = file->getName();
+			// Only load .ogg, .mus, and .wav files
+			if (name.length() < 4)
+				continue;
+			jstring ext = name.substr(name.length() - 4);
+			if (ext != u".ogg" && ext != u".mus" && ext != u".wav")
+				continue;
+			jstring fullName = prefix + name;
+			fileDownloaded(fullName, file.get());
+		}
+	}
+}
+
+void Minecraft::fileDownloaded(const jstring &name, File *file)
+{
+	if (!file || !file->exists())
+		return;
+
+	// Extract category (first path component)
+	size_t slashPos = name.find(u'/');
+	if (slashPos == jstring::npos)
+		return;
+
+	jstring category = name.substr(0, slashPos);
+	jstring soundName = name.substr(slashPos + 1);
+	std::string filePath = String::toUTF8(file->toString());
+
+	if (category == u"sound" || category == u"newsound")
+		soundEngine.add(soundName, filePath);
+	else if (category == u"streaming")
+		soundEngine.addStreaming(soundName, filePath);
+	else if (category == u"music" || category == u"newmusic")
+		soundEngine.addMusic(soundName, filePath);
 }
 
 bool Minecraft::isOnline()
@@ -958,10 +1051,15 @@ bool Minecraft::isOnline()
 
 void Minecraft::selectLevel(const jstring &name)
 {
+	selectLevel(name, name, Random().nextLong());
+}
+
+void Minecraft::selectLevel(const jstring &name, const jstring &levelName, long_t seed)
+{
 	setLevel(nullptr);
 
 	std::unique_ptr<File> saves(File::open(*getWorkingDirectory(), u"saves"));
-	std::shared_ptr<Level> new_level = Util::make_shared<Level>(saves.release(), name);
+	std::shared_ptr<Level> new_level = Util::make_shared<Level>(saves.release(), name, levelName, seed);
 	if (new_level->isNew)
 		setLevel(new_level, u"Generating level");
 	else
@@ -1032,6 +1130,8 @@ void Minecraft::setLevel(std::shared_ptr<Level> level, const jstring &title, std
 		this->player->input = Util::make_unique<KeyboardInput>(options);
 
 		levelRenderer.setLevel(level);
+
+		particleEngine.setLevel(level.get());
 
 		gameMode->adjustPlayer(this->player);
 		if (player != nullptr)
@@ -1118,7 +1218,25 @@ jstring Minecraft::gatherStats3()
 
 void Minecraft::respawnPlayer()
 {
+	if (level == nullptr || player == nullptr || gameMode == nullptr)
+		return;
 
+	int_t entityId = player->entityId;
+
+	level->removeEntity(player);
+	level->clearLoadedPlayerData();
+
+	this->player = std::static_pointer_cast<LocalPlayer>(gameMode->createPlayer(*level));
+	this->player->resetPos();
+	gameMode->initPlayer(this->player);
+	level->loadPlayer(this->player);
+	this->player->input = Util::make_unique<KeyboardInput>(options);
+	this->player->entityId = entityId;
+	gameMode->adjustPlayer(this->player);
+	prepareLevel(u"Respawning");
+
+	if (std::dynamic_pointer_cast<DeathScreen>(screen) != nullptr)
+		setScreen(nullptr);
 }
 
 void Minecraft::start(const jstring *name, const jstring *sessionId)
