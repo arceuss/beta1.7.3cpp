@@ -46,10 +46,16 @@ void ItemRenderer::render(Entity &entity, double x, double y, double z, float ro
 		glRotatef(spin, 0.0f, 1.0f, 0.0f);
 		bindTexture(u"/terrain.png");
 		int_t tileColor = tile->getItemColor(item.getAuxValue());
-		float tr = static_cast<float>((tileColor >> 16) & 255) / 255.0f;
-		float tg = static_cast<float>((tileColor >> 8) & 255) / 255.0f;
-		float tb = static_cast<float>(tileColor & 255) / 255.0f;
-		glColor4f(tr, tg, tb, 1.0f);
+		bool useColorMaterial = tileColor != 0xFFFFFF;
+		if (useColorMaterial)
+		{
+			glEnable(GL_COLOR_MATERIAL);
+			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+			float tr = static_cast<float>((tileColor >> 16) & 255) / 255.0f;
+			float tg = static_cast<float>((tileColor >> 8) & 255) / 255.0f;
+			float tb = static_cast<float>(tileColor & 255) / 255.0f;
+			glColor4f(tr, tg, tb, 1.0f);
+		}
 		float scale = tile->isCubeShaped() ? 0.25f : 0.5f;
 		glScalef(scale, scale, scale);
 		for (int_t i = 0; i < count; ++i)
@@ -62,6 +68,8 @@ void ItemRenderer::render(Entity &entity, double x, double y, double z, float ro
 			tileRenderer.renderTile(*tile, item.getAuxValue());
 			glPopMatrix();
 		}
+		if (useColorMaterial)
+			glDisable(GL_COLOR_MATERIAL);
 		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 	else
