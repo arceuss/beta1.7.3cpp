@@ -62,6 +62,7 @@ namespace Items
 	extern Item *book;
 	extern Item *sugar;
 	extern Item *glowstoneDust;
+	extern Item *sign;
 	extern Item *snowball;
 	extern ItemArmor *helmetLeather;
 	extern ItemArmor *plateLeather;

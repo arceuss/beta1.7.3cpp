@@ -14,6 +14,7 @@
 #include "world/level/tile/FurnaceTile.h"
 #include "world/level/tile/SlabTile.h"
 #include "world/level/tile/StoneTile.h"
+#include "world/item/ItemSign.h"
 
 namespace
 {
@@ -114,6 +115,10 @@ Recipes::Recipes()
 		{'B', ItemInstance(Items::flint->getShiftedIndex(), 1, 0)}
 	});
 
+	addShapedRecipe(ItemInstance(Items::sign->getShiftedIndex(), 1, 0), {"###", "###", " X "}, {
+		{'#', ItemInstance(Tile::wood.id, 1, -1)},
+		{'X', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
+	});
 	std::sort(shapedRecipes.begin(), shapedRecipes.end(), [](const ShapedRecipe &a, const ShapedRecipe &b) {
 		return a.size() > b.size();
 	});

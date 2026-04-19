@@ -1,6 +1,5 @@
 #include "client/particle/NoteParticle.h"
 
-#include "util/Mth.h"
 #include <cmath>
 
 namespace
@@ -9,6 +8,11 @@ namespace
 }
 
 NoteParticle::NoteParticle(Level &level, double x, double y, double z, double note)
+	: NoteParticle(level, x, y, z, note, 2.0f)
+{
+}
+
+NoteParticle::NoteParticle(Level &level, double x, double y, double z, double note, float scale)
 	: Particle(level, x, y, z, 0.0, 0.0, 0.0)
 {
 	xd *= 0.01f;
@@ -19,6 +23,7 @@ NoteParticle::NoteParticle(Level &level, double x, double y, double z, double no
 	gCol = std::sin((static_cast<float>(note) + 1.0f / 3.0f) * PI_F * 2.0f) * 0.65f + 0.35f;
 	bCol = std::sin((static_cast<float>(note) + 2.0f / 3.0f) * PI_F * 2.0f) * 0.65f + 0.35f;
 	size *= 12.0f / 16.0f;
+	size *= scale;
 	oSize = size;
 	lifetime = 6;
 	noPhysics = false;

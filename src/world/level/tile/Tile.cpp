@@ -78,6 +78,7 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/NoteTile.h"
 #include "world/level/tile/JukeboxTile.h"
 #include "world/level/tile/DispenserTile.h"
+#include "world/level/tile/SignTile.h"
 
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
@@ -161,6 +162,8 @@ StairTile Tile::stairsWood = StairTile(53, Tile::wood);
 StairTile Tile::stairsStone = StairTile(67, Tile::cobblestone);
 TrapDoorTile Tile::trapdoor = TrapDoorTile(96, 84, Material::wood);
 DoorTile Tile::doorIron = DoorTile(71, 98, Material::iron, true);
+SignTile Tile::signPost = SignTile(63, true);
+SignTile Tile::signWall = SignTile(68, false);
 void Tile::initTiles()
 {
 	rock.setDestroyTime(1.5f).setSoundType(soundStoneFootstep);
@@ -237,6 +240,8 @@ void Tile::initTiles()
 	stairsStone.setDestroyTime(2.0f).setLightBlock(255).setSoundType(soundStoneFootstep);
 	trapdoor.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
 	doorIron.setDestroyTime(5.0f).setSoundType(soundMetalFootstep);
+	signPost.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
+	signWall.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
 
 	Tile::lightBlock[8] = 3;
 	Tile::lightBlock[9] = 3;
@@ -315,6 +320,8 @@ void Tile::initTiles()
 	soulSand.setDescriptionId(u"tile.hellsand");
 	glowstone.setDescriptionId(u"tile.lightgem");
 	jackOLantern.setDescriptionId(u"tile.litpumpkin");
+	signPost.setDescriptionId(u"tile.sign");
+	signWall.setDescriptionId(u"tile.sign");
 
 }
 
