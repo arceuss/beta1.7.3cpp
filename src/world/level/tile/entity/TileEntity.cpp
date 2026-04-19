@@ -3,6 +3,9 @@
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
+#include "world/level/tile/entity/NoteTileEntity.h"
+#include "world/level/tile/entity/RecordPlayerTileEntity.h"
+#include "world/level/tile/entity/DispenserTileEntity.h"
 
 void TileEntity::load(CompoundTag &tag)
 {
@@ -34,6 +37,12 @@ TileEntity *TileEntity::loadStatic(CompoundTag &tag)
 	TileEntity *tileEntity = nullptr;
 	if (id == u"Furnace")
 		tileEntity = new FurnaceTileEntity();
+	if (id == u"Music")
+		tileEntity = new NoteTileEntity();
+	if (id == u"RecordPlayer")
+		tileEntity = new RecordPlayerTileEntity();
+	if (id == u"Trap")
+		tileEntity = new DispenserTileEntity();
 	if (tileEntity != nullptr)
 		tileEntity->load(tag);
 	return tileEntity;

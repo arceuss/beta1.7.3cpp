@@ -13,6 +13,13 @@ Material Material::clay;
 LiquidMaterial Material::water;
 LiquidMaterial Material::lava;
 
+Material Material::sponge;
+Material Material::cloth = Material().flammable();
+Material Material::glass;
+Material Material::iron = Material().noHarvest();
+Material Material::builtSnow = Material().noHarvest();
+Material Material::tnt = Material().flammable();
+Material Material::web = Material().noHarvest();
 Material &Material::plants()
 {
 	static DecorationMaterial material(false, false, false, true);

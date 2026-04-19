@@ -231,6 +231,17 @@ void Entity::move(double xd, double yd, double zd)
 		return;
 	}
 
+	if (isInWeb)
+	{
+		isInWeb = false;
+		xd *= 0.25;
+		yd *= 0.05;
+		zd *= 0.25;
+		this->xd = 0.0;
+		this->yd = 0.0;
+		this->zd = 0.0;
+	}
+
 	// xd *= 20.0f;
 	// yd *= 6.0f;
 	// zd *= 20.0f;

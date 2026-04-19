@@ -9,6 +9,9 @@
 #include "world/item/ItemSword.h"
 #include "world/item/ItemSlab.h"
 #include "world/item/ItemDye.h"
+#include "world/item/ItemDoor.h"
+#include "world/item/RecordItem.h"
+#include "world/level/tile/Tile.h"
 
 namespace Items
 {
@@ -30,6 +33,10 @@ namespace Items
 	Item *wheat = nullptr;
 	Item *bread = nullptr;
 	Item *reed = nullptr;
+	Item *doorWood = nullptr;
+	Item *doorIron = nullptr;
+	Item *record13 = nullptr;
+	Item *recordCat = nullptr;
 	Item *coal = nullptr;
 	Item *diamond = nullptr;
 	Item *redstone = nullptr;
@@ -45,6 +52,8 @@ namespace Items
 	Item *paper = nullptr;
 	Item *book = nullptr;
 	Item *sugar = nullptr;
+	Item *glowstoneDust = nullptr;
+	Item *snowball = nullptr;
 	Item *swordIron = nullptr;
 	Item *shovelIron = nullptr;
 	ItemPickaxe *pickaxeIron = nullptr;
@@ -175,6 +184,18 @@ namespace Items
 		reed = new Item(82);
 		reed->setIconIndex(27).setDescriptionId(u"item.reed");
 
+		doorWood = new ItemDoor(68, Tile::doorWood);
+		doorWood->setIconIndex(43).setDescriptionId(u"item.doorWood");
+
+		doorIron = new ItemDoor(74, Tile::doorIron);
+		doorIron->setIconIndex(44).setDescriptionId(u"item.doorIron");
+
+		record13 = new RecordItem(2000, u"13");
+		record13->setIconIndex(240).setDescriptionId(u"item.record");
+
+		recordCat = new RecordItem(2001, u"cat");
+		recordCat->setIconIndex(241).setDescriptionId(u"item.record");
+
 		coal = new Item(7);
 		coal->setIconIndex(7).setDescriptionId(u"item.coal");
 
@@ -216,6 +237,12 @@ namespace Items
 
 		sugar = new Item(97);
 		sugar->setIconIndex(13).setDescriptionId(u"item.sugar");
+
+		glowstoneDust = new Item(92);
+		glowstoneDust->setIconIndex(73).setDescriptionId(u"item.yellowDust");
+
+		snowball = new Item(76);
+		snowball->setIconIndex(14).setDescriptionId(u"item.snowball");
 
 		new ItemSlab(44 - 256);
 	}

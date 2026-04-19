@@ -3,6 +3,7 @@
 #include "client/renderer/Tesselator.h"
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/TallGrassTile.h"
+#include "world/level/tile/StairTile.h"
 #include "world/level/material/LiquidMaterial.h"
 
 #include <cmath>
@@ -117,6 +118,12 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateLiquidInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_TORCH)
 		return tesselateTorchInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_STAIRS)
+		return tesselateStairsInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_LADDER)
+		return tesselateLadderInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_DOOR)
+		return tesselateDoorInWorld(tt, x, y, z);
 	
 	return false;
 }
@@ -1170,6 +1177,40 @@ void TileRenderer::renderTile(Tile &tile, int_t data)
 			tile.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 			glTranslatef(0.5f, 0.5f, 0.5f);
 		}
+		else if (shape == Tile::SHAPE_STAIRS)
+		{
+			glTranslatef(-0.5f, -0.5f, -0.5f);
+			for (int_t piece = 0; piece < 2; ++piece)
+			{
+				StairTile::setPieceShape(tile, data & 3, piece);
+				t.begin();
+				t.normal(0.0f, -1.0f, 0.0f);
+				renderFaceUp(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::DOWN, data));
+				t.end();
+				t.begin();
+				t.normal(0.0f, 1.0f, 0.0f);
+				renderFaceDown(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::UP, data));
+				t.end();
+				t.begin();
+				t.normal(0.0f, 0.0f, -1.0f);
+				renderNorth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::NORTH, data));
+				t.end();
+				t.begin();
+				t.normal(0.0f, 0.0f, 1.0f);
+				renderSouth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::SOUTH, data));
+				t.end();
+				t.begin();
+				t.normal(-1.0f, 0.0f, 0.0f);
+				renderWest(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::WEST, data));
+				t.end();
+				t.begin();
+				t.normal(1.0f, 0.0f, 0.0f);
+				renderEast(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::EAST, data));
+				t.end();
+			}
+			tile.updateDefaultShape();
+			glTranslatef(0.5f, 0.5f, 0.5f);
+		}
 	}
 
 void TileRenderer::renderGuiTile(Tile &tile, int_t data)
@@ -1183,7 +1224,7 @@ void TileRenderer::renderGuiTile(Tile &tile, int_t data)
 
 bool TileRenderer::canRender(int_t renderShape)
 	{
-		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS;
+		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS || renderShape == Tile::SHAPE_STAIRS;
 	}
 
 
@@ -1379,6 +1420,124 @@ bool TileRenderer::tesselateTorchInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	else
 		tesselateTorch(tt, static_cast<double>(x), static_cast<double>(y), static_cast<double>(z), 0.0, 0.0);
 	return true;
+}
+
+bool TileRenderer::tesselateStairsInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	int_t data = level->getData(x, y, z) & 3;
+	bool changed = false;
+	double oldxx0 = tt.xx0;
+	double oldyy0 = tt.yy0;
+	double oldzz0 = tt.zz0;
+	double oldxx1 = tt.xx1;
+	double oldyy1 = tt.yy1;
+	double oldzz1 = tt.zz1;
+	for (int_t piece = 0; piece < 2; ++piece)
+	{
+		StairTile::setPieceShape(tt, data, piece);
+		changed = tesselateBlockInWorld(tt, x, y, z) || changed;
+	}
+	tt.setShape(static_cast<float>(oldxx0), static_cast<float>(oldyy0), static_cast<float>(oldzz0), static_cast<float>(oldxx1), static_cast<float>(oldyy1), static_cast<float>(oldzz1));
+	enableAO = false;
+	return changed;
+}
+
+bool TileRenderer::tesselateLadderInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	Tesselator &t = Tesselator::instance;
+	int_t tex = tt.getTexture(Facing::NORTH);
+	if (fixedTexture >= 0)
+		tex = fixedTexture;
+
+	float bright = tt.getBrightness(*level, x, y, z);
+	t.color(bright, bright, bright);
+
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	double u0 = static_cast<double>(xt) / 256.0;
+	double u1 = (static_cast<double>(xt) + 15.99) / 256.0;
+	double v0 = static_cast<double>(yt) / 256.0;
+	double v1 = (static_cast<double>(yt) + 15.99) / 256.0;
+	int_t data = level->getData(x, y, z);
+	float inset = 0.05f;
+	float pad = 0.0f;
+
+	if (data == 5)
+{
+		t.vertexUV(static_cast<double>(x) + inset, static_cast<double>(y + 1) + pad, static_cast<double>(z + 1) + pad, u0, v0);
+		t.vertexUV(static_cast<double>(x) + inset, static_cast<double>(y) - pad, static_cast<double>(z + 1) + pad, u0, v1);
+		t.vertexUV(static_cast<double>(x) + inset, static_cast<double>(y) - pad, static_cast<double>(z) - pad, u1, v1);
+		t.vertexUV(static_cast<double>(x) + inset, static_cast<double>(y + 1) + pad, static_cast<double>(z) - pad, u1, v0);
+	}
+	if (data == 4)
+	{
+		t.vertexUV(static_cast<double>(x + 1) - inset, static_cast<double>(y) - pad, static_cast<double>(z + 1) + pad, u1, v1);
+		t.vertexUV(static_cast<double>(x + 1) - inset, static_cast<double>(y + 1) + pad, static_cast<double>(z + 1) + pad, u1, v0);
+		t.vertexUV(static_cast<double>(x + 1) - inset, static_cast<double>(y + 1) + pad, static_cast<double>(z) - pad, u0, v0);
+		t.vertexUV(static_cast<double>(x + 1) - inset, static_cast<double>(y) - pad, static_cast<double>(z) - pad, u0, v1);
+	}
+	if (data == 3)
+	{
+		t.vertexUV(static_cast<double>(x + 1) + pad, static_cast<double>(y) - pad, static_cast<double>(z) + inset, u1, v1);
+		t.vertexUV(static_cast<double>(x + 1) + pad, static_cast<double>(y + 1) + pad, static_cast<double>(z) + inset, u1, v0);
+		t.vertexUV(static_cast<double>(x) - pad, static_cast<double>(y + 1) + pad, static_cast<double>(z) + inset, u0, v0);
+		t.vertexUV(static_cast<double>(x) - pad, static_cast<double>(y) - pad, static_cast<double>(z) + inset, u0, v1);
+	}
+	if (data == 2)
+	{
+		t.vertexUV(static_cast<double>(x + 1) + pad, static_cast<double>(y + 1) + pad, static_cast<double>(z + 1) - inset, u0, v0);
+		t.vertexUV(static_cast<double>(x + 1) + pad, static_cast<double>(y) - pad, static_cast<double>(z + 1) - inset, u0, v1);
+		t.vertexUV(static_cast<double>(x) - pad, static_cast<double>(y) - pad, static_cast<double>(z + 1) - inset, u1, v1);
+		t.vertexUV(static_cast<double>(x) - pad, static_cast<double>(y + 1) + pad, static_cast<double>(z + 1) - inset, u1, v0);
+	}
+	return true;
+}
+
+bool TileRenderer::tesselateDoorInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	int_t col = tt.getColor(*level, x, y, z);
+	float r = ((col >> 16) & 0xFF) / 255.0f;
+	float g = ((col >> 8) & 0xFF) / 255.0f;
+	float b = (col & 0xFF) / 255.0f;
+	float c10 = 0.5f;
+	float c11 = 1.0f;
+	float c2 = 0.8f;
+	float c3 = 0.6f;
+	float lightOwn = tt.getBrightness(*level, x, y, z);
+	bool changed = false;
+	enableAO = false;
+	auto renderFace = [&](Facing face, float shade, float br, auto fn) {
+		int_t tex = tt.getTexture(*level, x, y, z, face);
+		xFlipTexture = false;
+		if (tex < 0)
+		{
+			xFlipTexture = true;
+			tex = -tex;
+		}
+		Tesselator::instance.color(shade * r * br, shade * g * br, shade * b * br);
+		fn(tt, x, y, z, tex);
+		xFlipTexture = false;
+		changed = true;
+	};
+	float br = tt.getBrightness(*level, x, y - 1, z);
+	if (tt.yy0 > 0.0) br = lightOwn;
+	renderFace(Facing::DOWN, c10, br, [this](Tile &tile, int_t rx, int_t ry, int_t rz, int_t tex) { renderFaceUp(tile, rx, ry, rz, tex); });
+	br = tt.getBrightness(*level, x, y + 1, z);
+	if (tt.yy1 < 1.0) br = lightOwn;
+	renderFace(Facing::UP, c11, br, [this](Tile &tile, int_t rx, int_t ry, int_t rz, int_t tex) { renderFaceDown(tile, rx, ry, rz, tex); });
+	br = tt.getBrightness(*level, x, y, z - 1);
+	if (tt.zz0 > 0.0) br = lightOwn;
+	renderFace(Facing::NORTH, c2, br, [this](Tile &tile, int_t rx, int_t ry, int_t rz, int_t tex) { renderNorth(tile, rx, ry, rz, tex); });
+	br = tt.getBrightness(*level, x, y, z + 1);
+	if (tt.zz1 < 1.0) br = lightOwn;
+	renderFace(Facing::SOUTH, c2, br, [this](Tile &tile, int_t rx, int_t ry, int_t rz, int_t tex) { renderSouth(tile, rx, ry, rz, tex); });
+	br = tt.getBrightness(*level, x - 1, y, z);
+	if (tt.xx0 > 0.0) br = lightOwn;
+	renderFace(Facing::WEST, c3, br, [this](Tile &tile, int_t rx, int_t ry, int_t rz, int_t tex) { renderWest(tile, rx, ry, rz, tex); });
+	br = tt.getBrightness(*level, x + 1, y, z);
+	if (tt.xx1 < 1.0) br = lightOwn;
+	renderFace(Facing::EAST, c3, br, [this](Tile &tile, int_t rx, int_t ry, int_t rz, int_t tex) { renderEast(tile, rx, ry, rz, tex); });
+	return changed;
 }
 
 void TileRenderer::tesselateTorch(Tile &tt, double x, double y, double z, double xxa, double zza)

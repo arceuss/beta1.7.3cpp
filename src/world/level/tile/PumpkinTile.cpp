@@ -2,7 +2,7 @@
 
 #include "world/level/material/Material.h"
 
-PumpkinTile::PumpkinTile(int_t id, int_t tex) : Tile(id, tex, Material::pumpkin())
+PumpkinTile::PumpkinTile(int_t id, int_t tex, bool lit) : Tile(id, tex, Material::pumpkin()), lit(lit)
 {
 }
 
@@ -12,6 +12,9 @@ int_t PumpkinTile::getTexture(Facing face, int_t data)
 		return tex;
 
 	int_t frontTexture = tex + 17;
+	if (lit)
+		frontTexture++;
+
 	if ((data == 2 && face == Facing::NORTH) ||
 		(data == 3 && face == Facing::EAST) ||
 		(data == 0 && face == Facing::SOUTH) ||

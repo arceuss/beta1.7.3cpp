@@ -57,7 +57,7 @@ int_t Region::getRawBrightness(int_t x, int_t y, int_t z, bool neighbors)
 	if (neighbors)
 	{
 		int_t tile = getTile(x, y, z);
-		if (tile == 60 || tile == 44)
+		if (tile == 60 || tile == 44 || tile == 53 || tile == 67)
 		{
 			int_t brightness = getRawBrightness(x, y + 1, z, false);
 			int_t east = getRawBrightness(x + 1, y, z, false);

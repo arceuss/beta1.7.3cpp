@@ -80,6 +80,7 @@ public:
 	float footSize = 0.0f;
 
 	bool noPhysics = false;
+	bool isInWeb = false;
 
 	float pushthrough = 0.0f;
 

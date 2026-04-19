@@ -14,6 +14,22 @@
 #include "java/Type.h"
 #include "java/Random.h"
 #include "java/String.h"
+class SpongeTile;
+class GlassTile;
+class WebTile;
+class ClothTile;
+class BookshelfTile;
+class SnowBlockTile;
+class FenceTile;
+class SoulSandTile;
+class GlowStoneTile;
+class StairTile;
+class LadderTile;
+class TrapDoorTile;
+class DoorTile;
+class NoteTile;
+class JukeboxTile;
+class DispenserTile;
 class OreTile;
 class RedstoneOreTile;
 
@@ -124,6 +140,8 @@ public:
 	static OreTile coalOre;
 	static OreTile lapisOre;
 	static Tile &sandstone;
+	static DispenserTile dispenser;
+	static NoteTile noteBlock;
 	static Tile mossyCobblestone;
 	static Tile obsidian;
 	static SlabTile slabDouble;
@@ -141,10 +159,36 @@ public:
 	static CactusTile cactus;
 	static Tile clay;
 	static ReedTile reed;
+	static JukeboxTile jukebox;
 	static PumpkinTile pumpkin;
 	static TorchTile torch;
 	static SaplingTile sapling;
 
+	// Phase 1 blocks
+	static SpongeTile sponge;
+	static GlassTile glass;
+	static Tile lapisBlock;
+	static WebTile cobweb;
+	static ClothTile wool;
+	static Tile goldBlock;
+	static Tile ironBlock;
+	static Tile brick;
+	static BookshelfTile bookshelf;
+	static Tile diamondBlock;
+	static SnowBlockTile snowBlock;
+	static FenceTile fence;
+	static Tile netherrack;
+	static SoulSandTile soulSand;
+	static GlowStoneTile glowstone;
+	static PumpkinTile jackOLantern;
+
+	// Phase 2 blocks
+	static DoorTile doorWood;
+	static LadderTile ladder;
+	static StairTile stairsWood;
+	static StairTile stairsStone;
+	static TrapDoorTile trapdoor;
+	static DoorTile doorIron;
 	static void initTiles();
 
 public:

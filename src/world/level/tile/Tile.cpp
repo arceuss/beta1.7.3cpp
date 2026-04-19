@@ -62,6 +62,22 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/RedstoneOreTile.h"
 #include "world/level/tile/TorchTile.h"
 #include "world/level/tile/SaplingTile.h"
+#include "world/level/tile/SpongeTile.h"
+#include "world/level/tile/GlassTile.h"
+#include "world/level/tile/WebTile.h"
+#include "world/level/tile/ClothTile.h"
+#include "world/level/tile/BookshelfTile.h"
+#include "world/level/tile/SnowBlockTile.h"
+#include "world/level/tile/FenceTile.h"
+#include "world/level/tile/SoulSandTile.h"
+#include "world/level/tile/GlowStoneTile.h"
+#include "world/level/tile/StairTile.h"
+#include "world/level/tile/LadderTile.h"
+#include "world/level/tile/TrapDoorTile.h"
+#include "world/level/tile/DoorTile.h"
+#include "world/level/tile/NoteTile.h"
+#include "world/level/tile/JukeboxTile.h"
+#include "world/level/tile/DispenserTile.h"
 
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
@@ -96,6 +112,8 @@ OreTile Tile::coalOre = OreTile(16, 34);
 OreTile Tile::lapisOre = OreTile(21, 160);
 static SandStoneTile sandstoneTile(24, 192);
 Tile &Tile::sandstone = sandstoneTile;
+DispenserTile Tile::dispenser = DispenserTile(23, 45, Material::stone);
+NoteTile Tile::noteBlock = NoteTile(25, 74, Material::wood);
 SlabTile Tile::slabDouble = SlabTile(43, true);
 SlabTile Tile::slabSingle = SlabTile(44, false);
 Tile Tile::mossyCobblestone = Tile(48, 36, Material::stone);
@@ -113,10 +131,36 @@ IceTile Tile::ice = IceTile(79, 67);
 CactusTile Tile::cactus = CactusTile(81, 70);
 Tile Tile::clay = Tile(82, 72, Material::clay);
 ReedTile Tile::reed = ReedTile(83, 73);
-PumpkinTile Tile::pumpkin = PumpkinTile(86, 102);
+JukeboxTile Tile::jukebox = JukeboxTile(84, 74, Material::wood);
+PumpkinTile Tile::pumpkin = PumpkinTile(86, 102, false);
 TorchTile Tile::torch = TorchTile(50, 80);
 SaplingTile Tile::sapling = SaplingTile(6, 15);
 
+// Phase 1 blocks
+SpongeTile Tile::sponge = SpongeTile(19, 48, Material::sponge);
+GlassTile Tile::glass = GlassTile(20, 49, Material::glass, false);
+Tile Tile::lapisBlock = Tile(22, 144, Material::stone);
+WebTile Tile::cobweb = WebTile(30, 11, Material::web);
+ClothTile Tile::wool = ClothTile(35, 64, Material::cloth);
+Tile Tile::goldBlock = Tile(41, 23, Material::iron);
+Tile Tile::ironBlock = Tile(42, 22, Material::iron);
+Tile Tile::brick = Tile(45, 7, Material::stone);
+BookshelfTile Tile::bookshelf = BookshelfTile(47, 35, Material::wood);
+Tile Tile::diamondBlock = Tile(57, 24, Material::iron);
+SnowBlockTile Tile::snowBlock = SnowBlockTile(80, 66, Material::builtSnow);
+FenceTile Tile::fence = FenceTile(85, 4, Material::wood);
+Tile Tile::netherrack = Tile(87, 103, Material::stone);
+SoulSandTile Tile::soulSand = SoulSandTile(88, 104, Material::sand);
+GlowStoneTile Tile::glowstone = GlowStoneTile(89, 105, Material::stone);
+PumpkinTile Tile::jackOLantern = PumpkinTile(91, 102, true);
+
+// Phase 2 blocks
+DoorTile Tile::doorWood = DoorTile(64, 97, Material::wood, false);
+LadderTile Tile::ladder = LadderTile(65, 83);
+StairTile Tile::stairsWood = StairTile(53, Tile::wood);
+StairTile Tile::stairsStone = StairTile(67, Tile::cobblestone);
+TrapDoorTile Tile::trapdoor = TrapDoorTile(96, 84, Material::wood);
+DoorTile Tile::doorIron = DoorTile(71, 98, Material::iron, true);
 void Tile::initTiles()
 {
 	rock.setDestroyTime(1.5f).setSoundType(soundStoneFootstep);
@@ -142,9 +186,11 @@ void Tile::initTiles()
 
 	cobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	sandstone.setDestroyTime(0.8f).setSoundType(soundStoneFootstep);
+	noteBlock.setDestroyTime(0.8f).setSoundType(soundWoodFootstep);
 	slabDouble.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	slabSingle.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	mossyCobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
+	dispenser.setDestroyTime(3.5f).setSoundType(soundStoneFootstep);
 	obsidian.setDestroyTime(10.0f).setSoundType(soundStoneFootstep);
 	workBench.setDestroyTime(2.5f).setSoundType(soundWoodFootstep);
 	crops.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
@@ -157,6 +203,7 @@ void Tile::initTiles()
 	coalOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	lapisOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	diamondOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	jukebox.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
 	redstoneOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	redstoneOreGlowing.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	snow.setDestroyTime(0.1f).setSoundType(soundClothFootstep);
@@ -164,6 +211,32 @@ void Tile::initTiles()
 	torch.setDestroyTime(0.0f).setLightEmission(14).setSoundType(soundWoodFootstep);
 	sapling.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	clay.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
+
+	// Phase 1 block configuration
+	sponge.setDestroyTime(0.6f).setSoundType(soundGrassFootstep);
+	glass.setDestroyTime(0.3f).setSoundType(soundGlassFootstep);
+	lapisBlock.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
+	cobweb.setDestroyTime(4.0f).setLightBlock(1).setSoundType(soundPowderFootstep);
+	wool.setDestroyTime(0.8f).setSoundType(soundClothFootstep);
+	goldBlock.setDestroyTime(3.0f).setExplodeable(10.0f).setSoundType(soundMetalFootstep);
+	ironBlock.setDestroyTime(5.0f).setExplodeable(10.0f).setSoundType(soundMetalFootstep);
+	brick.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
+	bookshelf.setDestroyTime(1.5f).setSoundType(soundWoodFootstep);
+	diamondBlock.setDestroyTime(5.0f).setExplodeable(10.0f).setSoundType(soundMetalFootstep);
+	snowBlock.setDestroyTime(0.2f).setSoundType(soundClothFootstep);
+	fence.setDestroyTime(2.0f).setExplodeable(5.0f).setSoundType(soundWoodFootstep);
+	netherrack.setDestroyTime(0.4f).setSoundType(soundStoneFootstep);
+	soulSand.setDestroyTime(0.5f).setSoundType(soundSandFootstep);
+	glowstone.setDestroyTime(0.3f).setSoundType(soundGlassFootstep).setLightEmission(15);
+	jackOLantern.setDestroyTime(1.0f).setSoundType(soundWoodFootstep).setLightEmission(15);
+
+	// Phase 2 block configuration
+	doorWood.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
+	ladder.setDestroyTime(0.4f).setSoundType(soundWoodFootstep);
+	stairsWood.setDestroyTime(2.0f).setLightBlock(255).setSoundType(soundWoodFootstep);
+	stairsStone.setDestroyTime(2.0f).setLightBlock(255).setSoundType(soundStoneFootstep);
+	trapdoor.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
+	doorIron.setDestroyTime(5.0f).setSoundType(soundMetalFootstep);
 
 	Tile::lightBlock[8] = 3;
 	Tile::lightBlock[9] = 3;
@@ -181,6 +254,7 @@ void Tile::initTiles()
 	wood.setDescriptionId(u"tile.wood");
 	sapling.setDescriptionId(u"tile.sapling");
 	bedrock.setDescriptionId(u"tile.bedrock");
+	dispenser.setDescriptionId(u"tile.dispenser");
 	sand.setDescriptionId(u"tile.sand");
 	gravel.setDescriptionId(u"tile.gravel");
 	goldOre.setDescriptionId(u"tile.oreGold");
@@ -189,6 +263,7 @@ void Tile::initTiles()
 	treeTrunk.setDescriptionId(u"tile.log");
 	leaves.setDescriptionId(u"tile.leaves");
 	lapisOre.setDescriptionId(u"tile.oreLapis");
+	noteBlock.setDescriptionId(u"tile.musicBlock");
 	sandstone.setDescriptionId(u"tile.sandStone");
 	tallGrass.setDescriptionId(u"tile.grass");
 	deadBush.setDescriptionId(u"tile.deadBush");
@@ -215,6 +290,32 @@ void Tile::initTiles()
 	reed.setDescriptionId(u"tile.reeds");
 	pumpkin.setDescriptionId(u"tile.pumpkin");
 	torch.setDescriptionId(u"tile.torch");
+	jukebox.setDescriptionId(u"tile.jukebox");
+
+	// Phase 1 description IDs
+	sponge.setDescriptionId(u"tile.sponge");
+	glass.setDescriptionId(u"tile.glass");
+	lapisBlock.setDescriptionId(u"tile.blockLapis");
+	cobweb.setDescriptionId(u"tile.web");
+	wool.setDescriptionId(u"tile.cloth");
+	goldBlock.setDescriptionId(u"tile.blockGold");
+	ironBlock.setDescriptionId(u"tile.blockIron");
+	brick.setDescriptionId(u"tile.brick");
+	bookshelf.setDescriptionId(u"tile.bookshelf");
+	diamondBlock.setDescriptionId(u"tile.blockDiamond");
+	snowBlock.setDescriptionId(u"tile.snow");
+	fence.setDescriptionId(u"tile.fence");
+	doorWood.setDescriptionId(u"tile.doorWood");
+	ladder.setDescriptionId(u"tile.ladder");
+	stairsWood.setDescriptionId(u"tile.stairsWood");
+	stairsStone.setDescriptionId(u"tile.stairsStone");
+	trapdoor.setDescriptionId(u"tile.trapdoor");
+	doorIron.setDescriptionId(u"tile.doorIron");
+	netherrack.setDescriptionId(u"tile.hellrock");
+	soulSand.setDescriptionId(u"tile.hellsand");
+	glowstone.setDescriptionId(u"tile.lightgem");
+	jackOLantern.setDescriptionId(u"tile.litpumpkin");
+
 }
 
 // Impl

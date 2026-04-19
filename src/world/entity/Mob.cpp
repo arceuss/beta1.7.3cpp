@@ -1,6 +1,7 @@
 #include "world/entity/Mob.h"
 
 #include "world/level/Level.h"
+#include "world/level/tile/LadderTile.h"
 
 #include "util/Mth.h"
 
@@ -436,7 +437,10 @@ void Mob::travel(float x, float z)
 
 bool Mob::onLadder()
 {
-	return false;
+	int_t tx = Mth::floor(x);
+	int_t ty = Mth::floor(bb.y0);
+	int_t tz = Mth::floor(z);
+	return level.getTile(tx, ty, tz) == Tile::ladder.id;
 }
 
 bool Mob::isShootable()

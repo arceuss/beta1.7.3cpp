@@ -16,6 +16,7 @@
 #include "client/particle/ExplodeParticle.h"
 #include "client/particle/RedDustParticle.h"
 #include "client/particle/PortalParticle.h"
+#include "client/particle/NoteParticle.h"
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LeafTile.h"
@@ -1259,6 +1260,8 @@ void LevelRenderer::addParticle(const jstring &name, double x, double y, double 
 		mc.particleEngine.add(std::make_unique<RedDustParticle>(*level, x, y, z));
 	else if (name == u"portal")
 		mc.particleEngine.add(std::make_unique<PortalParticle>(*level, x, y, z, xa, ya, za));
+	else if (name == u"note")
+		mc.particleEngine.add(std::make_unique<NoteParticle>(*level, x, y, z, xa));
 	else if (name == u"smoke")
 		mc.particleEngine.add(std::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"largesmoke")
