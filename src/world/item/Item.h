@@ -21,8 +21,6 @@ private:
 	int_t baseId = 0;
 	int_t shiftedIndex = 0;
 	int_t maxStackSize = 64;
-	int_t maxDamage = 0;
-	int_t iconIndex = 0;
 	jstring descriptionId;
 
 public:
@@ -40,6 +38,14 @@ public:
 	Item &setDescriptionId(const jstring &id);
 
 	virtual int_t getIcon(const ItemInstance &stack) const;
+
+	// Subclasses need access to iconIndex and maxDamage for subtype-aware items
+	protected:
+		int_t iconIndex = 0;
+		int_t maxDamage = 0;
+
+	public:
+	virtual jstring getDescriptionId(const ItemInstance &stack) const;
 	virtual float getDestroySpeed(const ItemInstance &stack, Tile &tile) const;
 	virtual bool canDestroySpecial(const ItemInstance &stack, Tile &tile) const;
 	virtual int_t getAttackDamage(const ItemInstance &stack, Entity &entity) const;

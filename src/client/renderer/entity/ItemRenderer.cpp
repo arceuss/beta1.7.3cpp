@@ -45,6 +45,11 @@ void ItemRenderer::render(Entity &entity, double x, double y, double z, float ro
 	{
 		glRotatef(spin, 0.0f, 1.0f, 0.0f);
 		bindTexture(u"/terrain.png");
+		int_t tileColor = tile->getItemColor(item.getAuxValue());
+		float tr = static_cast<float>((tileColor >> 16) & 255) / 255.0f;
+		float tg = static_cast<float>((tileColor >> 8) & 255) / 255.0f;
+		float tb = static_cast<float>(tileColor & 255) / 255.0f;
+		glColor4f(tr, tg, tb, 1.0f);
 		float scale = tile->isCubeShaped() ? 0.25f : 0.5f;
 		glScalef(scale, scale, scale);
 		for (int_t i = 0; i < count; ++i)
@@ -57,6 +62,7 @@ void ItemRenderer::render(Entity &entity, double x, double y, double z, float ro
 			tileRenderer.renderTile(*tile, item.getAuxValue());
 			glPopMatrix();
 		}
+		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	}
 	else
 	{
@@ -104,6 +110,21 @@ void ItemRenderer::renderGuiItem(Font &font, Textures &textures, ItemInstance &i
 		return;
 
 	Tile *tile = item.itemID >= 0 && item.itemID < static_cast<int_t>(Tile::tiles.size()) ? Tile::tiles[item.itemID] : nullptr;
+
+	// Apply tile color tinting for inventory rendering
+	int_t tileColor = (tile != nullptr) ? tile->getItemColor(item.getAuxValue()) : 0xFFFFFF;
+	if (tileColor != 0xFFFFFF)
+	{
+		float r = (float)((tileColor >> 16) & 255) / 255.0f;
+		float g = (float)((tileColor >> 8) & 255) / 255.0f;
+		float b = (float)(tileColor & 255) / 255.0f;
+		glColor4f(r, g, b, 1.0f);
+	}
+	else
+	{
+		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
 	if (tile != nullptr && TileRenderer::canRender(tile->getRenderShape()))
 	{
 		glDisable(GL_CULL_FACE);
@@ -119,7 +140,6 @@ void ItemRenderer::renderGuiItem(Font &font, Textures &textures, ItemInstance &i
 		glRotatef(210.0f, 1.0f, 0.0f, 0.0f);
 		glRotatef(45.0f, 0.0f, 1.0f, 0.0f);
 		glRotatef(-90.0f, 0.0f, 1.0f, 0.0f);
-		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 		tileRenderer.renderGuiTile(*tile, item.getAuxValue());
 		glPopMatrix();
 		glEnable(GL_CULL_FACE);
@@ -134,12 +154,25 @@ void ItemRenderer::renderGuiItem(Font &font, Textures &textures, ItemInstance &i
 			textures.bind(textures.loadTexture(u"/terrain.png"));
 		else
 			textures.bind(textures.loadTexture(u"/gui/items.png"));
+		// Apply tile color tinting for flat icon path
+		if (tile != nullptr)
+		{
+			int_t c = tile->getItemColor(item.getAuxValue());
+			if (c != 0xFFFFFF)
+			{
+				float cr = (float)((c >> 16) & 255) / 255.0f;
+				float cg = (float)((c >> 8) & 255) / 255.0f;
+				float cb = (float)(c & 255) / 255.0f;
+				glColor4f(cr, cg, cb, 1.0f);
+			}
+		}
 		blit(x, y, item.getIcon() % 16 * 16, item.getIcon() / 16 * 16, 16, 16);
 		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_LIGHTING);
 	}
 
 	glEnable(GL_CULL_FACE);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void ItemRenderer::renderGuiItemDecorations(Font &font, Textures &textures, ItemInstance &item, int_t x, int_t y)

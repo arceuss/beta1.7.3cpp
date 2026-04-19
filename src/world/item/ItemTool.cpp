@@ -7,6 +7,9 @@ namespace
 {
 	const ToolMaterialData WOOD_MATERIAL = {0, 59, 2.0f, 0};
 	const ToolMaterialData STONE_MATERIAL = {1, 131, 4.0f, 1};
+	const ToolMaterialData IRON_MATERIAL = {2, 250, 6.0f, 2};
+	const ToolMaterialData DIAMOND_MATERIAL = {3, 1561, 8.0f, 3};
+	const ToolMaterialData GOLD_MATERIAL = {0, 32, 12.0f, 0};
 }
 
 const ToolMaterialData &getToolMaterialData(ToolMaterialType material)
@@ -16,8 +19,15 @@ const ToolMaterialData &getToolMaterialData(ToolMaterialType material)
 	case ToolMaterialType::WOOD:
 		return WOOD_MATERIAL;
 	case ToolMaterialType::STONE:
-	default:
 		return STONE_MATERIAL;
+	case ToolMaterialType::IRON:
+		return IRON_MATERIAL;
+	case ToolMaterialType::DIAMOND:
+		return DIAMOND_MATERIAL;
+	case ToolMaterialType::GOLD:
+		return GOLD_MATERIAL;
+	default:
+		return WOOD_MATERIAL;
 	}
 }
 

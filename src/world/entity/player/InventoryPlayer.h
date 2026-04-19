@@ -15,7 +15,9 @@ class InventoryPlayer
 {
 public:
 	std::array<ItemInstance, 36> mainInventory = {};
+	std::array<ItemInstance, 4> armorInventory = {};
 	int_t currentItem = 0;
+
 
 	InventoryPlayer(Player *player = nullptr);
 

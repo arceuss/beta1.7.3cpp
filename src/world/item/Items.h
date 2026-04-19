@@ -2,6 +2,7 @@
 
 class Item;
 class ItemPickaxe;
+class ItemArmor;
 
 namespace Items
 {
@@ -28,6 +29,53 @@ namespace Items
 	extern Item *redstone;
 	extern Item *dyePowder;
 	extern Item *flint;
+	extern Item *swordIron;
+	extern Item *shovelIron;
+	extern ItemPickaxe *pickaxeIron;
+	extern Item *axeIron;
+	extern Item *hoeIron;
 
+	extern Item *swordDiamond;
+	extern Item *shovelDiamond;
+	extern ItemPickaxe *pickaxeDiamond;
+	extern Item *axeDiamond;
+	extern Item *hoeDiamond;
+
+	extern Item *swordGold;
+	extern Item *shovelGold;
+	extern ItemPickaxe *pickaxeGold;
+	extern Item *axeGold;
+	extern Item *hoeGold;
+
+	extern Item *leather;
+	extern Item *silk;
+	extern Item *feather;
+	extern Item *gunpowder;
+	extern Item *bowlEmpty;
+	extern Item *brick;
+	extern Item *clayItem;
+	extern Item *paper;
+	extern Item *book;
+	extern Item *sugar;
+	extern ItemArmor *helmetLeather;
+	extern ItemArmor *plateLeather;
+	extern ItemArmor *legsLeather;
+	extern ItemArmor *bootsLeather;
+	extern ItemArmor *helmetChain;
+	extern ItemArmor *plateChain;
+	extern ItemArmor *legsChain;
+	extern ItemArmor *bootsChain;
+	extern ItemArmor *helmetIron;
+	extern ItemArmor *plateIron;
+	extern ItemArmor *legsIron;
+	extern ItemArmor *bootsIron;
+	extern ItemArmor *helmetDiamond;
+	extern ItemArmor *plateDiamond;
+	extern ItemArmor *legsDiamond;
+	extern ItemArmor *bootsDiamond;
+	extern ItemArmor *helmetGold;
+	extern ItemArmor *plateGold;
+	extern ItemArmor *legsGold;
+	extern ItemArmor *bootsGold;
 	void initItems();
 }

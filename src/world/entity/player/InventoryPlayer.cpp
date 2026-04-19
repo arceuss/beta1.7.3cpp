@@ -7,6 +7,7 @@
 #include "world/entity/Entity.h"
 #include "world/entity/player/Player.h"
 #include "world/level/tile/Tile.h"
+#include "world/item/ItemArmor.h"
 
 InventoryPlayer::InventoryPlayer(Player *player) : player(player)
 {
@@ -165,6 +166,15 @@ void InventoryPlayer::dropAll()
 		if (!item.isEmpty())
 		{
 			player->drop(item, true);
+		item = ItemInstance();
+		}
+	}
+
+	for (ItemInstance &item : armorInventory)
+	{
+		if (!item.isEmpty())
+		{
+			player->drop(item, true);
 			item = ItemInstance();
 		}
 	}
@@ -198,11 +208,54 @@ int_t InventoryPlayer::getAttackDamage(Entity &entity)
 
 int_t InventoryPlayer::getArmorValue() const
 {
-	return 0;
+	int_t totalReduce = 0;
+	int_t totalCurrent = 0;
+	int_t totalMax = 0;
+
+	for (int_t i = 0; i < static_cast<int_t>(armorInventory.size()); ++i)
+	{
+		const ItemInstance &armor = armorInventory[i];
+		if (armor.isEmpty())
+			continue;
+		Item *item = armor.getItem();
+		if (item == nullptr)
+			continue;
+
+		auto *armorItem = dynamic_cast<ItemArmor*>(item);
+		if (armorItem == nullptr)
+			continue;
+
+		int_t curDurability = armor.getMaxDamage() - armor.itemDamage;
+		totalCurrent += curDurability;
+		totalMax += armor.getMaxDamage();
+		totalReduce += armorItem->damageReduceAmount;
+	}
+
+	if (totalMax == 0)
+		return 0;
+
+	return (totalReduce - 1) * totalCurrent / totalMax + 1;
 }
 
 void InventoryPlayer::hurtArmor(int_t damage)
 {
+	for (int_t i = 0; i < static_cast<int_t>(armorInventory.size()); ++i)
+	{
+		ItemInstance &armor = armorInventory[i];
+		if (armor.isEmpty())
+			continue;
+		Item *item = armor.getItem();
+		if (item == nullptr)
+			continue;
+
+		auto *armorItem = dynamic_cast<ItemArmor*>(item);
+		if (armorItem == nullptr)
+			continue;
+
+		armor.itemDamage += damage;
+		if (armor.itemDamage >= armor.getMaxDamage())
+			armorInventory[i] = ItemInstance();
+	}
 }
 
 void InventoryPlayer::save(ListTag &tag) const
@@ -217,20 +270,34 @@ void InventoryPlayer::save(ListTag &tag) const
 		item.save(*itemTag);
 		tag.add(itemTag);
 	}
+
+	for (int_t i = 0; i < static_cast<int_t>(armorInventory.size()); ++i)
+	{
+		const ItemInstance &item = armorInventory[i];
+		if (item.isEmpty())
+			continue;
+		auto itemTag = std::make_shared<CompoundTag>();
+		itemTag->putByte(u"Slot", static_cast<byte_t>(i + 100));
+		item.save(*itemTag);
+		tag.add(itemTag);
+	}
 }
 
 void InventoryPlayer::load(ListTag &tag)
 {
-	mainInventory.fill(ItemInstance());
-	setCarriedNull();
+	armorInventory.fill(ItemInstance());
 	for (int_t i = 0; i < tag.size(); ++i)
 	{
 		auto itemTag = std::dynamic_pointer_cast<CompoundTag>(tag.get(i));
 		if (!itemTag)
 			continue;
 		int_t slot = itemTag->getByte(u"Slot") & 255;
-		if (slot < 0 || slot >= static_cast<int_t>(mainInventory.size()))
+		ItemInstance item(*itemTag);
+		if (item.isEmpty())
 			continue;
-		mainInventory[slot] = ItemInstance(*itemTag);
+		if (slot >= 0 && slot < static_cast<int_t>(mainInventory.size()))
+			mainInventory[slot] = item;
+		else if (slot >= 100 && slot < 100 + static_cast<int_t>(armorInventory.size()))
+			armorInventory[slot - 100] = item;
 	}
 }

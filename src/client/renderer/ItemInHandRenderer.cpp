@@ -24,7 +24,13 @@ namespace HeldItemRenderer
 		if (tile != nullptr && TileRenderer::canRender(tile->getRenderShape()))
 		{
 			glBindTexture(GL_TEXTURE_2D, textures.loadTexture(u"/terrain.png"));
+			int_t tileColor = tile->getItemColor(item.getAuxValue());
+			float tr = static_cast<float>((tileColor >> 16) & 255) / 255.0f;
+			float tg = static_cast<float>((tileColor >> 8) & 255) / 255.0f;
+			float tb = static_cast<float>(tileColor & 255) / 255.0f;
+			glColor4f(tr, tg, tb, 1.0f);
 			tileRenderer.renderTile(*tile, item.getAuxValue());
+			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 			renderedAsBlock = true;
 		}
 	

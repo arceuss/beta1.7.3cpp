@@ -81,6 +81,11 @@ void CactusTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 	if (!canStay(level, x, y, z))
 		level.setTile(x, y, z, 0);
 }
+	
+void CactusTile::entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity)
+{
+	entity.hurt(nullptr, 1);
+}
 
 
 bool CactusTile::canStay(Level &level, int_t x, int_t y, int_t z)

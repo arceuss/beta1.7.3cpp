@@ -32,63 +32,42 @@ namespace
 	jstring getTooltipText(const ItemInstance &stack)
 	{
 		Language &language = Language::getInstance();
-		Item *item = stack.getItem();
-		if (item != nullptr && !item->getDescriptionId().empty())
+
+		// Items (ID >= 256): use item description ID with subtype support
+		if (stack.itemID >= 256)
 		{
-			jstring itemName = language.getElementName(item->getDescriptionId());
-			if (!itemName.empty())
-				return itemName;
+			Item *item = stack.getItem();
+			if (item != nullptr)
+			{
+				jstring descId = item->getDescriptionId(stack);
+				if (!descId.empty())
+				{
+					jstring name = language.getElementName(descId);
+					if (!name.empty())
+						return name;
+				}
+			}
+			return u"Item " + String::toString(stack.itemID);
 		}
 
-		switch (stack.itemID)
+		// Blocks (ID < 256): use tile description ID
+		Tile *tile = (stack.itemID >= 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size())) ? Tile::tiles[stack.itemID] : nullptr;
+		if (tile != nullptr && !tile->descriptionId.empty())
 		{
-		case 1: return language.getElementName(u"tile.stone");
-		case 2: return language.getElementName(u"tile.grass");
-		case 3: return language.getElementName(u"tile.dirt");
-		case 4: return language.getElementName(u"tile.stonebrick");
-		case 5: return language.getElementName(u"tile.wood");
-		case 7: return language.getElementName(u"tile.bedrock");
-		case 8:
-		case 9: return language.getElementName(u"tile.water");
-		case 10:
-		case 11: return language.getElementName(u"tile.lava");
-		case 12: return language.getElementName(u"tile.sand");
-		case 13: return language.getElementName(u"tile.gravel");
-		case 14: return language.getElementName(u"tile.oreGold");
-		case 15: return language.getElementName(u"tile.oreIron");
-		case 16: return language.getElementName(u"tile.oreCoal");
-		case 17: return language.getElementName(u"tile.log");
-		case 18: return language.getElementName(u"tile.leaves");
-		case 21: return language.getElementName(u"tile.oreLapis");
-		case 24: return language.getElementName(u"tile.sandStone");
-		case 31: return u"Tall Grass";
-		case 32: return u"Dead Bush";
-		case 37: return language.getElementName(u"tile.flower");
-		case 38: return language.getElementName(u"tile.rose");
-		case 39:
-		case 40: return language.getElementName(u"tile.mushroom");
-		case 44:
-			switch (stack.itemDamage & 3)
+			// Slab special case: subtype-dependent name
+			if (stack.itemID == 44)
 			{
-			case 0: return language.getElementName(u"tile.stoneSlab.stone");
-			case 1: return language.getElementName(u"tile.stoneSlab.sand");
-			case 2: return language.getElementName(u"tile.stoneSlab.wood");
-			case 3: default: return language.getElementName(u"tile.stoneSlab.cobble");
+				static const jstring slabNames[] = {u"tile.stoneSlab.stone", u"tile.stoneSlab.sand", u"tile.stoneSlab.wood", u"tile.stoneSlab.cobble"};
+				jstring name = language.getElementName(slabNames[stack.itemDamage & 3]);
+				if (!name.empty())
+					return name;
 			}
-		case 48: return language.getElementName(u"tile.stoneMoss");
-		case 49: return language.getElementName(u"tile.obsidian");
-		case 56: return language.getElementName(u"tile.oreDiamond");
-		case 58: return language.getElementName(u"tile.workbench");
-		case 61:
-		case 62: return language.getElementName(u"tile.furnace");
-		case 73: return language.getElementName(u"tile.oreRedstone");
-		case 78: return language.getElementName(u"tile.snow");
-		case 79: return language.getElementName(u"tile.ice");
-		case 81: return language.getElementName(u"tile.cactus");
-		case 82: return language.getElementName(u"tile.clay");
-		case 83: return language.getElementName(u"tile.reeds");
-		case 86: return language.getElementName(u"tile.pumpkin");
-		default: break;
+			else
+			{
+				jstring name = language.getElementName(tile->descriptionId);
+				if (!name.empty())
+					return name;
+			}
 		}
 
 		if (stack.itemID > 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[stack.itemID] != nullptr)

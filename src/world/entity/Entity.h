@@ -180,7 +180,7 @@ public:
 
 	void moveRelative(float x, float z, float acc);
 
-	float getBrightness(float a);
+	virtual float getBrightness(float a);
 
 	void absMoveTo(double x, double y, double z, float yRot, float xRot);
 	void moveTo(double x, double y, double z, float yRot, float xRot);

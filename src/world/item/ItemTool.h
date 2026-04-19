@@ -8,6 +8,9 @@ enum class ToolMaterialType
 {
 	WOOD,
 	STONE,
+	IRON,
+	DIAMOND,
+	GOLD,
 };
 
 struct ToolMaterialData

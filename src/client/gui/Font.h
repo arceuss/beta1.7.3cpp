@@ -16,6 +16,7 @@ class Font
 {
 private:
 	std::array<int_t, 256> charWidths;
+	std::array<int_t, 32> colorCodes = {};
 public:
 	int_t fontTexture = 0;
 
