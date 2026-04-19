@@ -7,6 +7,7 @@
 #include "world/level/Region.h"
 
 #include "util/Mth.h"
+#include <algorithm>
 
 int_t Chunk::updates = 0;
 
@@ -118,7 +119,9 @@ void Chunk::rebuild()
 
 						if (i == 0 && Tile::isEntityTile[tileId])
 						{
-							// TODO
+							auto tileEntity = level.getTileEntity(x, y, z);
+							if (tileEntity != nullptr)
+								renderableTileEntities.push_back(tileEntity);
 						}
 
 						Tile *tile = Tile::tiles[tileId];
@@ -151,6 +154,15 @@ void Chunk::rebuild()
 		if (rendered) empty[i] = false;
 		if (!renderNextLayer) break;
 	}
+
+	if (!oldTileEntities.empty())
+	{
+		globalRenderableTileEntities.erase(
+			std::remove_if(globalRenderableTileEntities.begin(), globalRenderableTileEntities.end(),
+				[&](const std::shared_ptr<TileEntity> &tileEntity) { return oldTileEntities.find(tileEntity) != oldTileEntities.end(); }),
+			globalRenderableTileEntities.end());
+	}
+	globalRenderableTileEntities.insert(globalRenderableTileEntities.end(), renderableTileEntities.begin(), renderableTileEntities.end());
 
 	skyLit = LevelChunk::touchedSky;
 	compiled = true;

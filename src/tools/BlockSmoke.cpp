@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "client/particle/TerrainParticle.h"
+#include "client/particle/NoteParticle.h"
 #include "world/item/Items.h"
 #include "world/item/Item.h"
 #include "world/item/ItemInstance.h"
@@ -12,6 +13,7 @@
 #include "world/level/LevelListener.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
+#include "world/level/tile/entity/SignTileEntity.h"
 #include "nbt/CompoundTag.h"
 #include "world/level/tile/entity/NoteTileEntity.h"
 #include "java/Random.h"
@@ -51,6 +53,12 @@ namespace
 		int_t textureIndex() const { return tex; }
 	};
 
+struct InspectableNoteParticle : public NoteParticle
+	{
+		using NoteParticle::NoteParticle;
+		float currentSize() const { return size; }
+	};
+
 	bool expect(bool condition, const char *message)
 	{
 		if (!condition)
@@ -77,6 +85,10 @@ int runBlockSmoke()
 		ok &= expect(Tile::lightBlock[53] == 255, "wood stairs should block light like beta");
 		ok &= expect(Tile::lightBlock[67] == 255, "stone stairs should block light like beta");
 		ok &= expect(Tile::lightBlock[96] == 0, "trapdoor should not block light");
+		ok &= expect(Tile::lightBlock[63] == 0, "sign post should not block light");
+		ok &= expect(Tile::lightBlock[68] == 0, "wall sign should not block light");
+		ok &= expect(Items::sign->getShiftedIndex() == 323, "sign item should use the beta shifted id 323");
+		ok &= expect(ItemInstance(Items::sign->getShiftedIndex(), 1, 0).getIcon() == 42, "sign item should use the beta sign icon");
 		ok &= expect(Tile::tiles[30]->getResource(0, random) == Items::silk->getShiftedIndex(), "cobweb should drop string");
 		ok &= expect(Tile::tiles[89]->getResource(0, random) == Items::glowstoneDust->getShiftedIndex(), "glowstone should drop glowstone dust");
 		ok &= expect(Tile::tiles[80]->getResource(0, random) == Items::snowball->getShiftedIndex(), "snow block should drop snowballs");
@@ -151,6 +163,8 @@ int runBlockSmoke()
 		ok &= expect(!listener.sounds.empty() && listener.sounds.back().find(u"note.") == 0, "note block should play a note sound");
 		ok &= expect(!listener.particles.empty() && listener.particles.back() == u"note", "note block should spawn a note particle");
 		listener.clear();
+		InspectableNoteParticle noteParticle(level, 0.0, 0.0, 0.0, 0.5, 2.0f);
+		ok &= expect(noteParticle.currentSize() > 1.4f, "note particle should use the corrected beta scale");
 
 		std::cerr << "block-smoke: jukebox" << std::endl;
 		ok &= expect(level.setTile(6, baseY + 1, 0, 84), "jukebox should place");
@@ -181,6 +195,32 @@ int runBlockSmoke()
 			level.setTile(8, baseY + 1, 0, 0);
 			ok &= expect(level.entities.size() > entityCountBefore, "dispenser removal should drop stored items");
 		}
+
+		std::cerr << "block-smoke: sign" << std::endl;
+		level.setTile(14, baseY, 0, 5);
+		level.setTile(14, baseY + 1, 0, 0);
+		ItemInstance signPostStack(Items::sign->getShiftedIndex(), 1, 0);
+		ok &= expect(signPostStack.useOn(player, level, 14, baseY, 0, Facing::UP), "sign item should place a sign post");
+		ok &= expect(level.getTile(14, baseY + 1, 0) == 63, "sign post item should place sign post tile");
+		auto signEntity = std::dynamic_pointer_cast<SignTileEntity>(level.getTileEntity(14, baseY + 1, 0));
+		ok &= expect(signEntity != nullptr, "sign post should create a tile entity");
+		if (signEntity != nullptr)
+		{
+			signEntity->signText[0] = u"hello";
+			CompoundTag tag;
+			signEntity->save(tag);
+			signEntity->signText[0] = u"";
+			signEntity->load(tag);
+			ok &= expect(signEntity->signText[0] == u"hello", "sign should save/load text");
+		}
+		level.setTile(18, baseY + 1, 0, 1);
+		level.setTile(19, baseY + 1, 0, 0);
+		ItemInstance signWallStack(Items::sign->getShiftedIndex(), 1, 0);
+		ok &= expect(signWallStack.useOn(player, level, 18, baseY + 1, 0, Facing::EAST), "sign item should place a wall sign");
+		ok &= expect(level.getTile(19, baseY + 1, 0) == 68, "wall sign item should place wall sign tile");
+		ok &= expect(level.getData(19, baseY + 1, 0) == static_cast<int_t>(Facing::EAST), "wall sign should keep face data");
+		ok &= expect(std::dynamic_pointer_cast<SignTileEntity>(level.getTileEntity(19, baseY + 1, 0)) != nullptr, "wall sign should create a tile entity");
+		ok &= expect(Tile::tiles[63]->getResource(0, level.random) == Items::sign->getShiftedIndex(), "sign post should drop sign item");
 
 		std::cerr << "block-smoke: cobweb" << std::endl;
 		player.setPos(4.0, static_cast<double>(baseY + 5), 0.0);

@@ -17,6 +17,8 @@
 #include "client/particle/RedDustParticle.h"
 #include "client/particle/PortalParticle.h"
 #include "client/particle/NoteParticle.h"
+#include "client/renderer/SignRenderer.h"
+#include "world/level/tile/entity/SignTileEntity.h"
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LeafTile.h"
@@ -270,7 +272,19 @@ void LevelRenderer::renderEntities(Vec3 &cam, Culler &culler, float a)
 			EntityRenderDispatcher::instance.render(*entity, a);
 		}
 	}
-}
+
+	// Render tile entities (signs, etc.)
+	for (auto &tileEntity : renderableTileEntities)
+	{
+		auto signEntity = std::dynamic_pointer_cast<SignTileEntity>(tileEntity);
+		if (signEntity)
+		{
+			float brightness = level->getBrightness(signEntity->x, signEntity->y, signEntity->z);
+			glColor3f(brightness, brightness, brightness);
+			SignRenderer::renderSign(*signEntity, signEntity->x - EntityRenderDispatcher::xOff, signEntity->y - EntityRenderDispatcher::yOff, signEntity->z - EntityRenderDispatcher::zOff, a, *mc.font, mc.textures);
+		}
+	}
+	}
 
 jstring LevelRenderer::gatherStats1()
 {
@@ -1261,7 +1275,7 @@ void LevelRenderer::addParticle(const jstring &name, double x, double y, double 
 	else if (name == u"portal")
 		mc.particleEngine.add(std::make_unique<PortalParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"note")
-		mc.particleEngine.add(std::make_unique<NoteParticle>(*level, x, y, z, xa));
+		mc.particleEngine.add(std::make_unique<NoteParticle>(*level, x, y, z, xa, 2.0f));
 	else if (name == u"smoke")
 		mc.particleEngine.add(std::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"largesmoke")
@@ -1303,5 +1317,6 @@ void LevelRenderer::skyColorChanged()
 
 void LevelRenderer::tileEntityChanged(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity)
 {
-
+	(void)tileEntity;
+	setDirty(x, y, z, x, y, z);
 }

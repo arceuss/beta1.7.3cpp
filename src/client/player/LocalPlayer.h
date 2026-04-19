@@ -13,6 +13,7 @@ class User;
 
 class FurnaceTileEntity;
 class DispenserTileEntity;
+class SignTileEntity;
 class LocalPlayer : public Player
 {
 public:
@@ -48,10 +49,7 @@ public:
 	void startCrafting(int_t x, int_t y, int_t z);
 	void startFurnace(std::shared_ptr<FurnaceTileEntity> furnace);
 	void startDispenser(std::shared_ptr<DispenserTileEntity> dispenser);
-	// TODO
-	// openTextEdit
-	// openContainer
-	// openTrap
+	void openTextEdit(std::shared_ptr<SignTileEntity> sign);
 	
 	void prepareForTick();
 	bool isSneaking() override;

@@ -30,6 +30,7 @@ class DoorTile;
 class NoteTile;
 class JukeboxTile;
 class DispenserTile;
+class SignTile;
 class OreTile;
 class RedstoneOreTile;
 
@@ -189,6 +190,8 @@ public:
 	static StairTile stairsStone;
 	static TrapDoorTile trapdoor;
 	static DoorTile doorIron;
+	static SignTile signPost;
+	static SignTile signWall;
 	static void initTiles();
 
 public:

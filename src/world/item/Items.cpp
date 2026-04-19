@@ -11,6 +11,7 @@
 #include "world/item/ItemDye.h"
 #include "world/item/ItemDoor.h"
 #include "world/item/RecordItem.h"
+#include "world/item/ItemSign.h"
 #include "world/level/tile/Tile.h"
 
 namespace Items
@@ -53,6 +54,7 @@ namespace Items
 	Item *book = nullptr;
 	Item *sugar = nullptr;
 	Item *glowstoneDust = nullptr;
+Item *sign = nullptr;
 	Item *snowball = nullptr;
 	Item *swordIron = nullptr;
 	Item *shovelIron = nullptr;
@@ -243,6 +245,9 @@ namespace Items
 
 		snowball = new Item(76);
 		snowball->setIconIndex(14).setDescriptionId(u"item.snowball");
+
+		sign = new ItemSign(67);
+		sign->setIconIndex(42).setDescriptionId(u"item.sign");
 
 		new ItemSlab(44 - 256);
 	}
