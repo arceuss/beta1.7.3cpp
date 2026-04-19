@@ -38,6 +38,8 @@ class DeadBushTile;
 class MushroomTile;
 class ReedTile;
 class CactusTile;
+class TorchTile;
+class SaplingTile;
 class PumpkinTile;
 class SnowTile;
 class IceTile;
@@ -133,12 +135,15 @@ public:
 	static FurnaceTile furnaceLit;
 	static OreTile diamondOre;
 	static RedstoneOreTile redstoneOre;
+	static RedstoneOreTile redstoneOreGlowing;
 	static SnowTile snow;
 	static IceTile ice;
 	static CactusTile cactus;
 	static Tile clay;
 	static ReedTile reed;
 	static PumpkinTile pumpkin;
+	static TorchTile torch;
+	static SaplingTile sapling;
 
 	static void initTiles();
 
@@ -257,6 +262,11 @@ public:
 	virtual void entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity);
 
 	virtual void updateDefaultShape();
+
+	virtual int_t getItemColor(int_t data);
+
+	jstring descriptionId;
+	Tile &setDescriptionId(const jstring &id);
 
 virtual void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data);
 	virtual void playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data);

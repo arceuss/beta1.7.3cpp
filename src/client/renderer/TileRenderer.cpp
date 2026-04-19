@@ -115,6 +115,8 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateCactusInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_WATER)
 		return tesselateLiquidInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_TORCH)
+		return tesselateTorchInWorld(tt, x, y, z);
 	
 	return false;
 }
@@ -1091,6 +1093,83 @@ void TileRenderer::renderTile(Tile &tile, int_t data)
 			t.end();
 			glTranslatef(0.5f, 0.5f, 0.5f);
 		}
+		else if (shape == Tile::SHAPE_TORCH)
+		{
+			int_t orient = data & 7;
+			float w = 0.0625f * 2.0f; // 2px half-width
+			float h = 0.625f;        // 10px for floor, 7px for wall
+
+			float x0, x1, z0, z1, yBot, yTop;
+
+			if (orient == 1) // East wall
+			{
+				x0 = 0.0f; x1 = w;
+				z0 = 0.5f - w; z1 = 0.5f + w;
+				yBot = 0.2f; yTop = yBot + h * 10.0f / 16.0f;
+			}
+			else if (orient == 2) // West wall
+			{
+				x0 = 1.0f - w; x1 = 1.0f;
+				z0 = 0.5f - w; z1 = 0.5f + w;
+				yBot = 0.2f; yTop = yBot + h * 10.0f / 16.0f;
+			}
+			else if (orient == 3) // South wall
+			{
+				x0 = 0.5f - w; x1 = 0.5f + w;
+				z0 = 0.0f; z1 = w;
+				yBot = 0.2f; yTop = yBot + h * 10.0f / 16.0f;
+			}
+			else if (orient == 4) // North wall
+			{
+				x0 = 0.5f - w; x1 = 0.5f + w;
+				z0 = 1.0f - w; z1 = 1.0f;
+				yBot = 0.2f; yTop = yBot + h * 10.0f / 16.0f;
+			}
+			else // Floor (orient == 5 or 0)
+			{
+				x0 = 0.5f - w; x1 = 0.5f + w;
+				z0 = 0.5f - w; z1 = 0.5f + w;
+				yBot = 0.0f; yTop = 0.625f;
+			}
+
+			int_t tex = tile.getTexture(Facing::NORTH, data);
+
+			glTranslatef(-0.5f, -0.5f, -0.5f);
+
+			// Bottom face
+			t.begin();
+			tile.setShape(x0, yBot, z0, x1, yTop, z1);
+			renderFaceUp(tile, 0.0, 0.0, 0.0, tex);
+			t.end();
+
+			// Top face
+			t.begin();
+			renderFaceDown(tile, 0.0, 0.0, 0.0, tex);
+			t.end();
+
+			// North face
+			t.begin();
+			renderNorth(tile, 0.0, 0.0, 0.0, tex);
+			t.end();
+
+			// South face
+			t.begin();
+			renderSouth(tile, 0.0, 0.0, 0.0, tex);
+			t.end();
+
+			// West face
+			t.begin();
+			renderWest(tile, 0.0, 0.0, 0.0, tex);
+			t.end();
+
+			// East face
+			t.begin();
+			renderEast(tile, 0.0, 0.0, 0.0, tex);
+			t.end();
+
+			tile.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+			glTranslatef(0.5f, 0.5f, 0.5f);
+		}
 	}
 
 void TileRenderer::renderGuiTile(Tile &tile, int_t data)
@@ -1275,4 +1354,76 @@ bool TileRenderer::tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	}
 
 	return changed;
+}
+
+bool TileRenderer::tesselateTorchInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	int_t dir = level->getData(x, y, z);
+	Tesselator &t = Tesselator::instance;
+	float br = tt.getBrightness(*level, x, y, z);
+	if (Tile::lightEmission[tt.id] > 0)
+		br = 1.0f;
+
+	t.color(br, br, br);
+	double r = 0.4;
+	double r2 = 0.5 - r;
+	double h = 0.2;
+	if (dir == 1)
+		tesselateTorch(tt, static_cast<double>(x) - r2, static_cast<double>(y) + h, static_cast<double>(z), -r, 0.0);
+	else if (dir == 2)
+		tesselateTorch(tt, static_cast<double>(x) + r2, static_cast<double>(y) + h, static_cast<double>(z), r, 0.0);
+	else if (dir == 3)
+		tesselateTorch(tt, static_cast<double>(x), static_cast<double>(y) + h, static_cast<double>(z) - r2, 0.0, -r);
+	else if (dir == 4)
+		tesselateTorch(tt, static_cast<double>(x), static_cast<double>(y) + h, static_cast<double>(z) + r2, 0.0, r);
+	else
+		tesselateTorch(tt, static_cast<double>(x), static_cast<double>(y), static_cast<double>(z), 0.0, 0.0);
+	return true;
+}
+
+void TileRenderer::tesselateTorch(Tile &tt, double x, double y, double z, double xxa, double zza)
+{
+	Tesselator &t = Tesselator::instance;
+	int_t tex = tt.getTexture(Facing::NORTH);
+	if (fixedTexture >= 0)
+		tex = fixedTexture;
+
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	float u0 = xt / 256.0f;
+	float u1 = (xt + 15.99f) / 256.0f;
+	float v0 = yt / 256.0f;
+	float v1 = (yt + 15.99f) / 256.0f;
+	double uc0 = u0 + 0.02734375;
+	double vc0 = v0 + 0.0234375;
+	double uc1 = u0 + 0.03515625;
+	double vc1 = v0 + 0.03125;
+	x += 0.5;
+	z += 0.5;
+	double x0 = x - 0.5;
+	double x1 = x + 0.5;
+	double z0 = z - 0.5;
+	double z1 = z + 0.5;
+	double r = 0.0625;
+	double h = 0.625;
+	t.vertexUV(x + xxa * (1.0 - h) - r, y + h, z + zza * (1.0 - h) - r, uc0, vc0);
+	t.vertexUV(x + xxa * (1.0 - h) - r, y + h, z + zza * (1.0 - h) + r, uc0, vc1);
+	t.vertexUV(x + xxa * (1.0 - h) + r, y + h, z + zza * (1.0 - h) + r, uc1, vc1);
+	t.vertexUV(x + xxa * (1.0 - h) + r, y + h, z + zza * (1.0 - h) - r, uc1, vc0);
+	t.vertexUV(x - r, y + 1.0, z0, u0, v0);
+	t.vertexUV(x - r + xxa, y + 0.0, z0 + zza, u0, v1);
+	t.vertexUV(x - r + xxa, y + 0.0, z1 + zza, u1, v1);
+	t.vertexUV(x - r, y + 1.0, z1, u1, v0);
+	t.vertexUV(x + r, y + 1.0, z1, u0, v0);
+	t.vertexUV(x + xxa + r, y + 0.0, z1 + zza, u0, v1);
+	t.vertexUV(x + xxa + r, y + 0.0, z0 + zza, u1, v1);
+	t.vertexUV(x + r, y + 1.0, z0, u1, v0);
+	t.vertexUV(x0, y + 1.0, z + r, u0, v0);
+	t.vertexUV(x0 + xxa, y + 0.0, z + r + zza, u0, v1);
+	t.vertexUV(x1 + xxa, y + 0.0, z + r + zza, u1, v1);
+	t.vertexUV(x1, y + 1.0, z + r, u1, v0);
+	t.vertexUV(x1, y + 1.0, z - r, u0, v0);
+	t.vertexUV(x1 + xxa, y + 0.0, z - r + zza, u0, v1);
+	t.vertexUV(x0 + xxa, y + 0.0, z - r + zza, u1, v1);
+	t.vertexUV(x0, y + 1.0, z - r, u1, v0);
 }

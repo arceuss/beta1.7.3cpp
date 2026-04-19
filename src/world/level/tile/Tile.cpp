@@ -60,6 +60,8 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/material/LiquidMaterial.h"
 #include "world/level/tile/OreTile.h"
 #include "world/level/tile/RedstoneOreTile.h"
+#include "world/level/tile/TorchTile.h"
+#include "world/level/tile/SaplingTile.h"
 
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
@@ -104,13 +106,16 @@ CropsTile Tile::crops = CropsTile(59, 88);
 FarmlandTile Tile::farmland = FarmlandTile(60);
 FurnaceTile Tile::furnace = FurnaceTile(61, false);
 FurnaceTile Tile::furnaceLit = FurnaceTile(62, true);
-RedstoneOreTile Tile::redstoneOre = RedstoneOreTile(73, 51);
+RedstoneOreTile Tile::redstoneOre = RedstoneOreTile(73, 51, false);
+RedstoneOreTile Tile::redstoneOreGlowing = RedstoneOreTile(74, 51, true);
 SnowTile Tile::snow = SnowTile(78, 66);
 IceTile Tile::ice = IceTile(79, 67);
 CactusTile Tile::cactus = CactusTile(81, 70);
 Tile Tile::clay = Tile(82, 72, Material::clay);
 ReedTile Tile::reed = ReedTile(83, 73);
 PumpkinTile Tile::pumpkin = PumpkinTile(86, 102);
+TorchTile Tile::torch = TorchTile(50, 80);
+SaplingTile Tile::sapling = SaplingTile(6, 15);
 
 void Tile::initTiles()
 {
@@ -153,8 +158,11 @@ void Tile::initTiles()
 	lapisOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	diamondOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	redstoneOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	redstoneOreGlowing.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
 	snow.setDestroyTime(0.1f).setSoundType(soundClothFootstep);
 	ice.setDestroyTime(0.5f).setLightBlock(3).setSoundType(soundGlassFootstep);
+	torch.setDestroyTime(0.0f).setLightEmission(14).setSoundType(soundWoodFootstep);
+	sapling.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	clay.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
 
 	Tile::lightBlock[8] = 3;
@@ -164,10 +172,59 @@ void Tile::initTiles()
 
 	Tile::lightEmission[10] = 15;
 	Tile::lightEmission[11] = 15;
+
+	// Description IDs for all tiles
+	rock.setDescriptionId(u"tile.stone");
+	grass.setDescriptionId(u"tile.grass");
+	dirt.setDescriptionId(u"tile.dirt");
+	cobblestone.setDescriptionId(u"tile.stonebrick");
+	wood.setDescriptionId(u"tile.wood");
+	sapling.setDescriptionId(u"tile.sapling");
+	bedrock.setDescriptionId(u"tile.bedrock");
+	sand.setDescriptionId(u"tile.sand");
+	gravel.setDescriptionId(u"tile.gravel");
+	goldOre.setDescriptionId(u"tile.oreGold");
+	ironOre.setDescriptionId(u"tile.oreIron");
+	coalOre.setDescriptionId(u"tile.oreCoal");
+	treeTrunk.setDescriptionId(u"tile.log");
+	leaves.setDescriptionId(u"tile.leaves");
+	lapisOre.setDescriptionId(u"tile.oreLapis");
+	sandstone.setDescriptionId(u"tile.sandStone");
+	tallGrass.setDescriptionId(u"tile.grass");
+	deadBush.setDescriptionId(u"tile.deadBush");
+	flower.setDescriptionId(u"tile.flower");
+	rose.setDescriptionId(u"tile.rose");
+	brownMushroom.setDescriptionId(u"tile.mushroom");
+	redMushroom.setDescriptionId(u"tile.mushroom");
+	slabDouble.setDescriptionId(u"tile.stoneSlab.stone");
+	slabSingle.setDescriptionId(u"tile.stoneSlab.stone");
+	mossyCobblestone.setDescriptionId(u"tile.stoneMoss");
+	obsidian.setDescriptionId(u"tile.obsidian");
+	diamondOre.setDescriptionId(u"tile.oreDiamond");
+	workBench.setDescriptionId(u"tile.workbench");
+	crops.setDescriptionId(u"tile.crops");
+	farmland.setDescriptionId(u"tile.farmland");
+	furnace.setDescriptionId(u"tile.furnace");
+	furnaceLit.setDescriptionId(u"tile.furnace");
+	redstoneOre.setDescriptionId(u"tile.oreRedstone");
+	redstoneOreGlowing.setDescriptionId(u"tile.oreRedstone");
+	snow.setDescriptionId(u"tile.snow");
+	ice.setDescriptionId(u"tile.ice");
+	cactus.setDescriptionId(u"tile.cactus");
+	clay.setDescriptionId(u"tile.clay");
+	reed.setDescriptionId(u"tile.reeds");
+	pumpkin.setDescriptionId(u"tile.pumpkin");
+	torch.setDescriptionId(u"tile.torch");
 }
 
 // Impl
 const jstring Tile::TILE_DESCRIPTION_PREFIX = u"tile.";
+
+Tile &Tile::setDescriptionId(const jstring &id)
+{
+	descriptionId = id;
+	return *this;
+}
 
 Tile::Tile(int_t id, const Material &material) : material(material)
 {
@@ -571,6 +628,11 @@ void Tile::updateShape(LevelSource &level, int_t x, int_t y, int_t z)
 }
 
 int_t Tile::getColor(LevelSource &level, int_t x, int_t y, int_t z)
+{
+	return 0xFFFFFF;
+}
+
+int_t Tile::getItemColor(int_t data)
 {
 	return 0xFFFFFF;
 }

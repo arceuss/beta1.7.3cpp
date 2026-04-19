@@ -73,7 +73,7 @@ static int_t keyLWJGLToSDL(int_t key)
 		case 1: return SDLK_ESCAPE;
 			// case 0: return SDLK_NONE;
 		case 13: return SDLK_EQUALS;
-			// case 14: return SDLK_AC_BACK;
+		case 14: return 8;  // SDLK_BACKSPACE
 		case 141: return SDLK_KP_EQUALS;
 		case 15: return SDLK_TAB;
 		case 16: return SDLK_q;
@@ -182,7 +182,7 @@ static int_t keySDLToLWJGL(int_t key)
 		case SDLK_QUOTE: return 40;
 		case SDLK_KP_EQUALS: return 141;
 		case SDLK_z: return 44;
-			// case SDLK_AC_BACK: return 14;
+		case 8: return 14;  // SDLK_BACKSPACE → KEY_BACK
 		case SDLK_6: return 7;
 		case SDLK_h: return 35;
 		case SDLK_5: return 6;

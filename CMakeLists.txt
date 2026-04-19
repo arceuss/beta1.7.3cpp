@@ -9,6 +9,8 @@ project(McBetaCpp
 set(McBetaCpp_SOURCES
 	"src/client/Minecraft.cpp"
 	"src/client/Minecraft.h"
+	"src/client/spc/SPCCommand.cpp"
+	"src/client/spc/SPCCommand.h"
 	
 	"src/Facing.h"
 	"src/SharedConstants.cpp"
@@ -38,6 +40,10 @@ set(McBetaCpp_SOURCES
 	
 	"src/client/gui/Button.cpp"
 	"src/client/gui/Button.h"
+	"src/client/gui/ChatScreen.cpp"
+	"src/client/gui/ChatScreen.h"
+	"src/client/gui/ChatLine.cpp"
+	"src/client/gui/ChatLine.h"
 	"src/client/gui/ConfirmScreen.cpp"
 	"src/client/gui/ConfirmScreen.h"
 	"src/client/gui/ControlsScreen.cpp"
@@ -276,8 +282,12 @@ set(McBetaCpp_SOURCES
 	"src/world/item/ItemSeeds.h"
 	"src/world/item/ItemPickaxe.cpp"
 	"src/world/item/ItemPickaxe.h"
+	"src/world/item/ItemArmor.cpp"
+	"src/world/item/ItemArmor.h"
 	"src/world/item/ItemSlab.cpp"
 	"src/world/item/ItemSlab.h"
+	"src/world/item/ItemDye.cpp"
+	"src/world/item/ItemDye.h"
 	"src/world/item/Items.cpp"
 	"src/world/item/Items.h"
 	"src/world/item/crafting/CraftingContainer.h"
@@ -451,7 +461,11 @@ set(McBetaCpp_SOURCES
 	"src/world/level/tile/TransparentTile.h"
 	"src/world/level/tile/TreeTile.cpp"
 	"src/world/level/tile/TreeTile.h"
-	
+	"src/world/level/tile/TorchTile.cpp"
+	"src/world/level/tile/TorchTile.h"
+	"src/world/level/tile/SaplingTile.cpp"
+	"src/world/level/tile/SaplingTile.h"
+
 	"src/world/phys/AABB.cpp"
 	"src/world/phys/AABB.h"
 	"src/world/phys/HitResult.cpp"

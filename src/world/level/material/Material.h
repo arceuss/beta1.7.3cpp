@@ -21,6 +21,7 @@ public:
 	static Material &pumpkin();
 	static Material &snow();
 	static Material &ice();
+	static Material &circuits();
 
 private:
 	bool flammableFlag = false;

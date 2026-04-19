@@ -11,6 +11,7 @@
 #include "world/entity/player/InventoryPlayer.h"
 #include "world/entity/player/Player.h"
 #include "world/item/Item.h"
+#include "world/item/ItemArmor.h"
 #include "world/item/crafting/CraftingContainer.h"
 #include "world/item/crafting/Recipes.h"
 #include "world/level/tile/Tile.h"
@@ -23,6 +24,7 @@ namespace
 	constexpr int_t SLOT_NONE = -1;
 	constexpr int_t SLOT_CRAFTING_BASE = 100;
 	constexpr int_t SLOT_RESULT = 200;
+	constexpr int_t SLOT_ARMOR_BASE = 300;
 
 	bool isPointInSlot(int_t relX, int_t relY, int_t slotX, int_t slotY)
 	{
@@ -53,63 +55,42 @@ namespace
 	jstring getTooltipText(const ItemInstance &stack)
 	{
 		Language &language = Language::getInstance();
-		Item *item = stack.getItem();
-		if (item != nullptr && !item->getDescriptionId().empty())
+
+		// Items (ID >= 256): use item description ID with subtype support
+		if (stack.itemID >= 256)
 		{
-			jstring itemName = language.getElementName(item->getDescriptionId());
-			if (!itemName.empty())
-				return itemName;
+			Item *item = stack.getItem();
+			if (item != nullptr)
+			{
+				jstring descId = item->getDescriptionId(stack);
+				if (!descId.empty())
+				{
+					jstring name = language.getElementName(descId);
+					if (!name.empty())
+						return name;
+				}
+			}
+			return u"Item " + String::toString(stack.itemID);
 		}
 
-		switch (stack.itemID)
+		// Blocks (ID < 256): use tile description ID
+		Tile *tile = (stack.itemID >= 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size())) ? Tile::tiles[stack.itemID] : nullptr;
+		if (tile != nullptr && !tile->descriptionId.empty())
 		{
-		case 1: return language.getElementName(u"tile.stone");
-		case 2: return language.getElementName(u"tile.grass");
-		case 3: return language.getElementName(u"tile.dirt");
-		case 4: return language.getElementName(u"tile.stonebrick");
-		case 5: return language.getElementName(u"tile.wood");
-		case 7: return language.getElementName(u"tile.bedrock");
-		case 8:
-		case 9: return language.getElementName(u"tile.water");
-		case 10:
-		case 11: return language.getElementName(u"tile.lava");
-		case 12: return language.getElementName(u"tile.sand");
-		case 13: return language.getElementName(u"tile.gravel");
-		case 14: return language.getElementName(u"tile.oreGold");
-		case 15: return language.getElementName(u"tile.oreIron");
-		case 16: return language.getElementName(u"tile.oreCoal");
-		case 17: return language.getElementName(u"tile.log");
-		case 18: return language.getElementName(u"tile.leaves");
-		case 21: return language.getElementName(u"tile.oreLapis");
-		case 24: return language.getElementName(u"tile.sandStone");
-		case 31: return u"Tall Grass";
-		case 32: return u"Dead Bush";
-		case 37: return language.getElementName(u"tile.flower");
-		case 38: return language.getElementName(u"tile.rose");
-		case 39:
-		case 40: return language.getElementName(u"tile.mushroom");
-		case 44:
-			switch (stack.itemDamage & 3)
+			// Slab special case: subtype-dependent name
+			if (stack.itemID == 44)
 			{
-			case 0: return language.getElementName(u"tile.stoneSlab.stone");
-			case 1: return language.getElementName(u"tile.stoneSlab.sand");
-			case 2: return language.getElementName(u"tile.stoneSlab.wood");
-			case 3: default: return language.getElementName(u"tile.stoneSlab.cobble");
+				static const jstring slabNames[] = {u"tile.stoneSlab.stone", u"tile.stoneSlab.sand", u"tile.stoneSlab.wood", u"tile.stoneSlab.cobble"};
+				jstring name = language.getElementName(slabNames[stack.itemDamage & 3]);
+				if (!name.empty())
+					return name;
 			}
-		case 48: return language.getElementName(u"tile.stoneMoss");
-		case 49: return language.getElementName(u"tile.obsidian");
-		case 56: return language.getElementName(u"tile.oreDiamond");
-		case 58: return language.getElementName(u"tile.workbench");
-		case 61:
-		case 62: return language.getElementName(u"tile.furnace");
-		case 73: return language.getElementName(u"tile.oreRedstone");
-		case 78: return language.getElementName(u"tile.snow");
-		case 79: return language.getElementName(u"tile.ice");
-		case 81: return language.getElementName(u"tile.cactus");
-		case 82: return language.getElementName(u"tile.clay");
-		case 83: return language.getElementName(u"tile.reeds");
-		case 86: return language.getElementName(u"tile.pumpkin");
-		default: break;
+			else
+			{
+				jstring name = language.getElementName(tile->descriptionId);
+				if (!name.empty())
+					return name;
+			}
 		}
 
 		if (stack.itemID > 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[stack.itemID] != nullptr)
@@ -203,6 +184,21 @@ void InventoryScreen::render(int_t xm, int_t ym, float a)
 		if (isPointInSlot(relX, relY, slotX, slotY))
 		{
 			hoveredSlot = slot;
+			hoveredSlotX = slotX;
+			hoveredSlotY = slotY;
+		}
+	}
+
+	// Armor slots (left side of inventory)
+	for (int_t slot = 0; slot < 4; ++slot)
+	{
+		int_t slotX = getArmorSlotX(slot);
+		int_t slotY = getArmorSlotY(slot);
+		int_t armorIdx = 3 - slot; // armorInventory[3]=helmet at top
+		renderSlot(minecraft.player->inventory.armorInventory[armorIdx], slotX, slotY, a);
+		if (isPointInSlot(relX, relY, slotX, slotY))
+		{
+			hoveredSlot = SLOT_ARMOR_BASE + slot;
 			hoveredSlotX = slotX;
 			hoveredSlotY = slotY;
 		}
@@ -364,6 +360,13 @@ int_t InventoryScreen::getSlotAt(int_t x, int_t y) const
 		if (isPointInSlot(relX, relY, getInventorySlotX(slot), getInventorySlotY(slot)))
 			return slot;
 	}
+
+	for (int_t slot = 0; slot < 4; ++slot)
+	{
+		if (isPointInSlot(relX, relY, getArmorSlotX(slot), getArmorSlotY(slot)))
+			return SLOT_ARMOR_BASE + slot;
+	}
+
 	return SLOT_NONE;
 }
 
@@ -501,6 +504,15 @@ const ItemInstance *InventoryScreen::getSlotItem(int_t slot) const
 		const ItemInstance &stack = minecraft.player->inventory.mainInventory[slot];
 		return stack.isEmpty() ? nullptr : &stack;
 	}
+
+	// Armor slots
+	if (slot >= SLOT_ARMOR_BASE && slot < SLOT_ARMOR_BASE + 4)
+	{
+		int_t armorIdx = 3 - (slot - SLOT_ARMOR_BASE);
+		const ItemInstance &stack = minecraft.player->inventory.armorInventory[armorIdx];
+		return stack.isEmpty() ? nullptr : &stack;
+	}
+
 	return nullptr;
 }
 
@@ -598,7 +610,32 @@ void InventoryScreen::handleSlotClick(int_t slot, int_t buttonNum)
 	}
 
 	if (slot >= 0 && slot < 36)
+	{
 		handleRegularSlotClick(minecraft.player->inventory.mainInventory[slot], buttonNum);
+		return;
+	}
+
+	// Armor slots
+	if (slot >= SLOT_ARMOR_BASE && slot < SLOT_ARMOR_BASE + 4)
+	{
+		int_t armorDisplaySlot = slot - SLOT_ARMOR_BASE;
+		int_t armorIdx = 3 - armorDisplaySlot; // display 0=helmet → armorInventory[3]
+		ItemInstance &armorSlot = minecraft.player->inventory.armorInventory[armorIdx];
+
+		ItemInstance *carried = inventory.getCarried();
+
+		// Check if carried item is valid for this armor slot
+		if (carried != nullptr && !carried->isEmpty())
+		{
+			Item *carriedItem = carried->getItem();
+			auto *carriedArmor = dynamic_cast<ItemArmor*>(carriedItem);
+			if (carriedArmor == nullptr || carriedArmor->armorType != armorDisplaySlot)
+				return; // wrong armor type for this slot
+		}
+
+		handleRegularSlotClick(armorSlot, buttonNum);
+		return;
+	}
 }
 
 jstring InventoryScreen::getBackgroundTexture() const
@@ -644,4 +681,24 @@ jstring InventoryScreen::getTitleText() const
 bool InventoryScreen::shouldRenderPlayerModel() const
 {
 	return true;
+}
+
+int_t InventoryScreen::getArmorSlotX(int_t slot) const
+{
+	return 8;
+}
+
+int_t InventoryScreen::getArmorSlotY(int_t slot) const
+{
+	return 8 + slot * 18;
+}
+
+bool InventoryScreen::isArmorSlot(int_t slot) const
+{
+	return slot >= SLOT_ARMOR_BASE && slot < SLOT_ARMOR_BASE + 4;
+}
+
+int_t InventoryScreen::armorSlotToArmorIndex(int_t slot) const
+{
+	return 3 - (slot - SLOT_ARMOR_BASE);
 }

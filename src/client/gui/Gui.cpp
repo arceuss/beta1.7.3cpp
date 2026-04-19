@@ -1,14 +1,17 @@
 #include "client/gui/Gui.h"
 
+#include "client/spc/SPCCommand.h"
 #include "client/Lighting.h"
+#include "client/gui/ChatScreen.h"
+#include "client/gui/ChatLine.h"
 #include "client/gui/ScreenSizeCalculator.h"
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 #include "client/renderer/entity/ItemRenderer.h"
 
 #include "client/Minecraft.h"
 #include "world/level/Level.h"
-
 #include "java/Runtime.h"
+#include "java/System.h"
 
 #ifndef GL_RESCALE_NORMAL
 #define GL_RESCALE_NORMAL 32826
@@ -135,6 +138,78 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 		// drawString(font, u"yRot: " + String::toString(minecraft.player->yRot), 2, 96, 0xE0E0E0);
 		// drawString(font, u"tilt: " + String::toString(minecraft.player->tilt), 2, 104, 0xE0E0E0);
 	}
+
+	// b173-style chat overlay (always renders; adapts to open/closed state)
+	{
+		bool chatOpen = dynamic_cast<ChatScreen*>(minecraft.screen.get()) != nullptr;
+		int_t maxVisible = chatOpen ? 20 : 10;
+
+		// Build wrapped lines from all messages
+		struct VisibleLine { jstring text; int_t alpha; };
+		std::vector<VisibleLine> visibleLines;
+
+		for (auto it = SPCCommand::messages.rbegin(); it != SPCCommand::messages.rend(); ++it)
+		{
+			int_t age = tickCount - it->tickCreated;
+			if (!chatOpen && age > SPCCommand::MESSAGE_DISPLAY_TICKS)
+				break;
+
+			int_t alpha;
+			if (chatOpen)
+			{
+				alpha = 255;
+			}
+			else
+			{
+				double fade = 1.0 - static_cast<double>(age) / static_cast<double>(SPCCommand::MESSAGE_DISPLAY_TICKS);
+				fade *= 10.0;
+				if (fade < 0.0) fade = 0.0;
+				if (fade > 1.0) fade = 1.0;
+				fade *= fade;
+				alpha = static_cast<int_t>(255.0 * fade);
+			}
+
+			if (alpha <= 3)
+				continue;
+
+			// Split long messages into wrapped lines
+			std::vector<jstring> wrapped = ChatLine::split(font, it->text, MAX_MESSAGE_WIDTH);
+			// Add wrapped lines in reverse so newest message's first line is at bottom
+			for (auto wit = wrapped.rbegin(); wit != wrapped.rend(); ++wit)
+			{
+				visibleLines.push_back({*wit, alpha});
+			}
+
+			if (static_cast<int_t>(visibleLines.size()) >= maxVisible)
+				break;
+		}
+
+		if (!visibleLines.empty())
+		{
+			int_t msgY = height - 48;
+			int_t drawn = 0;
+
+		glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			glDisable(GL_ALPHA_TEST);
+
+			for (auto &line : visibleLines)
+			{
+				if (drawn >= maxVisible)
+					break;
+
+				fill(2, msgY - 1, 322, msgY + 8, (line.alpha / 2) << 24);
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				font.drawShadow(line.text, 2, msgY, 0xFFFFFF | (line.alpha << 24));
+				msgY -= 9;
+				drawn++;
+			}
+
+			glEnable(GL_ALPHA_TEST);
+			glDisable(GL_BLEND);
+		}
+	}
 }
 
 void Gui::renderSlot(int_t slot, int_t x, int_t y, float a)
@@ -168,4 +243,5 @@ void Gui::tick()
 	if (nowPlayingTime > 0) nowPlayingTime--;
 
 	tickCount++;
+	SPCCommand::guiTickCount = tickCount;
 }

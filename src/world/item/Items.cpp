@@ -8,6 +8,7 @@
 #include "world/item/ItemSpade.h"
 #include "world/item/ItemSword.h"
 #include "world/item/ItemSlab.h"
+#include "world/item/ItemDye.h"
 
 namespace Items
 {
@@ -34,6 +35,33 @@ namespace Items
 	Item *redstone = nullptr;
 	Item *dyePowder = nullptr;
 	Item *flint = nullptr;
+	Item *leather = nullptr;
+	Item *silk = nullptr;
+	Item *feather = nullptr;
+	Item *gunpowder = nullptr;
+	Item *bowlEmpty = nullptr;
+	Item *brick = nullptr;
+	Item *clayItem = nullptr;
+	Item *paper = nullptr;
+	Item *book = nullptr;
+	Item *sugar = nullptr;
+	Item *swordIron = nullptr;
+	Item *shovelIron = nullptr;
+	ItemPickaxe *pickaxeIron = nullptr;
+	Item *axeIron = nullptr;
+	Item *hoeIron = nullptr;
+
+	Item *swordDiamond = nullptr;
+	Item *shovelDiamond = nullptr;
+	ItemPickaxe *pickaxeDiamond = nullptr;
+	Item *axeDiamond = nullptr;
+	Item *hoeDiamond = nullptr;
+
+	Item *swordGold = nullptr;
+	Item *shovelGold = nullptr;
+	ItemPickaxe *pickaxeGold = nullptr;
+	Item *axeGold = nullptr;
+	Item *hoeGold = nullptr;
 
 	void initItems()
 	{
@@ -48,7 +76,7 @@ namespace Items
 		ingotIron = new Item(9);
 		ingotIron->setIconIndex(23).setDescriptionId(u"item.ingotIron");
 		ingotGold = new Item(10);
-		ingotGold->setIconIndex(54).setDescriptionId(u"item.ingotGold");
+		ingotGold->setIconIndex(39).setDescriptionId(u"item.ingotGold");
 
 
 		swordWood = new ItemSword(12, ToolMaterialType::WOOD);
@@ -74,6 +102,54 @@ namespace Items
 
 		axeStone = new ItemAxe(19, ToolMaterialType::STONE);
 		axeStone->setIconIndex(113).setDescriptionId(u"item.hatchetStone");
+
+		// Iron tools
+		swordIron = new ItemSword(11, ToolMaterialType::IRON);
+		swordIron->setIconIndex(66).setDescriptionId(u"item.swordIron");
+
+		shovelIron = new ItemSpade(0, ToolMaterialType::IRON);
+		shovelIron->setIconIndex(82).setDescriptionId(u"item.shovelIron");
+
+		pickaxeIron = new ItemPickaxe(1, ToolMaterialType::IRON);
+		pickaxeIron->setIconIndex(98).setDescriptionId(u"item.pickaxeIron");
+
+		axeIron = new ItemAxe(2, ToolMaterialType::IRON);
+		axeIron->setIconIndex(114).setDescriptionId(u"item.hatchetIron");
+
+		hoeIron = new ItemHoe(36, ToolMaterialType::IRON);
+		hoeIron->setIconIndex(130).setDescriptionId(u"item.hoeIron");
+
+		// Diamond tools
+		swordDiamond = new ItemSword(20, ToolMaterialType::DIAMOND);
+		swordDiamond->setIconIndex(67).setDescriptionId(u"item.swordDiamond");
+
+		shovelDiamond = new ItemSpade(21, ToolMaterialType::DIAMOND);
+		shovelDiamond->setIconIndex(83).setDescriptionId(u"item.shovelDiamond");
+
+		pickaxeDiamond = new ItemPickaxe(22, ToolMaterialType::DIAMOND);
+		pickaxeDiamond->setIconIndex(99).setDescriptionId(u"item.pickaxeDiamond");
+
+		axeDiamond = new ItemAxe(23, ToolMaterialType::DIAMOND);
+		axeDiamond->setIconIndex(115).setDescriptionId(u"item.hatchetDiamond");
+
+		hoeDiamond = new ItemHoe(37, ToolMaterialType::DIAMOND);
+		hoeDiamond->setIconIndex(131).setDescriptionId(u"item.hoeDiamond");
+
+		// Gold tools
+		swordGold = new ItemSword(27, ToolMaterialType::GOLD);
+		swordGold->setIconIndex(68).setDescriptionId(u"item.swordGold");
+
+		shovelGold = new ItemSpade(28, ToolMaterialType::GOLD);
+		shovelGold->setIconIndex(84).setDescriptionId(u"item.shovelGold");
+
+		pickaxeGold = new ItemPickaxe(29, ToolMaterialType::GOLD);
+		pickaxeGold->setIconIndex(100).setDescriptionId(u"item.pickaxeGold");
+
+		axeGold = new ItemAxe(30, ToolMaterialType::GOLD);
+		axeGold->setIconIndex(116).setDescriptionId(u"item.hatchetGold");
+
+		hoeGold = new ItemHoe(38, ToolMaterialType::GOLD);
+		hoeGold->setIconIndex(132).setDescriptionId(u"item.hoeGold");
 
 		stick = new Item(24);
 		stick->setIconIndex(53).setDescriptionId(u"item.stick");
@@ -108,8 +184,38 @@ namespace Items
 		redstone = new Item(75);
 		redstone->setIconIndex(56).setDescriptionId(u"item.redstone");
 
-		dyePowder = new Item(95);
-		dyePowder->setIconIndex(78).setDescriptionId(u"item.dyePowder");
+		dyePowder = new ItemDye(95);
+		dyePowder->setIconIndex(78);
+
+		leather = new Item(78);
+		leather->setIconIndex(103).setDescriptionId(u"item.leather");
+
+		silk = new Item(31);
+		silk->setIconIndex(8).setDescriptionId(u"item.string");
+
+		feather = new Item(32);
+		feather->setIconIndex(24).setDescriptionId(u"item.feather");
+
+		gunpowder = new Item(33);
+		gunpowder->setIconIndex(40).setDescriptionId(u"item.sulphur");
+
+		bowlEmpty = new Item(25);
+		bowlEmpty->setIconIndex(71).setDescriptionId(u"item.bowl");
+
+		brick = new Item(80);
+		brick->setIconIndex(22).setDescriptionId(u"item.brick");
+
+		clayItem = new Item(81);
+		clayItem->setIconIndex(57).setDescriptionId(u"item.clay");
+
+		paper = new Item(83);
+		paper->setIconIndex(58).setDescriptionId(u"item.paper");
+
+		book = new Item(84);
+		book->setIconIndex(59).setDescriptionId(u"item.book");
+
+		sugar = new Item(97);
+		sugar->setIconIndex(13).setDescriptionId(u"item.sugar");
 
 		new ItemSlab(44 - 256);
 	}

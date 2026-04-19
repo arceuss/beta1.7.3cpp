@@ -13,6 +13,6 @@ public:
 	FlameParticle(Level &level, double x, double y, double z, double xd, double yd, double zd);
 
 	virtual void render(Tesselator &t, float a, float xa, float ya, float za, float xa2, float za2) override;
-	float getBrightness(float a);  // Override Entity::getBrightness (not virtual in base)
+	float getBrightness(float a) override;  // Override Entity::getBrightness
 	virtual void tick() override;
 };

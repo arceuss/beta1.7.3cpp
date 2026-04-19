@@ -48,6 +48,12 @@ int_t Item::getIcon(const ItemInstance &stack) const
 	return iconIndex;
 }
 
+jstring Item::getDescriptionId(const ItemInstance &stack) const
+{
+	(void)stack;
+	return descriptionId;
+}
+
 float Item::getDestroySpeed(const ItemInstance &stack, Tile &tile) const
 {
 	(void)stack;

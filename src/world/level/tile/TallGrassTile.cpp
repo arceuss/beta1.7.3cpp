@@ -32,6 +32,13 @@ int_t TallGrassTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)
 	return GrassColor::get(level.getBiomeSource().temperatures[0], level.getBiomeSource().downfalls[0]);
 }
 
+int_t TallGrassTile::getItemColor(int_t data)
+{
+	if (data == 0)
+		return 0xFFFFFF;
+	return GrassColor::get(0.5, 1.0);
+}
+
 int_t TallGrassTile::getResourceCount(Random &random)
 {
 	return (random.nextInt(8) == 0) ? 1 : 0;

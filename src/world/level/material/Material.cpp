@@ -45,6 +45,12 @@ Material &Material::ice()
 	return material;
 }
 
+Material &Material::circuits()
+{
+	static DecorationMaterial material(false, false, false, true);
+	return material;
+}
+
 bool Material::isLiquid() const
 {
 	return false;

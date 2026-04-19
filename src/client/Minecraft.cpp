@@ -11,6 +11,7 @@
 #include "client/gui/DeathScreen.h"
 #include "client/gui/InventoryScreen.h"
 #include "client/gui/ScreenSizeCalculator.h"
+#include "client/gui/ChatScreen.h"
 #include "client/gui/PauseScreen.h"
 #include "client/title/TitleScreen.h"
 #include "client/player/KeyboardInput.h"
@@ -924,6 +925,8 @@ void Minecraft::tick()
 						player->drop();
 					if (lwjgl::Keyboard::getEventKey() == options.keyInventory.key && player != nullptr)
 						setScreen(Util::make_shared<InventoryScreen>(*this));
+					if (lwjgl::Keyboard::getEventKey() == options.keyChat.key && player != nullptr)
+						setScreen(Util::make_shared<ChatScreen>(*this));
 				}
 
 				for (int_t i = 0; i < 9; i++)
@@ -986,6 +989,8 @@ void Minecraft::tick()
 			level->animateTick(Mth::floor(player->x), Mth::floor(player->y), Mth::floor(player->z));
 		if (!pause)
 			particleEngine.tick();
+		if (!pause)
+			gui.tick();
 	}
 
 	lastTickTime = System::currentTimeMillis();

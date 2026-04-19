@@ -16,5 +16,5 @@ public:
 
 	virtual void tick() override;
 	virtual void render(Tesselator &t, float a, float xa, float ya, float za, float xa2, float za2) override;
-	float getBrightness(float a);  // Override Entity::getBrightness (not virtual in base)
+	float getBrightness(float a) override;  // Override Entity::getBrightness
 };

@@ -25,6 +25,11 @@ private:
 	int_t getCraftingSlotX(int_t slot) const;
 	int_t getCraftingSlotY(int_t slot) const;
 	int_t getSlotAt(int_t x, int_t y) const;
+	int_t getArmorSlotX(int_t slot) const;
+	int_t getArmorSlotY(int_t slot) const;
+	bool isArmorSlot(int_t slot) const;
+	int_t armorSlotToArmorIndex(int_t slot) const;
+
 	void updateCraftingResult();
 	void consumeCraftingIngredients();
 	void dropCraftingContents();

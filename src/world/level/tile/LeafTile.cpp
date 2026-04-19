@@ -25,6 +25,16 @@ int_t LeafTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)
 	return FoliageColor::get(temperature, downfall);
 }
 
+int_t LeafTile::getItemColor(int_t data)
+{
+	int_t type = data & LEAF_TYPE_MASK;
+	if (type == SPRUCE_LEAF)
+		return FoliageColor::getEvergreenColor();
+	if (type == BIRCH_LEAF)
+		return FoliageColor::getBirchColor();
+	return FoliageColor::get(0.5, 1.0);
+}
+
 void LeafTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 {
 	if (level.isOnline || !level.hasChunksAt(x, y, z, 2))
@@ -136,7 +146,7 @@ int_t LeafTile::getResourceCount(Random &random)
 
 int_t LeafTile::getResource(int_t data, Random &random)
 {
-	return 0;
+	return 6 + 256; // Block.sapling = ID 6
 }
 int_t LeafTile::getSpawnResourcesAuxValue(int_t data)
 {
