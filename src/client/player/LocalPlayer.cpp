@@ -1,9 +1,11 @@
 #include "client/player/LocalPlayer.h"
 
 #include "client/Minecraft.h"
+#include "client/gui/DispenserScreen.h"
 #include "client/gui/FurnaceScreen.h"
 #include "client/gui/WorkbenchScreen.h"
 #include "client/particle/TakeAnimationParticle.h"
+#include "world/level/tile/entity/DispenserTileEntity.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
 
 LocalPlayer::LocalPlayer(Minecraft &minecraft, Level &level, User *user, int_t dimension) : Player(level), minecraft(minecraft)
@@ -91,6 +93,12 @@ void LocalPlayer::startFurnace(std::shared_ptr<FurnaceTileEntity> furnace)
 {
 	minecraft.setScreen(Util::make_shared<FurnaceScreen>(minecraft, furnace));
 }
+
+void LocalPlayer::startDispenser(std::shared_ptr<DispenserTileEntity> dispenser)
+{
+	minecraft.setScreen(Util::make_shared<DispenserScreen>(minecraft, dispenser));
+}
+
 
 void LocalPlayer::take(Entity &entity, int_t count)
 {

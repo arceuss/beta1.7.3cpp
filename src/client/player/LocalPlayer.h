@@ -12,6 +12,7 @@ class Minecraft;
 class User;
 
 class FurnaceTileEntity;
+class DispenserTileEntity;
 class LocalPlayer : public Player
 {
 public:
@@ -46,6 +47,7 @@ public:
 	void respawn() override;
 	void startCrafting(int_t x, int_t y, int_t z);
 	void startFurnace(std::shared_ptr<FurnaceTileEntity> furnace);
+	void startDispenser(std::shared_ptr<DispenserTileEntity> dispenser);
 	// TODO
 	// openTextEdit
 	// openContainer

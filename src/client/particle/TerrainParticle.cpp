@@ -10,7 +10,11 @@ TerrainParticle::TerrainParticle(Level &level, double x, double y, double z, dou
 	if (tile->id == 2)
 		tex = 3;
 	else
+	{
 		tex = tile->getTexture(static_cast<Facing>(face), data);
+		if (tex < 0)
+			tex = -tex;
+	}
 	gravity = tile->gravity;
 	rCol = gCol = bCol = 0.6f;
 	size /= 2.0f;

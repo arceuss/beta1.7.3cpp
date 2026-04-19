@@ -15,6 +15,13 @@ public:
 	static Material clay;
 	static LiquidMaterial water;
 	static LiquidMaterial lava;
+	static Material sponge;
+	static Material cloth;
+	static Material glass;
+	static Material iron;
+	static Material builtSnow;
+	static Material tnt;
+	static Material web;
 
 	static Material &plants();
 	static Material &cactus();

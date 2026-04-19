@@ -35,6 +35,9 @@ public:
 	bool tesselateCactusInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateTorchInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	bool tesselateStairsInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	bool tesselateLadderInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	bool tesselateDoorInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	void tesselateTorch(Tile &tt, double x, double y, double z, double xxa, double zza);
 
 	float getLiquidHeight(int_t x, int_t y, int_t z, const Material &material);
