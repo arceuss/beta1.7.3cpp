@@ -719,8 +719,8 @@ void Minecraft::handleMouseClick(int_t button)
 		if (button == 0)
 		{
 			level->extinguishFire(x, y, z, hitResult.f);
-			// TODO: unbreakable check
-			if (player->userType >= 100)
+			Tile *targetTile = Tile::tiles[level->getTile(x, y, z)];
+			if (targetTile != &Tile::bedrock || player->userType >= 100)
 				gameMode->startDestroyBlock(x, y, z, hitResult.f);
 		}
 		else
