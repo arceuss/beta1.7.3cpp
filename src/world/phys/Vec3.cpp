@@ -147,37 +147,37 @@ Vec3 *Vec3::lerp(const Vec3 &to, double t) const
 }
 
 void Vec3::xRot(float angle)
-{
-	double c = Mth::cos(angle);
-	double s = Mth::sin(angle);
-	double nx = x;
-	double ny = y * c + z * s;
-	double nz = y * c - z * s;
-	x = nx;
-	y = ny;
-	z = nz;
+	{
+		double c = Mth::cos(angle);
+		double s = Mth::sin(angle);
+		double nx = x;
+		double ny = y * c + z * s;
+		double nz = z * c - y * s;
+		x = nx;
+		y = ny;
+		z = nz;
 }
 
 void Vec3::yRot(float angle)
-{
-	double c = Mth::cos(angle);
-	double s = Mth::sin(angle);
-	double nx = x * c + z * s;
-	double ny = y;
-	double nz = x * c + z * s;
-	x = nx;
-	y = ny;
-	z = nz;
+	{
+		double c = Mth::cos(angle);
+		double s = Mth::sin(angle);
+		double nx = x * c + z * s;
+		double ny = y;
+		double nz = z * c - x * s;
+		x = nx;
+		y = ny;
+		z = nz;
 }
 
 void Vec3::zRot(float angle)
-{
-	double c = Mth::cos(angle);
-	double s = Mth::sin(angle);
-	double nx = x * c + y * s;
-	double ny = x * c - y * s;
-	double nz = z;
-	x = nx;
-	y = ny;
-	z = nz;
+	{
+		double c = Mth::cos(angle);
+		double s = Mth::sin(angle);
+		double nx = x * c + y * s;
+		double ny = y * c - x * s;
+		double nz = z;
+		x = nx;
+		y = ny;
+		z = nz;
 }

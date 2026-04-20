@@ -4,8 +4,11 @@
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/TallGrassTile.h"
 #include "world/level/tile/StairTile.h"
+#include "world/level/tile/RedStoneDustTile.h"
+#include "world/phys/Vec3.h"
 #include "world/level/material/LiquidMaterial.h"
 
+#include "util/Mth.h"
 #include <cmath>
 
 namespace
@@ -124,6 +127,10 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateLadderInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_DOOR)
 		return tesselateDoorInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_RED_DUST)
+		return tesselateDustInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_LEVER)
+		return tesselateLeverInWorld(tt, x, y, z);
 	
 	return false;
 }
@@ -1029,9 +1036,11 @@ void TileRenderer::renderCube(Tile &tile, float alpha)
 
 void TileRenderer::renderTile(Tile &tile, int_t data)
 	{
-		Tesselator &t = Tesselator::instance;
-		int_t shape = tile.getRenderShape();
-		tile.updateDefaultShape();
+	Tesselator &t = Tesselator::instance;
+	if (tile.id == 23 || tile.id == 61 || tile.id == 62)
+		data = static_cast<int_t>(Facing::SOUTH);
+	int_t shape = tile.getRenderShape();
+	tile.updateDefaultShape();
 
 		if (shape == Tile::SHAPE_BLOCK)
 		{
@@ -1215,10 +1224,8 @@ void TileRenderer::renderTile(Tile &tile, int_t data)
 
 void TileRenderer::renderGuiTile(Tile &tile, int_t data)
 {
-	if (tile.id == 61 || tile.id == 62)
+	if (tile.id == 23 || tile.id == 61 || tile.id == 62)
 		data = static_cast<int_t>(Facing::SOUTH);
-
-
 	renderTile(tile, data);
 }
 
@@ -1585,4 +1592,294 @@ void TileRenderer::tesselateTorch(Tile &tt, double x, double y, double z, double
 	t.vertexUV(x1 + xxa, y + 0.0, z - r + zza, u0, v1);
 	t.vertexUV(x0 + xxa, y + 0.0, z - r + zza, u1, v1);
 	t.vertexUV(x0, y + 1.0, z - r, u1, v0);
+}
+
+bool TileRenderer::tesselateDustInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	Tesselator &t = Tesselator::instance;
+	int_t data = level->getData(x, y, z);
+	int_t tex = tt.getTexture(Facing::UP, data);
+	if (fixedTexture >= 0)
+		tex = fixedTexture;
+
+	float br = tt.getBrightness(*level, x, y, z);
+	float power = static_cast<float>(data) / 15.0f;
+	float tintR = power * 0.6f + 0.4f;
+	if (data == 0)
+		tintR = 0.3f;
+	float tintG = power * power * 0.7f - 0.5f;
+	float tintB = power * power * 0.6f - 0.7f;
+	if (tintG < 0.0f)
+		tintG = 0.0f;
+	if (tintB < 0.0f)
+		tintB = 0.0f;
+
+	t.color(br * tintR, br * tintG, br * tintB);
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	double u0 = static_cast<double>(xt) / 256.0;
+	double u1 = (static_cast<double>(xt) + 15.99) / 256.0;
+	double v0 = static_cast<double>(yt) / 256.0;
+	double v1 = (static_cast<double>(yt) + 15.99) / 256.0;
+	bool west = RedStoneDustTile::isPowerProviderOrWire(*level, x - 1, y, z, 1) || (!level->isBlockNormalCube(x - 1, y, z) && RedStoneDustTile::isPowerProviderOrWire(*level, x - 1, y - 1, z, -1));
+	bool east = RedStoneDustTile::isPowerProviderOrWire(*level, x + 1, y, z, 3) || (!level->isBlockNormalCube(x + 1, y, z) && RedStoneDustTile::isPowerProviderOrWire(*level, x + 1, y - 1, z, -1));
+	bool north = RedStoneDustTile::isPowerProviderOrWire(*level, x, y, z - 1, 2) || (!level->isBlockNormalCube(x, y, z - 1) && RedStoneDustTile::isPowerProviderOrWire(*level, x, y - 1, z - 1, -1));
+	bool south = RedStoneDustTile::isPowerProviderOrWire(*level, x, y, z + 1, 0) || (!level->isBlockNormalCube(x, y, z + 1) && RedStoneDustTile::isPowerProviderOrWire(*level, x, y - 1, z + 1, -1));
+	if (!level->isBlockNormalCube(x, y + 1, z))
+	{
+		if (level->isBlockNormalCube(x - 1, y, z) && RedStoneDustTile::isPowerProviderOrWire(*level, x - 1, y + 1, z, -1)) west = true;
+		if (level->isBlockNormalCube(x + 1, y, z) && RedStoneDustTile::isPowerProviderOrWire(*level, x + 1, y + 1, z, -1)) east = true;
+		if (level->isBlockNormalCube(x, y, z - 1) && RedStoneDustTile::isPowerProviderOrWire(*level, x, y + 1, z - 1, -1)) north = true;
+		if (level->isBlockNormalCube(x, y, z + 1) && RedStoneDustTile::isPowerProviderOrWire(*level, x, y + 1, z + 1, -1)) south = true;
+	}
+
+	float fx0 = static_cast<float>(x);
+	float fx1 = static_cast<float>(x + 1);
+	float fz0 = static_cast<float>(z);
+	float fz1 = static_cast<float>(z + 1);
+	int_t pic = 0;
+	if ((west || east) && !north && !south) pic = 1;
+	if ((north || south) && !east && !west) pic = 2;
+	if (pic != 0)
+	{
+		u0 = static_cast<double>(xt + 16) / 256.0;
+		u1 = (static_cast<double>(xt + 16) + 15.99) / 256.0;
+		v0 = static_cast<double>(yt) / 256.0;
+		v1 = (static_cast<double>(yt) + 15.99) / 256.0;
+	}
+
+	if (pic == 0)
+	{
+		if (east || north || south || west)
+		{
+			if (!west) { fx0 += 5.0f / 16.0f; u0 += 1.25 / 64.0; }
+			if (!east) { fx1 -= 5.0f / 16.0f; u1 -= 1.25 / 64.0; }
+			if (!north) { fz0 += 5.0f / 16.0f; v0 += 1.25 / 64.0; }
+			if (!south) { fz1 -= 5.0f / 16.0f; v1 -= 1.25 / 64.0; }
+		}
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz1, u1, v1);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz0, u1, v0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz0, u0, v0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz1, u0, v1);
+		t.color(br, br, br);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz1, u1, v1 + 1.0 / 16.0);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz0, u1, v0 + 1.0 / 16.0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz0, u0, v0 + 1.0 / 16.0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz1, u0, v1 + 1.0 / 16.0);
+	}
+	else if (pic == 1)
+	{
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz1, u1, v1);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz0, u1, v0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz0, u0, v0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz1, u0, v1);
+		t.color(br, br, br);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz1, u1, v1 + 1.0 / 16.0);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz0, u1, v0 + 1.0 / 16.0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz0, u0, v0 + 1.0 / 16.0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz1, u0, v1 + 1.0 / 16.0);
+	}
+	else if (pic == 2)
+	{
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz1, u1, v1);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz0, u0, v1);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz0, u0, v0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz1, u1, v0);
+		t.color(br, br, br);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz1, u1, v1 + 1.0 / 16.0);
+		t.vertexUV(fx1, static_cast<float>(y) + 0.015625f, fz0, u0, v1 + 1.0 / 16.0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz0, u0, v0 + 1.0 / 16.0);
+		t.vertexUV(fx0, static_cast<float>(y) + 0.015625f, fz1, u1, v0 + 1.0 / 16.0);
+	}
+
+	if (!level->isBlockNormalCube(x, y + 1, z))
+	{
+		u0 = static_cast<double>(xt + 16) / 256.0;
+		u1 = (static_cast<double>(xt + 16) + 15.99) / 256.0;
+		v0 = static_cast<double>(yt) / 256.0;
+		v1 = (static_cast<double>(yt) + 15.99) / 256.0;
+		if (level->isBlockNormalCube(x - 1, y, z) && level->getTile(x - 1, y + 1, z) == tt.id)
+		{
+			t.color(br * tintR, br * tintG, br * tintB);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z + 1), u1, v0);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<double>(y), static_cast<double>(z + 1), u0, v0);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<double>(y), static_cast<double>(z), u0, v1);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z), u1, v1);
+			t.color(br, br, br);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z + 1), u1, v0 + 1.0 / 16.0);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<double>(y), static_cast<double>(z + 1), u0, v0 + 1.0 / 16.0);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<double>(y), static_cast<double>(z), u0, v1 + 1.0 / 16.0);
+			t.vertexUV(static_cast<float>(x) + 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z), u1, v1 + 1.0 / 16.0);
+		}
+		if (level->isBlockNormalCube(x + 1, y, z) && level->getTile(x + 1, y + 1, z) == tt.id)
+		{
+			t.color(br * tintR, br * tintG, br * tintB);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<double>(y), static_cast<double>(z + 1), u0, v1);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z + 1), u1, v1);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z), u1, v0);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<double>(y), static_cast<double>(z), u0, v0);
+			t.color(br, br, br);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<double>(y), static_cast<double>(z + 1), u0, v1 + 1.0 / 16.0);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z + 1), u1, v1 + 1.0 / 16.0);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<double>(z), u1, v0 + 1.0 / 16.0);
+			t.vertexUV(static_cast<float>(x + 1) - 0.015625f, static_cast<double>(y), static_cast<double>(z), u0, v0 + 1.0 / 16.0);
+		}
+		if (level->isBlockNormalCube(x, y, z - 1) && level->getTile(x, y + 1, z - 1) == tt.id)
+		{
+			t.color(br * tintR, br * tintG, br * tintB);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), static_cast<float>(z) + 0.015625f, u0, v1);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z) + 0.015625f, u1, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z) + 0.015625f, u1, v0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y), static_cast<float>(z) + 0.015625f, u0, v0);
+			t.color(br, br, br);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), static_cast<float>(z) + 0.015625f, u0, v1 + 1.0 / 16.0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z) + 0.015625f, u1, v1 + 1.0 / 16.0);
+			t.vertexUV(static_cast<double>(x), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z) + 0.015625f, u1, v0 + 1.0 / 16.0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y), static_cast<float>(z) + 0.015625f, u0, v0 + 1.0 / 16.0);
+		}
+		if (level->isBlockNormalCube(x, y, z + 1) && level->getTile(x, y + 1, z + 1) == tt.id)
+		{
+			t.color(br * tintR, br * tintG, br * tintB);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z + 1) - 0.015625f, u1, v0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), static_cast<float>(z + 1) - 0.015625f, u0, v0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y), static_cast<float>(z + 1) - 0.015625f, u0, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z + 1) - 0.015625f, u1, v1);
+			t.color(br, br, br);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z + 1) - 0.015625f, u1, v0 + 1.0 / 16.0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), static_cast<float>(z + 1) - 0.015625f, u0, v0 + 1.0 / 16.0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y), static_cast<float>(z + 1) - 0.015625f, u0, v1 + 1.0 / 16.0);
+			t.vertexUV(static_cast<double>(x), static_cast<float>(y + 1) + 7.0f / 320.0f, static_cast<float>(z + 1) - 0.015625f, u1, v1 + 1.0 / 16.0);
+		}
+	}
+
+	return true;
+}
+
+bool TileRenderer::tesselateLeverInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	int_t data = level->getData(x, y, z);
+	int_t orient = data & 7;
+	bool flipped = (data & 8) > 0;
+	Tesselator &t = Tesselator::instance;
+	bool hadFixedTexture = fixedTexture >= 0;
+	if (!hadFixedTexture)
+		fixedTexture = Tile::cobblestone.tex;
+
+	float baseLong = 0.25f;
+	float baseHalf = 3.0f / 16.0f;
+	float baseDepth = 3.0f / 16.0f;
+	if (orient == 5)
+		tt.setShape(0.5f - baseHalf, 0.0f, 0.5f - baseLong, 0.5f + baseHalf, baseDepth, 0.5f + baseLong);
+	else if (orient == 6)
+		tt.setShape(0.5f - baseLong, 0.0f, 0.5f - baseHalf, 0.5f + baseLong, baseDepth, 0.5f + baseHalf);
+	else if (orient == 4)
+		tt.setShape(0.5f - baseHalf, 0.5f - baseLong, 1.0f - baseDepth, 0.5f + baseHalf, 0.5f + baseLong, 1.0f);
+	else if (orient == 3)
+		tt.setShape(0.5f - baseHalf, 0.5f - baseLong, 0.0f, 0.5f + baseHalf, 0.5f + baseLong, baseDepth);
+	else if (orient == 2)
+		tt.setShape(1.0f - baseDepth, 0.5f - baseLong, 0.5f - baseHalf, 1.0f, 0.5f + baseLong, 0.5f + baseHalf);
+	else if (orient == 1)
+		tt.setShape(0.0f, 0.5f - baseLong, 0.5f - baseHalf, baseDepth, 0.5f + baseLong, 0.5f + baseHalf);
+
+	tesselateBlockInWorld(tt, x, y, z);
+	if (!hadFixedTexture)
+		fixedTexture = -1;
+
+	float br = tt.getBrightness(*level, x, y, z);
+	if (Tile::lightEmission[tt.id] > 0)
+		br = 1.0f;
+	t.color(br, br, br);
+	int_t tex = tt.getTexture(Facing::DOWN);
+	if (fixedTexture >= 0)
+		tex = fixedTexture;
+
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	float u0 = static_cast<float>(xt) / 256.0f;
+	float u1 = (static_cast<float>(xt) + 15.99f) / 256.0f;
+	float v0 = static_cast<float>(yt) / 256.0f;
+	float v1 = (static_cast<float>(yt) + 15.99f) / 256.0f;
+	Vec3 *corners[8];
+	float xv = 1.0f / 16.0f;
+	float zv = 1.0f / 16.0f;
+	float yv = 10.0f / 16.0f;
+	corners[0] = Vec3::newTemp(-xv, 0.0, -zv);
+	corners[1] = Vec3::newTemp(xv, 0.0, -zv);
+	corners[2] = Vec3::newTemp(xv, 0.0, zv);
+	corners[3] = Vec3::newTemp(-xv, 0.0, zv);
+	corners[4] = Vec3::newTemp(-xv, yv, -zv);
+	corners[5] = Vec3::newTemp(xv, yv, -zv);
+	corners[6] = Vec3::newTemp(xv, yv, zv);
+	corners[7] = Vec3::newTemp(-xv, yv, zv);
+
+	for (int_t i = 0; i < 8; ++i)
+	{
+		if (flipped)
+		{
+			corners[i]->z -= 1.0 / 16.0;
+			corners[i]->xRot(Mth::PI * 2.0f / 9.0f);
+		}
+		else
+		{
+			corners[i]->z += 1.0 / 16.0;
+			corners[i]->xRot(-Mth::PI * 2.0f / 9.0f);
+		}
+
+		if (orient == 6)
+			corners[i]->yRot(Mth::PI * 0.5f);
+
+		if (orient < 5)
+		{
+			corners[i]->y -= 0.375;
+			corners[i]->xRot(Mth::PI * 0.5f);
+			if (orient == 3) corners[i]->yRot(Mth::PI);
+			if (orient == 2) corners[i]->yRot(Mth::PI * 0.5f);
+			if (orient == 1) corners[i]->yRot(Mth::PI * -0.5f);
+			corners[i]->x += static_cast<double>(x) + 0.5;
+			corners[i]->y += static_cast<double>(y) + 0.5;
+			corners[i]->z += static_cast<double>(z) + 0.5;
+		}
+		else
+		{
+			corners[i]->x += static_cast<double>(x) + 0.5;
+			corners[i]->y += static_cast<double>(y) + 2.0 / 16.0;
+			corners[i]->z += static_cast<double>(z) + 0.5;
+		}
+	}
+
+	Vec3 *c0 = nullptr;
+	Vec3 *c1 = nullptr;
+	Vec3 *c2 = nullptr;
+	Vec3 *c3 = nullptr;
+	for (int_t face = 0; face < 6; ++face)
+	{
+		if (face == 0)
+		{
+			u0 = static_cast<float>(xt + 7) / 256.0f;
+			u1 = (static_cast<float>(xt + 9) - 0.01f) / 256.0f;
+			v0 = static_cast<float>(yt + 6) / 256.0f;
+			v1 = (static_cast<float>(yt + 8) - 0.01f) / 256.0f;
+		}
+		else if (face == 2)
+		{
+			u0 = static_cast<float>(xt + 7) / 256.0f;
+			u1 = (static_cast<float>(xt + 9) - 0.01f) / 256.0f;
+			v0 = static_cast<float>(yt + 6) / 256.0f;
+			v1 = (static_cast<float>(yt + 16) - 0.01f) / 256.0f;
+		}
+
+		if (face == 0) { c0 = corners[0]; c1 = corners[1]; c2 = corners[2]; c3 = corners[3]; }
+		else if (face == 1) { c0 = corners[7]; c1 = corners[6]; c2 = corners[5]; c3 = corners[4]; }
+		else if (face == 2) { c0 = corners[1]; c1 = corners[0]; c2 = corners[4]; c3 = corners[5]; }
+		else if (face == 3) { c0 = corners[2]; c1 = corners[1]; c2 = corners[5]; c3 = corners[6]; }
+		else if (face == 4) { c0 = corners[3]; c1 = corners[2]; c2 = corners[6]; c3 = corners[7]; }
+		else { c0 = corners[0]; c1 = corners[3]; c2 = corners[7]; c3 = corners[4]; }
+
+		t.vertexUV(c0->x, c0->y, c0->z, u0, v1);
+		t.vertexUV(c1->x, c1->y, c1->z, u1, v1);
+		t.vertexUV(c2->x, c2->y, c2->z, u1, v0);
+		t.vertexUV(c3->x, c3->y, c3->z, u0, v0);
+	}
+
+	return true;
 }

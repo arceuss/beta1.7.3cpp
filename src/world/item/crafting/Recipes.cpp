@@ -15,6 +15,9 @@
 #include "world/level/tile/SlabTile.h"
 #include "world/level/tile/StoneTile.h"
 #include "world/item/ItemSign.h"
+#include "world/level/tile/ButtonTile.h"
+#include "world/level/tile/LeverTile.h"
+#include "world/level/tile/PressurePlateTile.h"
 
 namespace
 {
@@ -117,6 +120,23 @@ Recipes::Recipes()
 
 	addShapedRecipe(ItemInstance(Items::sign->getShiftedIndex(), 1, 0), {"###", "###", " X "}, {
 		{'#', ItemInstance(Tile::wood.id, 1, -1)},
+		{'X', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
+	});
+
+	addShapedRecipe(ItemInstance(Tile::buttonStone.id, 1, 0), {"#"}, {
+		{'#', ItemInstance(Tile::cobblestone.id, 1, -1)}
+	});
+
+	addShapedRecipe(ItemInstance(Tile::pressurePlateStone.id, 1, 0), {"##"}, {
+		{'#', ItemInstance(Tile::cobblestone.id, 1, -1)}
+	});
+
+	addShapedRecipe(ItemInstance(Tile::pressurePlateWood.id, 1, 0), {"##"}, {
+		{'#', ItemInstance(Tile::wood.id, 1, -1)}
+	});
+
+	addShapedRecipe(ItemInstance(Tile::lever.id, 1, 0), {"#", "X"}, {
+		{'#', ItemInstance(Tile::cobblestone.id, 1, -1)},
 		{'X', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
 	});
 	std::sort(shapedRecipes.begin(), shapedRecipes.end(), [](const ShapedRecipe &a, const ShapedRecipe &b) {

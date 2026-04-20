@@ -12,6 +12,7 @@ TorchTile::TorchTile(int_t id, int_t tex) : Tile(id, tex, Material::circuits())
 	setDestroyTime(0.0f);
 	setLightEmission(14); // b173: setLightValue(15.0F / 16.0F) → (int)(0.9375f * 15.0f) = 14
 	setTicking(true);
+	updateCachedProperties();
 }
 
 AABB *TorchTile::getAABB(Level &level, int_t x, int_t y, int_t z)

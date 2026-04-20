@@ -128,12 +128,13 @@ bool DoorTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 
 void DoorTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
-	(void)tile;
 	int_t data = level.getData(x, y, z);
 	if ((data & 8) != 0)
 	{
 		if (level.getTile(x, y - 1, z) != id)
 			level.setTile(x, y, z, 0);
+		if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource() && level.getTile(x, y - 1, z) == id)
+			neighborChanged(level, x, y - 1, z, tile);
 		return;
 	}
 
@@ -148,6 +149,26 @@ void DoorTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t ti
 		removePair(level, x, y, z, true, data);
 		return;
 	}
+
+	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
+	{
+		bool powered = level.isBlockIndirectlyGettingPowered(x, y, z) || level.isBlockIndirectlyGettingPowered(x, y + 1, z);
+		bool isOpen = (data & 4) != 0;
+		if (isOpen != powered)
+		{
+			int_t newData = data ^ 4;
+			level.noNeighborUpdate = true;
+			level.setDataNoUpdate(x, y, z, newData);
+			if (level.getTile(x, y + 1, z) == id)
+				level.setDataNoUpdate(x, y + 1, z, newData + 8);
+			level.noNeighborUpdate = false;
+			level.tileUpdated(x, y, z, id);
+			if (level.getTile(x, y + 1, z) == id)
+				level.tileUpdated(x, y + 1, z, id);
+			level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, ((newData & 4) != 0) ? u"random.door_open" : u"random.door_close", 1.0f, level.random.nextFloat() * 0.1f + 0.9f);
+		}
+	}
+
 }
 
 int_t DoorTile::getResource(int_t data, Random &random)

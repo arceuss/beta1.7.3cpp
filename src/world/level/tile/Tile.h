@@ -63,6 +63,11 @@ class IceTile;
 class WorkbenchTile;
 class SlabTile;
 class FurnaceTile;
+class RedStoneDustTile;
+class NotGateTile;
+class LeverTile;
+class ButtonTile;
+class PressurePlateTile;
 
 class TransparentTile;
 class LiquidTile;
@@ -192,6 +197,14 @@ public:
 	static DoorTile doorIron;
 	static SignTile signPost;
 	static SignTile signWall;
+	// Phase 3 - redstone blocks
+	static RedStoneDustTile redstoneWire;
+	static LeverTile lever;
+	static PressurePlateTile pressurePlateStone;
+	static PressurePlateTile pressurePlateWood;
+	static NotGateTile torchRedstoneIdle;
+	static NotGateTile torchRedstoneActive;
+	static ButtonTile buttonStone;
 	static void initTiles();
 
 public:
@@ -309,12 +322,16 @@ public:
 	virtual void entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity);
 
 	virtual void updateDefaultShape();
+	virtual bool mayPlace(Level &level, int_t x, int_t y, int_t z);
 
+	virtual bool isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir);
+	virtual bool isSignalSource() { return false; }
+	virtual bool isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir);
 	virtual int_t getItemColor(int_t data);
 
 	jstring descriptionId;
 	Tile &setDescriptionId(const jstring &id);
 
-virtual void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data);
+	virtual void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data);
 	virtual void playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data);
 };

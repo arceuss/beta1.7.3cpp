@@ -11,4 +11,5 @@ public:
 	void onRemove(Level &level, int_t x, int_t y, int_t z) override;
 	bool use(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	void attack(Level &level, int_t x, int_t y, int_t z, Player &player) override;
+	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 };

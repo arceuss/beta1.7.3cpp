@@ -109,6 +109,7 @@ protected:
 
 public:
 	bool noNeighborUpdate = false;
+	bool editingBlocks = false;
 
 private:
 	long_t sessionId = System::currentTimeMillis();
@@ -319,7 +320,6 @@ public:
 	void removeTileEntity(int_t x, int_t y, int_t z);
 
 	bool isSolidTile(int_t x, int_t y, int_t z) override;
-
 	void forceSave(std::shared_ptr<ProgressListener> progressRenderer);
 
 	int_t getLightsToUpdate();
@@ -363,5 +363,12 @@ public:
 
 	void broadcastEntityEvent(std::shared_ptr<Entity> entity, byte_t event);
 
+	bool isBlockNormalCube(int_t x, int_t y, int_t z);
+	bool isBlockProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir);
+	bool isBlockGettingPowered(int_t x, int_t y, int_t z);
+	bool isBlockIndirectlyProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir);
+	bool isBlockIndirectlyGettingPowered(int_t x, int_t y, int_t z);
+	void notifyBlocksOfNeighborChange(int_t x, int_t y, int_t z, int_t tileId);
+	void scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t delay);
 	std::shared_ptr<ChunkSource> getChunkSource();
 };

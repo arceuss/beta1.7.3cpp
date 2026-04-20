@@ -24,5 +24,6 @@ public:
 	int_t getData(int_t x, int_t y, int_t z) override;
 	const Material &getMaterial(int_t x, int_t y, int_t z) override;
 	bool isSolidTile(int_t x, int_t y, int_t z) override;
+	bool isBlockNormalCube(int_t x, int_t y, int_t z) override;
 	BiomeSource &getBiomeSource() override;
 };

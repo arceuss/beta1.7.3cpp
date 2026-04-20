@@ -12,6 +12,7 @@
 #include "world/item/ItemDoor.h"
 #include "world/item/RecordItem.h"
 #include "world/item/ItemSign.h"
+#include "world/item/ItemRedStone.h"
 #include "world/level/tile/Tile.h"
 
 namespace Items
@@ -204,7 +205,7 @@ Item *sign = nullptr;
 		diamond = new Item(8);
 		diamond->setIconIndex(55).setDescriptionId(u"item.diamond");
 
-		redstone = new Item(75);
+		redstone = new ItemRedStone(75);
 		redstone->setIconIndex(56).setDescriptionId(u"item.redstone");
 
 		dyePowder = new ItemDye(95);
