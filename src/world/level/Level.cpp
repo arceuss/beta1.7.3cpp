@@ -637,6 +637,103 @@ void Level::neighborChanged(int_t x, int_t y, int_t z, int_t tile)
 	if (ptile != nullptr)
 		ptile->neighborChanged(*this, x, y, z, tile);
 }
+bool Level::isBlockNormalCube(int_t x, int_t y, int_t z)
+{
+	int_t id = getTile(x, y, z);
+	if (id == 0)
+		return false;
+	Tile *t = Tile::tiles[id];
+	if (t == nullptr)
+		return false;
+	return t->material.isSolid() && t->isCubeShaped();
+}
+
+bool Level::isBlockProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir)
+{
+	int_t id = getTile(x, y, z);
+	if (id == 0)
+		return false;
+	Tile *t = Tile::tiles[id];
+	if (t == nullptr)
+		return false;
+	return t->isIndirectSignalTo(*this, x, y, z, dir);
+}
+
+bool Level::isBlockGettingPowered(int_t x, int_t y, int_t z)
+{
+	return isBlockProvidingPowerTo(x, y - 1, z, 0)
+		|| isBlockProvidingPowerTo(x, y + 1, z, 1)
+		|| isBlockProvidingPowerTo(x, y, z - 1, 2)
+		|| isBlockProvidingPowerTo(x, y, z + 1, 3)
+		|| isBlockProvidingPowerTo(x - 1, y, z, 4)
+		|| isBlockProvidingPowerTo(x + 1, y, z, 5);
+}
+
+bool Level::isBlockIndirectlyProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir)
+{
+	if (isBlockNormalCube(x, y, z))
+		return isBlockGettingPowered(x, y, z);
+	int_t id = getTile(x, y, z);
+	if (id == 0)
+		return false;
+	Tile *t = Tile::tiles[id];
+	if (t == nullptr)
+		return false;
+	return t->isDirectSignalTo(*this, x, y, z, dir);
+}
+
+bool Level::isBlockIndirectlyGettingPowered(int_t x, int_t y, int_t z)
+{
+	return isBlockIndirectlyProvidingPowerTo(x, y - 1, z, 0)
+		|| isBlockIndirectlyProvidingPowerTo(x, y + 1, z, 1)
+		|| isBlockIndirectlyProvidingPowerTo(x, y, z - 1, 2)
+		|| isBlockIndirectlyProvidingPowerTo(x, y, z + 1, 3)
+		|| isBlockIndirectlyProvidingPowerTo(x - 1, y, z, 4)
+		|| isBlockIndirectlyProvidingPowerTo(x + 1, y, z, 5);
+}
+
+void Level::notifyBlocksOfNeighborChange(int_t x, int_t y, int_t z, int_t tileId)
+{
+	neighborChanged(x - 1, y, z, tileId);
+	neighborChanged(x + 1, y, z, tileId);
+	neighborChanged(x, y - 1, z, tileId);
+	neighborChanged(x, y + 1, z, tileId);
+	neighborChanged(x, y, z - 1, tileId);
+	neighborChanged(x, y, z + 1, tileId);
+}
+
+void Level::scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t delay)
+{
+	TickNextTickData entry;
+	entry.x = x;
+	entry.y = y;
+	entry.z = z;
+	entry.tileId = tileId;
+	entry.order = nextTickEntryId++;
+
+	constexpr int_t chunkRadius = 8;
+	if (instaTick)
+	{
+		if (hasChunksAt(entry.x - chunkRadius, entry.y - chunkRadius, entry.z - chunkRadius, entry.x + chunkRadius, entry.y + chunkRadius, entry.z + chunkRadius))
+		{
+			int_t tile = getTile(entry.x, entry.y, entry.z);
+			if (tile == entry.tileId && tile > 0 && Tile::tiles[tile] != nullptr)
+				Tile::tiles[tile]->tick(*this, entry.x, entry.y, entry.z, random);
+		}
+		return;
+	}
+
+	if (!hasChunksAt(x - chunkRadius, y - chunkRadius, z - chunkRadius, x + chunkRadius, y + chunkRadius, z + chunkRadius))
+		return;
+
+	entry.delay = static_cast<long_t>(delay) + time;
+
+	if (tickNextTickSet.find(entry) != tickNextTickSet.end())
+		return;
+
+	tickNextTickSet.insert(entry);
+	tickNextTickList.insert(entry);
+}
 
 bool Level::canSeeSky(int_t x, int_t y, int_t z)
 {

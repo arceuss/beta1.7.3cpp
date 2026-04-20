@@ -17,5 +17,6 @@ public:
 	virtual int_t getData(int_t x, int_t y, int_t z) = 0;
 	virtual const Material &getMaterial(int_t x, int_t y, int_t z) = 0;
 	virtual bool isSolidTile(int_t x, int_t y, int_t z) = 0;
+	virtual bool isBlockNormalCube(int_t x, int_t y, int_t z) = 0;
 	virtual BiomeSource &getBiomeSource() = 0;
 };

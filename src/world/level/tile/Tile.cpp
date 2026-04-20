@@ -79,6 +79,11 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/JukeboxTile.h"
 #include "world/level/tile/DispenserTile.h"
 #include "world/level/tile/SignTile.h"
+#include "world/level/tile/RedStoneDustTile.h"
+#include "world/level/tile/NotGateTile.h"
+#include "world/level/tile/LeverTile.h"
+#include "world/level/tile/ButtonTile.h"
+#include "world/level/tile/PressurePlateTile.h"
 
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
@@ -164,6 +169,15 @@ TrapDoorTile Tile::trapdoor = TrapDoorTile(96, 84, Material::wood);
 DoorTile Tile::doorIron = DoorTile(71, 98, Material::iron, true);
 SignTile Tile::signPost = SignTile(63, true);
 SignTile Tile::signWall = SignTile(68, false);
+
+// Phase 3 - redstone blocks
+RedStoneDustTile Tile::redstoneWire = RedStoneDustTile(55, 164);
+LeverTile Tile::lever = LeverTile(69, 96);
+PressurePlateTile Tile::pressurePlateStone = PressurePlateTile(70, 1, PressurePlateTile::Sensitivity::MOBS, Material::stone);
+PressurePlateTile Tile::pressurePlateWood = PressurePlateTile(72, 4, PressurePlateTile::Sensitivity::EVERYTHING, Material::wood);
+NotGateTile Tile::torchRedstoneIdle = NotGateTile(75, 115, false);
+NotGateTile Tile::torchRedstoneActive = NotGateTile(76, 99, true);
+ButtonTile Tile::buttonStone = ButtonTile(77, 1);
 void Tile::initTiles()
 {
 	rock.setDestroyTime(1.5f).setSoundType(soundStoneFootstep);
@@ -242,6 +256,14 @@ void Tile::initTiles()
 	doorIron.setDestroyTime(5.0f).setSoundType(soundMetalFootstep);
 	signPost.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
 	signWall.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
+	// Phase 3 - redstone block configuration
+	redstoneWire.setDestroyTime(0.0f).setSoundType(soundPowderFootstep);
+	lever.setDestroyTime(0.5f).setSoundType(soundWoodFootstep);
+	pressurePlateStone.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
+	pressurePlateWood.setDestroyTime(0.5f).setSoundType(soundWoodFootstep);
+	torchRedstoneIdle.setDestroyTime(0.0f).setLightEmission(0).setSoundType(soundWoodFootstep);
+	torchRedstoneActive.setDestroyTime(0.0f).setLightEmission(7).setSoundType(soundWoodFootstep);
+	buttonStone.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
 
 	Tile::lightBlock[8] = 3;
 	Tile::lightBlock[9] = 3;
@@ -322,6 +344,14 @@ void Tile::initTiles()
 	jackOLantern.setDescriptionId(u"tile.litpumpkin");
 	signPost.setDescriptionId(u"tile.sign");
 	signWall.setDescriptionId(u"tile.sign");
+	// Phase 3 description IDs
+	redstoneWire.setDescriptionId(u"tile.redstoneDust");
+	lever.setDescriptionId(u"tile.lever");
+	pressurePlateStone.setDescriptionId(u"tile.pressurePlate");
+	pressurePlateWood.setDescriptionId(u"tile.pressurePlate");
+	torchRedstoneIdle.setDescriptionId(u"tile.notGate");
+	torchRedstoneActive.setDescriptionId(u"tile.notGate");
+	buttonStone.setDescriptionId(u"tile.button");
 
 }
 
@@ -755,6 +785,15 @@ void Tile::updateDefaultShape()
 
 }
 
+bool Tile::mayPlace(Level &level, int_t x, int_t y, int_t z)
+{
+	(void)level;
+	(void)x;
+	(void)y;
+	(void)z;
+	return true;
+}
+
 void Tile::playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data)
 {
 	spawnResources(level, x, y, z, data);
@@ -766,3 +805,14 @@ void Tile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z,
 	spawnResources(level, x, y, z, data);
 }
 
+
+
+bool Tile::isDirectSignalTo(Level &, int_t, int_t, int_t, int_t)
+{
+	return false;
+}
+
+bool Tile::isIndirectSignalTo(Level &, int_t, int_t, int_t, int_t)
+{
+	return false;
+}

@@ -38,3 +38,18 @@ void NoteTile::attack(Level &level, int_t x, int_t y, int_t z, Player &player)
 	if (noteEntity != nullptr)
 		noteEntity->triggerNote(level, x, y, z);
 }
+
+void NoteTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
+{
+	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
+	{
+		bool powered = level.isBlockGettingPowered(x, y, z);
+		auto noteEntity = std::dynamic_pointer_cast<NoteTileEntity>(level.getTileEntity(x, y, z));
+		if (noteEntity != nullptr && noteEntity->previousRedstoneState != powered)
+		{
+			if (powered)
+				noteEntity->triggerNote(level, x, y, z);
+			noteEntity->previousRedstoneState = powered;
+		}
+	}
+}

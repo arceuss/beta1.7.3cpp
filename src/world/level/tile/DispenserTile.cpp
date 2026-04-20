@@ -8,6 +8,55 @@
 #include "world/item/ItemInstance.h"
 #include "world/level/Level.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
+#include "java/Random.h"
+
+namespace
+{
+	int_t chooseRandomSlot(DispenserTileEntity &dispenser, Random &random)
+	{
+		int_t chosen = -1;
+		int_t count = 1;
+		for (int_t slot = 0; slot < dispenser.getContainerSize(); ++slot)
+		{
+			if (!dispenser.getItem(slot).isEmpty() && random.nextInt(count++) == 0)
+				chosen = slot;
+		}
+		return chosen;
+	}
+
+	void fireItem(Level &level, int_t x, int_t y, int_t z, Random &random)
+	{
+		auto dispenser = std::dynamic_pointer_cast<DispenserTileEntity>(level.getTileEntity(x, y, z));
+		if (dispenser == nullptr)
+			return;
+
+		int_t data = level.getData(x, y, z);
+		float dirX = 0.0f;
+		float dirZ = 0.0f;
+		if (data == 3) dirZ = 1.0f;
+		else if (data == 2) dirZ = -1.0f;
+		else if (data == 5) dirX = 1.0f;
+		else dirX = -1.0f;
+
+		int_t slot = chooseRandomSlot(*dispenser, random);
+		double px = static_cast<double>(x) + static_cast<double>(dirX) * 0.5 + 0.5;
+		double py = static_cast<double>(y) + 0.5;
+		double pz = static_cast<double>(z) + static_cast<double>(dirZ) * 0.5 + 0.5;
+		if (slot < 0)
+		{
+			level.playSoundEffect(static_cast<double>(x), static_cast<double>(y), static_cast<double>(z), u"random.click", 1.0f, 1.2f);
+			return;
+		}
+
+		ItemInstance stack = dispenser->removeItem(slot, 1);
+		auto entity = std::make_shared<EntityItem>(level, px, py - 0.3, pz, stack);
+		entity->xd = static_cast<double>(dirX) * 0.2 + (random.nextDouble() * 2.0 - 1.0) * 0.0075 * 6.0;
+		entity->yd = 0.2 + (random.nextDouble() * 2.0 - 1.0) * 0.0075 * 6.0;
+		entity->zd = static_cast<double>(dirZ) * 0.2 + (random.nextDouble() * 2.0 - 1.0) * 0.0075 * 6.0;
+		level.addEntity(entity);
+		level.playSoundEffect(static_cast<double>(x), static_cast<double>(y), static_cast<double>(z), u"random.click", 1.0f, 1.0f);
+	}
+}
 
 DispenserTile::DispenserTile(int_t id, int_t tex, const Material &material) : Tile(id, tex, material)
 {
@@ -98,4 +147,20 @@ void DispenserTile::dropContents(Level &level, int_t x, int_t y, int_t z) const
 			level.addEntity(entity);
 		}
 	}
+}
+
+void DispenserTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
+{
+	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
+	{
+		bool powered = level.isBlockIndirectlyGettingPowered(x, y, z) || level.isBlockIndirectlyGettingPowered(x, y + 1, z);
+		if (powered)
+			level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
+	}
+}
+
+void DispenserTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
+{
+	if (level.isBlockIndirectlyGettingPowered(x, y, z) || level.isBlockIndirectlyGettingPowered(x, y + 1, z))
+		fireItem(level, x, y, z, random);
 }

@@ -111,6 +111,17 @@ bool Region::isSolidTile(int_t x, int_t y, int_t z)
 	return (tile == nullptr) ? false : tile->isSolidRender();
 }
 
+bool Region::isBlockNormalCube(int_t x, int_t y, int_t z)
+{
+	int_t id = getTile(x, y, z);
+	if (id == 0)
+		return false;
+	Tile *tile = Tile::tiles[id];
+	if (tile == nullptr)
+		return false;
+	return tile->material.isSolid() && tile->isCubeShaped();
+}
+
 BiomeSource &Region::getBiomeSource()
 {
 	return level.getBiomeSource();

@@ -115,4 +115,15 @@ void TrapDoorTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_
 {
 	(void)tile;
 	dropIfUnsupported(level, x, y, z);
+
+	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
+	{
+		bool powered = level.isBlockIndirectlyGettingPowered(x, y, z);
+		int_t data = level.getData(x, y, z);
+		bool isOpen = (data & 4) != 0;
+		if (isOpen != powered)
+		{
+			level.setData(x, y, z, data ^ 4);
+		}
+	}
 }
