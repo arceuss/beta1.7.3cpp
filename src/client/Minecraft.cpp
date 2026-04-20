@@ -40,6 +40,10 @@
 #include "client/renderer/texturefx/TextureWaterFlowFX.h"
 #include "client/renderer/texturefx/TextureLavaFX.h"
 #include "client/renderer/texturefx/TextureLavaFlowFX.h"
+#include "client/renderer/texturefx/TexturePortalFX.h"
+#include "client/renderer/texturefx/TextureCompassFX.h"
+#include "client/renderer/texturefx/TextureWatchFX.h"
+#include "client/renderer/texturefx/TextureFlamesFX.h"
 
 const jstring Minecraft::VERSION_STRING = u"Minecraft " + SharedConstants::VERSION_STRING;
 
@@ -122,10 +126,15 @@ void Minecraft::init()
 	if (resourceDir && resourceDir->exists() && resourceDir->isDirectory())
 		loadAllSounds(resourceDir.get(), u"");
 	// Dynamic textures
-	textures.registerTextureFX(std::make_unique<TextureWaterFX>());
-	textures.registerTextureFX(std::make_unique<TextureWaterFlowFX>());
 	textures.registerTextureFX(std::make_unique<TextureLavaFX>());
+	textures.registerTextureFX(std::make_unique<TextureWaterFX>());
+	textures.registerTextureFX(std::make_unique<TexturePortalFX>(14));
+	textures.registerTextureFX(std::make_unique<TextureCompassFX>(*this));
+	textures.registerTextureFX(std::make_unique<TextureWatchFX>(*this));
+	textures.registerTextureFX(std::make_unique<TextureWaterFlowFX>());
 	textures.registerTextureFX(std::make_unique<TextureLavaFlowFX>());
+	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(0));
+	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(1));
 
 	setScreen(Util::make_shared<TitleScreen>(*this));
 }
@@ -1075,15 +1084,8 @@ void Minecraft::selectLevel(const jstring &name, const jstring &levelName, long_
 
 void Minecraft::toggleDimension()
 {
-	/*
-	if (player->dimension == -1)
-		player->dimension = 0;
-	else
-		player->dimension = -1;
-
-	level->removeEntity(player);
-	player->removed = true;
-	*/
+	// TODO: Replace this stub with the full Beta dimension/world swap, coordinate scaling, and teleporter placement flow.
+	// LocalPlayer now calls this hook when portal travel completes so the transfer path has a single home.
 }
 
 void Minecraft::setLevel(std::shared_ptr<Level> level)

@@ -15,6 +15,9 @@
 #include "world/level/tile/SlabTile.h"
 #include "world/level/tile/StoneTile.h"
 #include "world/item/ItemSign.h"
+#include "world/level/tile/RailTile.h"
+#include "world/level/tile/DetectorRailTile.h"
+#include "world/level/tile/ChestTile.h"
 #include "world/level/tile/ButtonTile.h"
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/PressurePlateTile.h"
@@ -127,6 +130,36 @@ Recipes::Recipes()
 		{'X', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
 	});
 
+	addShapedRecipe(ItemInstance(Tile::chest.id, 1, 0), {"###", "# #", "###"}, {
+		{'#', ItemInstance(Tile::wood.id, 1, -1)}
+	});
+	addShapedRecipe(ItemInstance(Tile::rail.id, 16, 0), {"X X", "X#X", "X X"}, {
+		{'X', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)},
+		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Tile::railPowered.id, 6, 0), {"X X", "X#X", "XRX"}, {
+		{'X', ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0)},
+		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
+		{'R', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Tile::railDetector.id, 6, 0), {"X X", "X#X", "XRX"}, {
+		{'X', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)},
+		{'#', ItemInstance(Tile::pressurePlateStone.id, 1, 0)},
+		{'R', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Items::minecart->getShiftedIndex(), 1, 0), {"# #", "###"}, {
+		{'#', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Items::minecartPowered->getShiftedIndex(), 1, 0), {"A", "B"}, {
+		{'A', ItemInstance(Tile::furnace.id, 1, 0)},
+		{'B', ItemInstance(Items::minecart->getShiftedIndex(), 1, 0)}
+	});
+
+	addShapedRecipe(ItemInstance(Items::minecartChest->getShiftedIndex(), 1, 0), {"A", "B"}, {
+		{'A', ItemInstance(Tile::chest.id, 1, 0)},
+		{'B', ItemInstance(Items::minecart->getShiftedIndex(), 1, 0)}
+	});
+
 	addShapedRecipe(ItemInstance(Tile::torchRedstoneActive.id, 1, 0), {"X", "#"}, {
 		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
 		{'X', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
@@ -138,6 +171,15 @@ Recipes::Recipes()
 		{'I', ItemInstance(Tile::rock.id, 1, 0)}
 	});
 
+	addShapedRecipe(ItemInstance(Items::clock->getShiftedIndex(), 1, 0), {" # ", "#X#", " # "}, {
+		{'#', ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Items::compass->getShiftedIndex(), 1, 0), {" # ", "#X#", " # "}, {
+		{'#', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
+	});
+	
 	addShapedRecipe(ItemInstance(Tile::buttonStone.id, 1, 0), {"#"}, {
 		{'#', ItemInstance(Tile::rock.id, 1, 0)}
 	});

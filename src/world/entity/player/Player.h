@@ -66,6 +66,7 @@ public:
 	void addAdditionalSaveData(CompoundTag &tag) override;
 
 	float getHeadHeight() override;
+	double getRidingHeight() override;
 	void die(Entity *source) override;
 	bool hurt(Entity *source, int_t dmg) override;
 

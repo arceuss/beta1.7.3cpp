@@ -8,6 +8,7 @@
 
 class PlayerRenderer;
 class FallingTileRenderer;
+class MinecartRenderer;
 class ItemRenderer;
 
 class EntityRenderDispatcher
@@ -20,6 +21,7 @@ public:
 private:
 	static FallingTileRenderer &getFallingTileRenderer();
 	static ItemRenderer &getItemRenderer();
+	static MinecartRenderer &getMinecartRenderer();
 	Font *font = nullptr;
 public:
 	static double xOff;

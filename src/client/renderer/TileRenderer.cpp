@@ -4,6 +4,7 @@
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/TallGrassTile.h"
 #include "world/level/tile/StairTile.h"
+#include "world/level/tile/FireTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
 #include "world/level/tile/RepeaterTile.h"
 #include "world/phys/Vec3.h"
@@ -124,8 +125,12 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateTorchInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_STAIRS)
 		return tesselateStairsInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_FIRE)
+		return tesselateFireInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_LADDER)
 		return tesselateLadderInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_RAIL)
+		return tesselateRailInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_DOOR)
 		return tesselateDoorInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_RED_DUST)
@@ -136,6 +141,301 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateLeverInWorld(tt, x, y, z);
 
 	return false;
+}
+
+bool TileRenderer::tesselateFireInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	Tesselator &t = Tesselator::instance;
+	int_t tex = tt.getTexture(Facing::UP, 0);
+	if (fixedTexture >= 0)
+		tex = fixedTexture;
+
+	float br = tt.getBrightness(*level, x, y, z);
+	t.color(br, br, br);
+
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	double u0 = static_cast<double>(xt) / 256.0;
+	double u1 = static_cast<double>(xt + 15.99) / 256.0;
+	double v0 = static_cast<double>(yt) / 256.0;
+	double v1 = static_cast<double>(yt + 15.99) / 256.0;
+	float height = 1.4f;
+	double var19, var21, var23, var25, var27, var29, var31;
+
+	bool solidBelow = level->isSolidTile(x, y - 1, z);
+	bool canCatchFireBelow = FireTile::canBlockCatchFire(*level, x, y - 1, z);
+	if (!solidBelow && !canCatchFireBelow)
+	{
+		float sideOffset = 0.2f;
+		float offset = 1.0f / 16.0f;
+
+		if ((x + y + z & 1) == 1)
+		{
+			u0 = static_cast<double>(xt) / 256.0;
+			u1 = static_cast<double>(xt + 15.99) / 256.0;
+			v0 = static_cast<double>(yt + 16) / 256.0;
+			v1 = static_cast<double>(yt + 31.99) / 256.0;
+		}
+
+		if (((x / 2 + y / 2 + z / 2) & 1) == 1)
+		{
+			var19 = u1;
+			u1 = u0;
+			u0 = var19;
+		}
+
+		if (FireTile::canBlockCatchFire(*level, x - 1, y, z))
+		{
+			t.vertexUV(static_cast<double>(x) + sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z + 1), u1, v0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z + 1), u1, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z), u0, v1);
+			t.vertexUV(static_cast<double>(x) + sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z), u0, v0);
+			t.vertexUV(static_cast<double>(x) + sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z), u0, v0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z), u0, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z + 1), u1, v1);
+			t.vertexUV(static_cast<double>(x) + sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z + 1), u1, v0);
+		}
+
+		if (FireTile::canBlockCatchFire(*level, x + 1, y, z))
+		{
+			t.vertexUV(static_cast<double>(x + 1) - sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z), u0, v0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z), u0, v1);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z + 1), u1, v1);
+			t.vertexUV(static_cast<double>(x + 1) - sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z + 1), u1, v0);
+			t.vertexUV(static_cast<double>(x + 1) - sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z + 1), u1, v0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z + 1), u1, v1);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z), u0, v1);
+			t.vertexUV(static_cast<double>(x + 1) - sideOffset, static_cast<double>(y) + height + offset, static_cast<double>(z), u0, v0);
+		}
+
+		if (FireTile::canBlockCatchFire(*level, x, y, z - 1))
+		{
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height + offset, static_cast<double>(z) + sideOffset, u1, v0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z), u1, v1);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z), u0, v1);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height + offset, static_cast<double>(z) + sideOffset, u0, v0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height + offset, static_cast<double>(z) + sideOffset, u0, v0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z), u0, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z), u1, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height + offset, static_cast<double>(z) + sideOffset, u1, v0);
+		}
+
+		if (FireTile::canBlockCatchFire(*level, x, y, z + 1))
+		{
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height + offset, static_cast<double>(z + 1) - sideOffset, u0, v0);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z + 1), u0, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z + 1), u1, v1);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height + offset, static_cast<double>(z + 1) - sideOffset, u1, v0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height + offset, static_cast<double>(z + 1) - sideOffset, u1, v0);
+			t.vertexUV(static_cast<double>(x), static_cast<double>(y) + offset, static_cast<double>(z + 1), u1, v1);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + offset, static_cast<double>(z + 1), u0, v1);
+			t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height + offset, static_cast<double>(z + 1) - sideOffset, u0, v0);
+		}
+
+		if (FireTile::canBlockCatchFire(*level, x, y + 1, z))
+		{
+			var19 = static_cast<double>(x) + 1.0;
+			var21 = static_cast<double>(x);
+			var23 = static_cast<double>(z) + 1.0;
+			var25 = static_cast<double>(z);
+			var27 = static_cast<double>(x);
+			var29 = static_cast<double>(x) + 1.0;
+			var31 = static_cast<double>(z);
+			double var35 = static_cast<double>(z) + 1.0;
+			u0 = static_cast<double>(xt) / 256.0;
+			u1 = static_cast<double>(xt + 15.99) / 256.0;
+			v0 = static_cast<double>(yt) / 256.0;
+			v1 = static_cast<double>(yt + 15.99) / 256.0;
+			int_t yAbove = y + 1;
+			height = -0.2f;
+			if (((x + yAbove + z) & 1) == 0)
+			{
+				t.vertexUV(var27, static_cast<double>(yAbove) + height, static_cast<double>(z), u1, v0);
+				t.vertexUV(var19, static_cast<double>(yAbove), static_cast<double>(z), u1, v1);
+				t.vertexUV(var19, static_cast<double>(yAbove), static_cast<double>(z + 1), u0, v1);
+				t.vertexUV(var27, static_cast<double>(yAbove) + height, static_cast<double>(z + 1), u0, v0);
+				u0 = static_cast<double>(xt) / 256.0;
+				u1 = static_cast<double>(xt + 15.99) / 256.0;
+				v0 = static_cast<double>(yt + 16) / 256.0;
+				v1 = static_cast<double>(yt + 31.99) / 256.0;
+				t.vertexUV(var29, static_cast<double>(yAbove) + height, static_cast<double>(z + 1), u1, v0);
+				t.vertexUV(var21, static_cast<double>(yAbove), static_cast<double>(z + 1), u1, v1);
+				t.vertexUV(var21, static_cast<double>(yAbove), static_cast<double>(z), u0, v1);
+				t.vertexUV(var29, static_cast<double>(yAbove) + height, static_cast<double>(z), u0, v0);
+			}
+			else
+			{
+				t.vertexUV(static_cast<double>(x), static_cast<double>(yAbove) + height, var35, u1, v0);
+				t.vertexUV(static_cast<double>(x), static_cast<double>(yAbove), var25, u1, v1);
+				t.vertexUV(static_cast<double>(x + 1), static_cast<double>(yAbove), var25, u0, v1);
+				t.vertexUV(static_cast<double>(x + 1), static_cast<double>(yAbove) + height, var35, u0, v0);
+				u0 = static_cast<double>(xt) / 256.0;
+				u1 = static_cast<double>(xt + 15.99) / 256.0;
+				v0 = static_cast<double>(yt + 16) / 256.0;
+				v1 = static_cast<double>(yt + 31.99) / 256.0;
+				t.vertexUV(static_cast<double>(x + 1), static_cast<double>(yAbove) + height, var31, u1, v0);
+				t.vertexUV(static_cast<double>(x + 1), static_cast<double>(yAbove), var23, u1, v1);
+				t.vertexUV(static_cast<double>(x), static_cast<double>(yAbove), var23, u0, v1);
+				t.vertexUV(static_cast<double>(x), static_cast<double>(yAbove) + height, var31, u0, v0);
+			}
+		}
+	}
+	else
+	{
+		double var33 = static_cast<double>(x) + 0.7;
+		var19 = static_cast<double>(x) + 0.3;
+		var21 = static_cast<double>(z) + 0.7;
+		var23 = static_cast<double>(z) + 0.3;
+		var25 = static_cast<double>(x) + 0.2;
+		var27 = static_cast<double>(x) + 0.8;
+		var29 = static_cast<double>(z) + 0.2;
+		var31 = static_cast<double>(z) + 0.8;
+
+		t.vertexUV(var25, static_cast<double>(y) + height, static_cast<double>(z + 1), u1, v0);
+		t.vertexUV(var33, static_cast<double>(y), static_cast<double>(z + 1), u1, v1);
+		t.vertexUV(var33, static_cast<double>(y), static_cast<double>(z), u0, v1);
+		t.vertexUV(var25, static_cast<double>(y) + height, static_cast<double>(z), u0, v0);
+		t.vertexUV(var27, static_cast<double>(y) + height, static_cast<double>(z), u1, v0);
+		t.vertexUV(var19, static_cast<double>(y), static_cast<double>(z), u1, v1);
+		t.vertexUV(var19, static_cast<double>(y), static_cast<double>(z + 1), u0, v1);
+		t.vertexUV(var27, static_cast<double>(y) + height, static_cast<double>(z + 1), u0, v0);
+
+		u0 = static_cast<double>(xt) / 256.0;
+		u1 = static_cast<double>(xt + 15.99) / 256.0;
+		v0 = static_cast<double>(yt + 16) / 256.0;
+		v1 = static_cast<double>(yt + 31.99) / 256.0;
+
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height, var31, u1, v0);
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), var23, u1, v1);
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y), var23, u0, v1);
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height, var31, u0, v0);
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height, var29, u1, v0);
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y), var21, u1, v1);
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), var21, u0, v1);
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height, var29, u0, v0);
+
+		var33 = static_cast<double>(x);
+		var19 = static_cast<double>(x + 1);
+		var21 = static_cast<double>(z);
+		var23 = static_cast<double>(z + 1);
+		var25 = static_cast<double>(x) + 0.1;
+		var27 = static_cast<double>(x) + 0.9;
+		var29 = static_cast<double>(z) + 0.1;
+		var31 = static_cast<double>(z) + 0.9;
+
+		t.vertexUV(var25, static_cast<double>(y) + height, static_cast<double>(z), u0, v0);
+		t.vertexUV(var33, static_cast<double>(y), static_cast<double>(z), u0, v1);
+		t.vertexUV(var33, static_cast<double>(y), static_cast<double>(z + 1), u1, v1);
+		t.vertexUV(var25, static_cast<double>(y) + height, static_cast<double>(z + 1), u1, v0);
+		t.vertexUV(var27, static_cast<double>(y) + height, static_cast<double>(z + 1), u0, v0);
+		t.vertexUV(var19, static_cast<double>(y), static_cast<double>(z + 1), u0, v1);
+		t.vertexUV(var19, static_cast<double>(y), static_cast<double>(z), u1, v1);
+		t.vertexUV(var27, static_cast<double>(y) + height, static_cast<double>(z), u1, v0);
+
+		u0 = static_cast<double>(xt) / 256.0;
+		u1 = static_cast<double>(xt + 15.99) / 256.0;
+		v0 = static_cast<double>(yt) / 256.0;
+		v1 = static_cast<double>(yt + 15.99) / 256.0;
+
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height, var31, u0, v0);
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y), var23, u0, v1);
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), var23, u1, v1);
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height, var31, u1, v0);
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y) + height, var29, u0, v0);
+		t.vertexUV(static_cast<double>(x + 1), static_cast<double>(y), var21, u0, v1);
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y), var21, u1, v1);
+		t.vertexUV(static_cast<double>(x), static_cast<double>(y) + height, var29, u1, v0);
+	}
+
+	return true;
+}
+
+
+bool TileRenderer::tesselateRailInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	Tesselator &t = Tesselator::instance;
+	int_t data = level->getData(x, y, z);
+	int_t tex = tt.getTexture(*level, x, y, z, Facing::NORTH);
+	if (fixedTexture >= 0) tex = fixedTexture;
+	if (tt.id == 27 || tt.id == 28) data &= 7;
+
+	float br = tt.getBrightness(*level, x, y, z);
+	t.color(br, br, br);
+
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	double u0 = xt / 256.0;
+	double u1 = (xt + 15.99) / 256.0;
+	double v0 = yt / 256.0;
+	double v1 = (yt + 15.99) / 256.0;
+
+	double x0 = x + 1.0;
+	double x1 = x + 1.0;
+	double x2 = x + 0.0;
+	double x3 = x + 0.0;
+	double z0 = z + 0.0;
+	double z1 = z + 1.0;
+	double z2 = z + 1.0;
+	double z3 = z + 0.0;
+	double y0 = y + 1.0 / 16.0;
+	double y1 = y + 1.0 / 16.0;
+	double y2 = y + 1.0 / 16.0;
+	double y3 = y + 1.0 / 16.0;
+
+	if (data == 1 || data == 2 || data == 3 || data == 7)
+	{
+		x3 = x + 1.0;
+		x0 = x3;
+		x2 = x + 0.0;
+		x1 = x2;
+		z1 = z + 1.0;
+		z0 = z1;
+		z3 = z + 0.0;
+		z2 = z3;
+	}
+	else if (data == 8)
+	{
+		x1 = x + 0.0;
+		x0 = x1;
+		x3 = x + 1.0;
+		x2 = x3;
+		z3 = z + 1.0;
+		z0 = z3;
+		z2 = z + 0.0;
+		z1 = z2;
+	}
+	else if (data == 9)
+	{
+		x3 = x + 0.0;
+		x0 = x3;
+		x2 = x + 1.0;
+		x1 = x2;
+		z1 = z + 0.0;
+		z0 = z1;
+		z3 = z + 1.0;
+		z2 = z3;
+	}
+
+	if (data == 2 || data == 4)
+	{
+		y0 += 1.0;
+		y3 += 1.0;
+	}
+	else if (data == 3 || data == 5)
+	{
+		y1 += 1.0;
+		y2 += 1.0;
+	}
+
+	t.vertexUV(x0, y0, z0, u1, v0);
+	t.vertexUV(x1, y1, z1, u1, v1);
+	t.vertexUV(x2, y2, z2, u0, v1);
+	t.vertexUV(x3, y3, z3, u0, v0);
+	t.vertexUV(x3, y3, z3, u0, v0);
+	t.vertexUV(x2, y2, z2, u0, v1);
+	t.vertexUV(x1, y1, z1, u1, v1);
+	t.vertexUV(x0, y0, z0, u1, v0);
+	return true;
 }
 
 bool TileRenderer::tesselateCactusInWorld(Tile &tt, int_t x, int_t y, int_t z)

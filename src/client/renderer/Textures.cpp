@@ -700,7 +700,8 @@ void Textures::tick()
 		fx->anaglyphEnabled = options.anaglyph3d;
 		fx->onTick();
 
-		// Upload animated texture to terrain atlas
+		const jstring atlas = fx->tileImage == 1 ? u"/gui/items.png" : u"/terrain.png";
+		glBindTexture(GL_TEXTURE_2D, loadTexture(atlas));
 		for (int_t tx = 0; tx < fx->tileSize; ++tx)
 		{
 			for (int_t ty = 0; ty < fx->tileSize; ++ty)
@@ -712,6 +713,8 @@ void Textures::tick()
 			}
 		}
 	}
+
+	glBindTexture(GL_TEXTURE_2D, loadTexture(u"/terrain.png"));
 }
 
 int_t Textures::smoothBlend(int_t c0, int_t c1)

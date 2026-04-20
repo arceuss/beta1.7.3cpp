@@ -75,8 +75,8 @@ void HumanoidModel::setupAnim(float time, float r, float bob, float yRot, float 
 	{
 		arm0.xRot += -36.0f * Mth::DEGRAD;
 		arm1.xRot += -36.0f * Mth::DEGRAD;
-		leg0.xRot = 72.0f * Mth::DEGRAD;
-		leg1.xRot = 72.0f * Mth::DEGRAD;
+		leg0.xRot = -72.0f * Mth::DEGRAD;
+		leg1.xRot = -72.0f * Mth::DEGRAD;
 		leg0.yRot = 18.0f * Mth::DEGRAD;
 		leg1.yRot = -18.0f * Mth::DEGRAD;
 	}

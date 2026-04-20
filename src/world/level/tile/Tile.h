@@ -56,6 +56,7 @@ class MushroomTile;
 class ReedTile;
 class CactusTile;
 class TorchTile;
+class FireTile;
 class SaplingTile;
 class PumpkinTile;
 class SnowTile;
@@ -70,7 +71,11 @@ class ButtonTile;
 class PressurePlateTile;
 class RepeaterTile;
 class LockedChestTile;
+class ChestTile;
 
+class RailTile;
+class DetectorRailTile;
+class PortalTile;
 class TransparentTile;
 class LiquidTile;
 class Tile //: public Descriptive<Tile>
@@ -151,6 +156,8 @@ public:
 	static Tile &sandstone;
 	static DispenserTile dispenser;
 	static NoteTile noteBlock;
+	static RailTile railPowered;
+	static DetectorRailTile railDetector;
 	static Tile mossyCobblestone;
 	static Tile obsidian;
 	static SlabTile slabDouble;
@@ -160,6 +167,7 @@ public:
 	static FarmlandTile farmland;
 	static FurnaceTile furnace;
 	static FurnaceTile furnaceLit;
+	static RailTile rail;
 	static OreTile diamondOre;
 	static RedstoneOreTile redstoneOre;
 	static RedstoneOreTile redstoneOreGlowing;
@@ -171,6 +179,7 @@ public:
 	static JukeboxTile jukebox;
 	static PumpkinTile pumpkin;
 	static TorchTile torch;
+	static FireTile fire;
 	static SaplingTile sapling;
 
 	// Phase 1 blocks
@@ -189,6 +198,7 @@ public:
 	static Tile netherrack;
 	static SoulSandTile soulSand;
 	static GlowStoneTile glowstone;
+	static PortalTile portal;
 	static PumpkinTile jackOLantern;
 
 	// Phase 2 blocks
@@ -196,6 +206,7 @@ public:
 	static LadderTile ladder;
 	static StairTile stairsWood;
 	static StairTile stairsStone;
+	static ChestTile chest;
 	static LockedChestTile lockedChest;
 	static TrapDoorTile trapdoor;
 	static DoorTile doorIron;

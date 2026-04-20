@@ -186,6 +186,11 @@ float Player::getHeadHeight()
 	return 0.12f;
 }
 
+double Player::getRidingHeight()
+{
+	return heightOffset - 0.5;
+}
+
 void Player::die(Entity *source)
 {
 	Mob::die(source);

@@ -6,7 +6,12 @@
 #include <vector>
 #include "client/particle/TerrainParticle.h"
 #include "client/particle/NoteParticle.h"
+#include "client/Minecraft.h"
 #include "client/renderer/TileRenderer.h"
+#include "client/renderer/texturefx/TextureCompassFX.h"
+#include "client/renderer/texturefx/TextureWatchFX.h"
+#include "client/renderer/texturefx/TextureFlamesFX.h"
+#include "client/renderer/texturefx/TexturePortalFX.h"
 #include "world/item/Items.h"
 #include "world/item/Item.h"
 #include "world/item/ItemPickaxe.h"
@@ -20,13 +25,23 @@
 #include "world/level/LevelListener.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/StoneTile.h"
+#include "world/level/tile/WoodTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/ButtonTile.h"
 #include "world/level/tile/PressurePlateTile.h"
 #include "world/level/tile/NotGateTile.h"
 #include "world/level/tile/RepeaterTile.h"
+#include "world/level/tile/RailTile.h"
+#include "world/level/tile/DetectorRailTile.h"
+#include "world/level/tile/FireTile.h"
+#include "world/level/tile/PortalTile.h"
+#include "world/level/tile/LiquidTile.h"
+#include "world/entity/item/EntityMinecart.h"
+#include "world/level/tile/ChestTile.h"
+#include "world/level/tile/entity/ChestTileEntity.h"
 #include "world/level/tile/LockedChestTile.h"
+#include "world/level/tile/FurnaceTile.h"
 #include "world/level/tile/DoorTile.h"
 #include "world/level/tile/NoteTile.h"
 #include "world/level/tile/DispenserTile.h"
@@ -268,6 +283,27 @@ int runBlockSmoke()
 		ok &= expect(Tile::lockedChest.getTexture(Facing::UP, 0) == 25, "locked chest top should use the beta top texture");
 		ok &= expect(Tile::lockedChest.getTexture(Facing::SOUTH, 0) == 27, "locked chest default front should use the beta latch texture");
 		ok &= expect(Tile::lockedChest.descriptionId == u"tile.lockedchest", "locked chest should use the lockedchest localization key");
+		ok &= expect(Tile::chest.descriptionId == u"tile.chest", "chest should use the chest localization key");
+		ok &= expect(Tile::lightBlock[54] == 0, "chest should not block light in the current render/collision model");
+		ok &= expect(Items::minecartChest->getShiftedIndex() == 342, "chest minecart item should use the beta shifted id 342");
+		ok &= expect(ItemInstance(Items::minecartChest->getShiftedIndex(), 1, 0).getIcon() == 151, "chest minecart item should use the beta chest minecart icon");
+		GridCraftingContainer chestRecipe{};
+		chestRecipe.slots[0] = ItemInstance(Tile::wood.id, 1, -1);
+		chestRecipe.slots[1] = ItemInstance(Tile::wood.id, 1, -1);
+		chestRecipe.slots[2] = ItemInstance(Tile::wood.id, 1, -1);
+		chestRecipe.slots[3] = ItemInstance(Tile::wood.id, 1, -1);
+		chestRecipe.slots[5] = ItemInstance(Tile::wood.id, 1, -1);
+		chestRecipe.slots[6] = ItemInstance(Tile::wood.id, 1, -1);
+		chestRecipe.slots[7] = ItemInstance(Tile::wood.id, 1, -1);
+		chestRecipe.slots[8] = ItemInstance(Tile::wood.id, 1, -1);
+		ItemInstance chestOut = Recipes::getInstance().getItemFor(chestRecipe);
+		ok &= expect(chestOut.itemID == Tile::chest.id, "chest recipe should match beta");
+		GridCraftingContainer chestMinecartRecipe{};
+		chestMinecartRecipe.slots[0] = ItemInstance(Tile::chest.id, 1, 0);
+		chestMinecartRecipe.slots[3] = ItemInstance(Items::minecart->getShiftedIndex(), 1, 0);
+		ItemInstance chestMinecartOut = Recipes::getInstance().getItemFor(chestMinecartRecipe);
+		ok &= expect(chestMinecartOut.itemID == Items::minecartChest->getShiftedIndex(), "chest minecart recipe should match beta");
+
 		ok &= expect(Items::bread->getMaxStackSize() == 1, "bread should use the beta food stack limit");
 		ok &= expect(Items::cookie->getShiftedIndex() == 357, "cookie should use the beta shifted id 357");
 		ok &= expect(Items::cookie->getMaxStackSize() == 8, "cookie should stack to eight like beta");
@@ -278,6 +314,68 @@ int runBlockSmoke()
 		cookieRecipe.slots[2] = ItemInstance(Items::wheat->getShiftedIndex(), 1, 0);
 		ItemInstance cookieOut = Recipes::getInstance().getItemFor(cookieRecipe);
 		ok &= expect(cookieOut.itemID == Items::cookie->getShiftedIndex() && cookieOut.stackSize == 8, "cookie recipe should match b173test");
+		ok &= expect(Tile::rail.getRenderShape() == Tile::SHAPE_RAIL, "rail should use the custom rail render shape");
+		ok &= expect(Tile::railPowered.getRenderShape() == Tile::SHAPE_RAIL, "powered rail should use the custom rail render shape");
+		ok &= expect(Tile::railDetector.getRenderShape() == Tile::SHAPE_RAIL, "detector rail should use the custom rail render shape");
+		ok &= expect(!TileRenderer::canRender(Tile::SHAPE_RAIL), "rail items should use flat icon rendering");
+		ok &= expect(Tile::lightBlock[27] == 0, "powered rail should not block light");
+		ok &= expect(Tile::lightBlock[28] == 0, "detector rail should not block light");
+		ok &= expect(Tile::lightBlock[66] == 0, "rail should not block light");
+		ok &= expect(Tile::railPowered.getTexture(Facing::NORTH, 0) == 163, "unpowered powered rail should use the beta dark texture");
+		ok &= expect(Tile::railPowered.getTexture(Facing::NORTH, 9) == 179, "powered rail should use the lit beta texture when powered");
+		ok &= expect(Tile::rail.descriptionId == u"tile.rail", "rail should use the rail localization key");
+		ok &= expect(Tile::railPowered.descriptionId == u"tile.goldenRail", "powered rail should use the goldenRail localization key");
+		ok &= expect(Tile::railDetector.descriptionId == u"tile.detectorRail", "detector rail should use the detectorRail localization key");
+		ok &= expect(Items::minecart->getShiftedIndex() == 328, "minecart item should use the beta shifted id 328");
+		ok &= expect(ItemInstance(Items::minecart->getShiftedIndex(), 1, 0).getIcon() == 135, "minecart item should use the beta minecart icon");
+		ok &= expect(Items::minecartPowered->getShiftedIndex() == 343, "furnace minecart item should use the beta shifted id 343");
+		ok &= expect(ItemInstance(Items::minecartPowered->getShiftedIndex(), 1, 0).getIcon() == 167, "furnace minecart item should use the beta powered minecart icon");
+		GridCraftingContainer railRecipe{};
+		railRecipe.slots[0] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		railRecipe.slots[2] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		railRecipe.slots[3] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		railRecipe.slots[4] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		railRecipe.slots[5] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		railRecipe.slots[6] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		railRecipe.slots[8] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		ItemInstance railOut = Recipes::getInstance().getItemFor(railRecipe);
+		ok &= expect(railOut.itemID == Tile::rail.id && railOut.stackSize == 16, "rail recipe should match b173test");
+		GridCraftingContainer poweredRailRecipe{};
+		poweredRailRecipe.slots[0] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		poweredRailRecipe.slots[2] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		poweredRailRecipe.slots[3] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		poweredRailRecipe.slots[4] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		poweredRailRecipe.slots[5] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		poweredRailRecipe.slots[6] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		poweredRailRecipe.slots[7] = ItemInstance(Items::redstone->getShiftedIndex(), 1, 0);
+		poweredRailRecipe.slots[8] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		ItemInstance poweredRailOut = Recipes::getInstance().getItemFor(poweredRailRecipe);
+		ok &= expect(poweredRailOut.itemID == Tile::railPowered.id && poweredRailOut.stackSize == 6, "powered rail recipe should match b173test");
+		GridCraftingContainer detectorRailRecipe{};
+		detectorRailRecipe.slots[0] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		detectorRailRecipe.slots[2] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		detectorRailRecipe.slots[3] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		detectorRailRecipe.slots[4] = ItemInstance(Tile::pressurePlateStone.id, 1, 0);
+		detectorRailRecipe.slots[5] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		detectorRailRecipe.slots[6] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		detectorRailRecipe.slots[7] = ItemInstance(Items::redstone->getShiftedIndex(), 1, 0);
+		detectorRailRecipe.slots[8] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		ItemInstance detectorRailOut = Recipes::getInstance().getItemFor(detectorRailRecipe);
+		ok &= expect(detectorRailOut.itemID == Tile::railDetector.id && detectorRailOut.stackSize == 6, "detector rail recipe should match b173test");
+		GridCraftingContainer minecartRecipe{};
+		minecartRecipe.slots[0] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		minecartRecipe.slots[2] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		minecartRecipe.slots[3] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		minecartRecipe.slots[4] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		minecartRecipe.slots[5] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		ItemInstance minecartOut = Recipes::getInstance().getItemFor(minecartRecipe);
+		ok &= expect(minecartOut.itemID == Items::minecart->getShiftedIndex(), "minecart recipe should match b173test");
+		GridCraftingContainer furnaceMinecartRecipe{};
+		furnaceMinecartRecipe.slots[0] = ItemInstance(Tile::furnace.id, 1, 0);
+		furnaceMinecartRecipe.slots[3] = ItemInstance(Items::minecart->getShiftedIndex(), 1, 0);
+		ItemInstance furnaceMinecartOut = Recipes::getInstance().getItemFor(furnaceMinecartRecipe);
+		ok &= expect(furnaceMinecartOut.itemID == Items::minecartPowered->getShiftedIndex(), "furnace minecart recipe should match b173test");
+
 
 		std::cerr << "block-smoke: level setup" << std::endl;
 		Level level(File::open(u"build/block-smoke-workdir"), u"block-smoke-world", 12345);
@@ -316,6 +414,89 @@ int runBlockSmoke()
 		Tile::lockedChest.tick(level, 220, baseY + 1, 10, random);
 		ok &= expect(level.getTile(220, baseY + 1, 10) == 0, "locked chest should disappear when ticked");
 
+		std::cerr << "block-smoke: chest" << std::endl;
+		ok &= expect(level.setTile(224, baseY + 1, 10, Tile::chest.id), "chest should place");
+		auto chestEntity = std::dynamic_pointer_cast<ChestTileEntity>(level.getTileEntity(224, baseY + 1, 10));
+		ok &= expect(chestEntity != nullptr, "chest should create a chest tile entity");
+		if (chestEntity != nullptr)
+		{
+			chestEntity->setItem(0, ItemInstance(Items::stick->getShiftedIndex(), 32, 0));
+			ItemInstance removedChestItem = chestEntity->removeItem(0, 12);
+			ok &= expect(removedChestItem.stackSize == 12, "chest should remove the requested item count");
+			ok &= expect(chestEntity->getItem(0).stackSize == 20, "chest should keep the remaining stack after removal");
+		}
+		ok &= expect(level.setTile(225, baseY + 1, 10, Tile::chest.id), "double chest partner should place");
+		ok &= expect(!Tile::chest.mayPlace(level, 226, baseY + 1, 10), "third chest in a row should be rejected");
+		auto chestCart = std::make_shared<EntityMinecart>(level, 226.5, baseY + 1.0, 10.5, EntityMinecart::TYPE_CHEST);
+		chestCart->setItem(0, ItemInstance(Items::coal->getShiftedIndex(), 8, 0));
+		ItemInstance removedChestCartItem = chestCart->removeItem(0, 3);
+		ok &= expect(removedChestCartItem.stackSize == 3, "chest minecart should remove the requested item count");
+		ok &= expect(chestCart->getItem(0).stackSize == 5, "chest minecart should retain the remaining stack");
+
+		std::cerr << "block-smoke: fire and portal" << std::endl;
+		ok &= expect(Tile::fire.getRenderShape() == Tile::SHAPE_FIRE, "fire should use the beta fire render shape");
+		ok &= expect(Tile::lightEmission[51] == 15, "fire should emit full beta light");
+		ok &= expect(Tile::portal.getRenderLayer() == 1, "portal should render in the translucent layer");
+		ok &= expect(Tile::lightEmission[90] == 11, "portal should use the beta portal light level");
+		ok &= expect(Items::flintAndSteel->getShiftedIndex() == 259, "flint and steel should use the beta shifted id 259");
+		ItemInstance flintAndSteel(Items::flintAndSteel->getShiftedIndex(), 1, 0);
+		level.setTile(214, baseY, 10, 1);
+		listener.clear();
+		ok &= expect(flintAndSteel.useOn(player, level, 214, baseY, 10, Facing::UP), "flint and steel should be usable on a block top face");
+		ok &= expect(level.getTile(214, baseY + 1, 10) == Tile::fire.id, "flint and steel should place fire above a solid block");
+		ok &= expect(flintAndSteel.getAuxValue() == 1, "flint and steel should take one point of durability on use");
+		AABB fireBox(214.0, static_cast<double>(baseY + 1), 10.0, 215.0, static_cast<double>(baseY + 2), 11.0);
+		ok &= expect(level.containsFireTile(fireBox), "level fire query should detect fire blocks");
+		listener.clear();
+		level.extinguishFire(214, baseY, 10, Facing::UP);
+		ok &= expect(level.getTile(214, baseY + 1, 10) == 0, "extinguishFire should remove adjacent fire");
+		ok &= expect(!listener.sounds.empty() && listener.sounds.back() == u"random.fizz", "extinguishFire should play the fizz sound");
+		level.setTile(215, baseY + 1, 10, Tile::lava.id);
+		AABB lavaBox(215.0, static_cast<double>(baseY + 1), 10.0, 216.0, static_cast<double>(baseY + 2), 11.0);
+		ok &= expect(level.containsFireTile(lavaBox), "level fire query should treat lava as burning");
+		level.setTile(215, baseY + 1, 10, 0);
+		for (int_t frameY = baseY; frameY <= baseY + 4; ++frameY)
+		{
+			level.setTile(216, frameY, 10, Tile::obsidian.id);
+			level.setTile(219, frameY, 10, Tile::obsidian.id);
+		}
+		for (int_t frameX = 216; frameX <= 219; ++frameX)
+		{
+			level.setTile(frameX, baseY, 10, Tile::obsidian.id);
+			level.setTile(frameX, baseY + 4, 10, Tile::obsidian.id);
+		}
+		for (int_t innerX = 217; innerX <= 218; ++innerX)
+			for (int_t innerY = baseY + 1; innerY <= baseY + 3; ++innerY)
+				level.setTile(innerX, innerY, 10, 0);
+		ItemInstance portalIgniter(Items::flintAndSteel->getShiftedIndex(), 1, 0);
+		ok &= expect(portalIgniter.useOn(player, level, 217, baseY, 10, Facing::UP), "flint and steel should ignite a portal frame interior");
+		ok &= expect(level.getTile(217, baseY + 1, 10) == Tile::portal.id, "igniting a valid obsidian frame should spawn portal blocks");
+		ok &= expect(level.getTile(218, baseY + 3, 10) == Tile::portal.id, "portal creation should fill the full 2x3 interior");
+		level.setTile(216, baseY + 2, 10, 0);
+		ok &= expect(level.getTile(217, baseY + 2, 10) == 0, "portal should break when its obsidian frame is interrupted");
+		TextureFlamesFX flamesLower(0);
+		bool flamesVisible = false;
+		for (int_t tick = 0; tick < 8 && !flamesVisible; ++tick)
+		{
+			flamesLower.onTick();
+			for (int_t pixel = 0; pixel < 256; ++pixel)
+			{
+				if (flamesLower.imageData[pixel * 4 + 3] != 0)
+				{
+					flamesVisible = true;
+					break;
+				}
+			}
+		}
+		ok &= expect(flamesLower.iconIndex == Tile::fire.tex, "lower flame texture fx should target the base fire icon");
+		ok &= expect(flamesVisible, "flame texture fx should generate visible pixels after a few ticks");
+		TextureFlamesFX flamesUpper(1);
+		ok &= expect(flamesUpper.iconIndex == Tile::fire.tex + 16, "upper flame texture fx should target the second fire icon");
+		TexturePortalFX portalFx(14);
+		portalFx.onTick();
+		ok &= expect(portalFx.iconIndex == 14, "portal texture fx should target the beta portal icon");
+		ok &= expect(portalFx.imageData[3] != 0, "portal texture fx should generate portal pixels after a tick");
+	
 		std::cerr << "block-smoke: lighting" << std::endl;
 		level.setTile(10, baseY, 0, 1);
 		ok &= expect(level.setTile(10, baseY + 1, 0, 53), "wood stair should place");
@@ -328,6 +509,47 @@ int runBlockSmoke()
 		int_t frontBrightness = level.getRawBrightness(12, baseY + 1, 2, false);
 		ok &= expect(level.getRawBrightness(12, baseY + 1, 1) == frontBrightness, "ladder should stay transparent for brightness sampling");
 
+
+		std::cerr << "block-smoke: rails" << std::endl;
+		for (int_t x = 230; x <= 241; ++x)
+			level.setTile(x, baseY, 0, 1);
+		ok &= expect(level.setTile(230, baseY + 1, 0, Tile::rail.id), "first rail should place");
+		ok &= expect(level.setTile(231, baseY + 1, 0, Tile::rail.id), "second rail should place");
+		ok &= expect(level.getData(230, baseY + 1, 0) == 1, "first straight rail should orient east-west");
+		ok &= expect(level.getData(231, baseY + 1, 0) == 1, "second straight rail should orient east-west");
+		level.setTile(240, baseY + 1, 0, 1);
+		level.setTile(241, baseY + 1, 0, 1);
+		ok &= expect(level.setTile(239, baseY + 1, 0, Tile::lever.id), "powered rail lever should place");
+		level.setData(239, baseY + 1, 0, 2);
+		ok &= expect(level.setTile(240, baseY + 2, 0, Tile::railPowered.id), "source powered rail should place");
+		ok &= expect(level.setTile(241, baseY + 2, 0, Tile::railPowered.id), "neighbor powered rail should place");
+		ok &= expect(Tile::lever.use(level, 239, baseY + 1, 0, player), "powered rail lever should toggle on");
+		Tile::railPowered.neighborChanged(level, 240, baseY + 2, 0, Tile::lever.id);
+		Tile::railPowered.neighborChanged(level, 241, baseY + 2, 0, Tile::lever.id);
+		ok &= expect((level.getData(240, baseY + 2, 0) & 8) != 0, "source powered rail should become powered from a lever-fed block");
+		ok &= expect((level.getData(241, baseY + 2, 0) & 8) != 0, "powered rail should recursively power from an adjacent externally-powered rail");
+		ok &= expect(Tile::lever.use(level, 239, baseY + 1, 0, player), "powered rail lever should toggle off");
+		Tile::railPowered.neighborChanged(level, 240, baseY + 2, 0, Tile::lever.id);
+		Tile::railPowered.neighborChanged(level, 241, baseY + 2, 0, Tile::lever.id);
+		ok &= expect((level.getData(241, baseY + 2, 0) & 8) == 0, "powered rail should depower when the source rail depowers");
+		level.setTile(250, baseY, 0, 1);
+		ok &= expect(level.setTile(250, baseY + 1, 0, Tile::railDetector.id), "detector rail should place");
+		auto detectorCart = std::make_shared<EntityMinecart>(level, 250.5, baseY + 1.0, 0.5, EntityMinecart::TYPE_RIDEABLE);
+		ok &= expect(level.addEntity(detectorCart), "detector rail minecart should join the level");
+		Tile::railDetector.entityInside(level, 250, baseY + 1, 0, *detectorCart);
+		ok &= expect((level.getData(250, baseY + 1, 0) & 8) != 0, "detector rail should power when a minecart sits on it");
+		level.removeEntityImmediately(detectorCart);
+		Tile::railDetector.tick(level, 250, baseY + 1, 0, random);
+		ok &= expect((level.getData(250, baseY + 1, 0) & 8) == 0, "detector rail should depower when rechecked with no minecart");
+		for (int_t x = 252; x <= 255; ++x)
+			level.setTile(x, baseY, 0, 1);
+		for (int_t x = 252; x <= 255; ++x)
+			ok &= expect(level.setTileAndData(x, baseY + 1, 0, Tile::railPowered.id, 1 | 8), "powered rail launch segment should place and stay powered");
+		auto launchCart = std::make_shared<EntityMinecart>(level, 252.5, baseY + 1.0, 0.5, EntityMinecart::TYPE_RIDEABLE);
+		launchCart->xd = 0.3;
+		for (int_t i = 0; i < 20; ++i)
+			launchCart->tick();
+		ok &= expect(launchCart->x > 252.5001, "minecart should advance along powered rails");
 
 		level.setTile(20, baseY + 1, 0, 0);
 		std::cerr << "block-smoke: lever helper connectivity" << std::endl;
@@ -801,6 +1023,57 @@ int runBlockSmoke()
 		ok &= expect((player.x - beforeX) < 0.5, "cobweb should strongly reduce horizontal motion");
 		ok &= expect((player.y - beforeY) < 0.2, "cobweb should strongly reduce vertical motion");
 
+		std::cerr << "block-smoke: compass and clock" << std::endl;
+		ok &= expect(Items::compass->getShiftedIndex() == 345, "compass should use the beta shifted id 345");
+		ok &= expect(Items::clock->getShiftedIndex() == 347, "clock should use the beta shifted id 347");
+		ok &= expect(ItemInstance(Items::compass->getShiftedIndex(), 1, 0).getIcon() == 54, "compass should use the beta compass icon");
+		ok &= expect(ItemInstance(Items::clock->getShiftedIndex(), 1, 0).getIcon() == 70, "clock should use the beta clock icon");
+		GridCraftingContainer compassRecipe{};
+		compassRecipe.slots[1] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		compassRecipe.slots[3] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		compassRecipe.slots[4] = ItemInstance(Items::redstone->getShiftedIndex(), 1, 0);
+		compassRecipe.slots[5] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		compassRecipe.slots[7] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		ItemInstance compassOut = Recipes::getInstance().getItemFor(compassRecipe);
+		ok &= expect(compassOut.itemID == Items::compass->getShiftedIndex(), "compass recipe should match beta");
+		GridCraftingContainer clockRecipe{};
+		clockRecipe.slots[1] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		clockRecipe.slots[3] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		clockRecipe.slots[4] = ItemInstance(Items::redstone->getShiftedIndex(), 1, 0);
+		clockRecipe.slots[5] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		clockRecipe.slots[7] = ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0);
+		ItemInstance clockOut = Recipes::getInstance().getItemFor(clockRecipe);
+		ok &= expect(clockOut.itemID == Items::clock->getShiftedIndex(), "clock recipe should match beta");
+		Minecraft textureFxMinecraft(320, 240, false);
+		TextureCompassFX compassFx(textureFxMinecraft);
+		compassFx.onTick();
+		bool compassPixels = false;
+		for (int_t pixel = 0; pixel < 256; ++pixel)
+		{
+			if (compassFx.imageData[pixel * 4 + 3] != 0)
+			{
+				compassPixels = true;
+				break;
+			}
+		}
+		ok &= expect(compassFx.tileImage == 1, "compass texture fx should target the items atlas");
+		ok &= expect(compassFx.iconIndex == 54, "compass texture fx should target the compass icon slot");
+		ok &= expect(compassPixels, "compass texture fx should draw compass pixels");
+		TextureWatchFX clockFx(textureFxMinecraft);
+		clockFx.onTick();
+		bool clockPixels = false;
+		for (int_t pixel = 0; pixel < 256; ++pixel)
+		{
+			if (clockFx.imageData[pixel * 4 + 3] != 0)
+			{
+				clockPixels = true;
+				break;
+			}
+		}
+		ok &= expect(clockFx.tileImage == 1, "clock texture fx should target the items atlas");
+		ok &= expect(clockFx.iconIndex == 70, "clock texture fx should target the clock icon slot");
+		ok &= expect(clockPixels, "clock texture fx should draw clock pixels");
+	
 		if (ok)
 		{
 			std::cout << "block-smoke: PASS" << std::endl;
