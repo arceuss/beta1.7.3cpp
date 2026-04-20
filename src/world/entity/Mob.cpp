@@ -100,6 +100,8 @@ void Mob::spawnAnim()
 void Mob::rideTick()
 {
 	Entity::rideTick();
+	walkAnimSpeedO = walkAnimSpeed;
+	walkAnimSpeed = 0.0f;
 }
 
 void Mob::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
