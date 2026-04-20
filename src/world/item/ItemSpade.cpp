@@ -5,6 +5,7 @@
 #include "world/level/tile/SandTile.h"
 #include "world/level/tile/GravelTile.h"
 #include "world/level/tile/SnowTile.h"
+#include "world/level/tile/SnowBlockTile.h"
 #include "world/level/tile/Tile.h"
 
 namespace
@@ -25,6 +26,7 @@ namespace
 			Tile::sand.id,
 			Tile::gravel.id,
 			Tile::snow.id,
+			Tile::snowBlock.id,
 			Tile::clay.id,
 			FARMLAND_TILE_ID,
 		};
@@ -40,5 +42,5 @@ ItemSpade::ItemSpade(int_t baseId, ToolMaterialType material)
 bool ItemSpade::canDestroySpecial(const ItemInstance &stack, Tile &tile) const
 {
 	(void)stack;
-	return tile.id == Tile::snow.id;
+	return tile.id == Tile::snow.id || tile.id == Tile::snowBlock.id;
 }

@@ -91,6 +91,14 @@ int_t ItemInstance::getAttackDamage(Entity &entity) const
 	return 1;
 }
 
+void ItemInstance::use(Level &level, Player &player)
+{
+	Item *item = getItem();
+	if (item == nullptr)
+		return;
+	item->use(*this, level, player);
+}
+
 bool ItemInstance::useOn(Player &player, Level &level, int_t x, int_t y, int_t z, Facing face)
 {
 	Item *item = getItem();

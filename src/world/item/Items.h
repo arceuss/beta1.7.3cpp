@@ -23,6 +23,7 @@ namespace Items
 	extern Item *seeds;
 	extern Item *wheat;
 	extern Item *bread;
+	extern Item *cookie;
 	extern Item *reed;
 	extern Item *doorWood;
 	extern Item *doorIron;
@@ -63,6 +64,7 @@ namespace Items
 	extern Item *sugar;
 	extern Item *glowstoneDust;
 	extern Item *sign;
+	extern Item *redstoneRepeater;
 	extern Item *snowball;
 	extern ItemArmor *helmetLeather;
 	extern ItemArmor *plateLeather;

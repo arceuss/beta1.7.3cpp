@@ -535,7 +535,7 @@ int_t Level::getData(int_t x, int_t y, int_t z)
 void Level::setData(int_t x, int_t y, int_t z, int_t data)
 {
 	if (setDataNoUpdate(x, y, z, data))
-		tileUpdated(x, y, z, getTile(x, y, z));
+		notifyBlockChange(x, y, z, getTile(x, y, z));
 }
 
 bool Level::setDataNoUpdate(int_t x, int_t y, int_t z, int_t data)
@@ -555,7 +555,7 @@ bool Level::setTile(int_t x, int_t y, int_t z, int_t tile)
 {
 	if (setTileNoUpdate(x, y, z, tile))
 	{
-		tileUpdated(x, y, z, tile);
+		notifyBlockChange(x, y, z, tile);
 		return true;
 	}
 	return false;
@@ -565,7 +565,7 @@ bool Level::setTileAndData(int_t x, int_t y, int_t z, int_t tile, int_t data)
 {
 	if (setTileAndDataNoUpdate(x, y, z, tile, data))
 	{
-		tileUpdated(x, y, z, tile);
+		notifyBlockChange(x, y, z, tile);
 		return true;
 	}
 	return false;
@@ -579,8 +579,8 @@ void Level::sendTileUpdated(int_t x, int_t y, int_t z)
 
 void Level::tileUpdated(int_t x, int_t y, int_t z, int_t tile)
 {
-	sendTileUpdated(x, y, z);
-	updateNeighborsAt(x, y, z, tile);
+	// Deprecated: use notifyBlockChange instead
+	notifyBlockChange(x, y, z, tile);
 }
 
 void Level::lightColumnChanged(int_t x, int_t z, int_t y0, int_t y1)
@@ -631,12 +631,19 @@ void Level::updateNeighborsAt(int_t x, int_t y, int_t z, int_t tile)
 
 void Level::neighborChanged(int_t x, int_t y, int_t z, int_t tile)
 {
-	if (noNeighborUpdate || isOnline)
+	if (editingBlocks || noNeighborUpdate || isOnline)
 		return;
 	Tile *ptile = Tile::tiles[getTile(x, y, z)];
 	if (ptile != nullptr)
 		ptile->neighborChanged(*this, x, y, z, tile);
 }
+
+void Level::notifyBlockChange(int_t x, int_t y, int_t z, int_t tile)
+{
+	sendTileUpdated(x, y, z);
+	notifyBlocksOfNeighborChange(x, y, z, tile);
+}
+
 bool Level::isBlockNormalCube(int_t x, int_t y, int_t z)
 {
 	int_t id = getTile(x, y, z);

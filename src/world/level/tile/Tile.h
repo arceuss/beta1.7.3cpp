@@ -68,6 +68,8 @@ class NotGateTile;
 class LeverTile;
 class ButtonTile;
 class PressurePlateTile;
+class RepeaterTile;
+class LockedChestTile;
 
 class TransparentTile;
 class LiquidTile;
@@ -94,6 +96,7 @@ public:
 		SHAPE_FENCE,
 		SHAPE_LEVER,
 		SHAPE_CACTUS,
+		SHAPE_REPEATER = 15,
 	};
 
 	// Tile properties
@@ -193,6 +196,7 @@ public:
 	static LadderTile ladder;
 	static StairTile stairsWood;
 	static StairTile stairsStone;
+	static LockedChestTile lockedChest;
 	static TrapDoorTile trapdoor;
 	static DoorTile doorIron;
 	static SignTile signPost;
@@ -205,6 +209,8 @@ public:
 	static NotGateTile torchRedstoneIdle;
 	static NotGateTile torchRedstoneActive;
 	static ButtonTile buttonStone;
+	static RepeaterTile repeaterIdle;
+	static RepeaterTile repeaterActive;
 	static void initTiles();
 
 public:

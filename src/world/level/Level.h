@@ -245,6 +245,7 @@ public:
 	void swap(int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1);
 	void updateNeighborsAt(int_t x, int_t y, int_t z, int_t tile);
 	void neighborChanged(int_t x, int_t y, int_t z, int_t tile);
+	void notifyBlockChange(int_t x, int_t y, int_t z, int_t tile);
 
 	bool canSeeSky(int_t x, int_t y, int_t z);
 

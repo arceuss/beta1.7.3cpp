@@ -101,9 +101,18 @@ float GameMode::getPickRange()
 	return 5.0f;
 }
 
-bool GameMode::useItem(std::shared_ptr<Player> &, Level &, ItemInstance *)
+bool GameMode::useItem(std::shared_ptr<Player> &player, Level &level, ItemInstance *item)
 {
-	return false;
+	if (item == nullptr || item->isEmpty())
+		return false;
+
+	ItemInstance before = *item;
+	item->use(level, *player);
+	if (item->sameItem(before) && item->stackSize == before.stackSize)
+		return false;
+	if (item->isEmpty())
+		player->removeSelectedItem();
+	return true;
 }
 
 void GameMode::initPlayer(std::shared_ptr<Player> player)

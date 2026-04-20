@@ -7,12 +7,15 @@
 #include "world/item/ItemSeeds.h"
 #include "world/item/ItemSpade.h"
 #include "world/item/ItemSword.h"
+#include "world/item/ItemArmor.h"
+#include "world/item/ItemFood.h"
 #include "world/item/ItemSlab.h"
 #include "world/item/ItemDye.h"
 #include "world/item/ItemDoor.h"
 #include "world/item/RecordItem.h"
 #include "world/item/ItemSign.h"
 #include "world/item/ItemRedStone.h"
+#include "world/item/ItemRepeater.h"
 #include "world/level/tile/Tile.h"
 
 namespace Items
@@ -34,6 +37,7 @@ namespace Items
 	Item *seeds = nullptr;
 	Item *wheat = nullptr;
 	Item *bread = nullptr;
+	Item *cookie = nullptr;
 	Item *reed = nullptr;
 	Item *doorWood = nullptr;
 	Item *doorIron = nullptr;
@@ -55,7 +59,8 @@ namespace Items
 	Item *book = nullptr;
 	Item *sugar = nullptr;
 	Item *glowstoneDust = nullptr;
-Item *sign = nullptr;
+	Item *sign = nullptr;
+	Item *redstoneRepeater = nullptr;
 	Item *snowball = nullptr;
 	Item *swordIron = nullptr;
 	Item *shovelIron = nullptr;
@@ -178,7 +183,7 @@ Item *sign = nullptr;
 		wheat = new Item(40);
 		wheat->setIconIndex(25).setDescriptionId(u"item.wheat");
 
-		bread = new Item(41);
+		bread = new ItemFood(41, 5, false);
 		bread->setIconIndex(41).setDescriptionId(u"item.bread");
 
 		flint = new Item(62);
@@ -243,6 +248,12 @@ Item *sign = nullptr;
 
 		glowstoneDust = new Item(92);
 		glowstoneDust->setIconIndex(73).setDescriptionId(u"item.yellowDust");
+
+		redstoneRepeater = new ItemRepeater(100);
+		redstoneRepeater->setIconIndex(86).setDescriptionId(u"item.diode");
+
+		cookie = new ItemFood(101, 1, false);
+		cookie->setMaxStackSize(8).setIconIndex(92).setDescriptionId(u"item.cookie");
 
 		snowball = new Item(76);
 		snowball->setIconIndex(14).setDescriptionId(u"item.snowball");

@@ -5,6 +5,7 @@
 #include "world/level/tile/TallGrassTile.h"
 #include "world/level/tile/StairTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
+#include "world/level/tile/RepeaterTile.h"
 #include "world/phys/Vec3.h"
 #include "world/level/material/LiquidMaterial.h"
 
@@ -129,9 +130,11 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateDoorInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_RED_DUST)
 		return tesselateDustInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_REPEATER)
+		return tesselateRepeaterInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_LEVER)
 		return tesselateLeverInWorld(tt, x, y, z);
-	
+
 	return false;
 }
 
@@ -1592,6 +1595,112 @@ void TileRenderer::tesselateTorch(Tile &tt, double x, double y, double z, double
 	t.vertexUV(x1 + xxa, y + 0.0, z - r + zza, u0, v1);
 	t.vertexUV(x0 + xxa, y + 0.0, z - r + zza, u1, v1);
 	t.vertexUV(x0, y + 1.0, z - r, u1, v0);
+}
+
+bool TileRenderer::tesselateRepeaterInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	int_t data = level->getData(x, y, z);
+	int_t orient = data & 3;
+	int_t delay = (data & 12) >> 2;
+	tesselateBlockInWorld(tt, x, y, z);
+
+	Tesselator &t = Tesselator::instance;
+	float br = tt.getBrightness(*level, x, y, z);
+	if (Tile::lightEmission[tt.id] > 0)
+		br = (br + 1.0f) * 0.5f;
+	t.color(br, br, br);
+
+	double torchY = -0.1875;
+	double x0Off = 0.0;
+	double z0Off = 0.0;
+	double x1Off = 0.0;
+	double z1Off = 0.0;
+	double delayOffset = RepeaterTile::getDelayTorchOffset(delay);
+	switch (orient)
+	{
+	case 0:
+		z1Off = -0.3125;
+		z0Off = delayOffset;
+		break;
+	case 1:
+		x1Off = 0.3125;
+		x0Off = -delayOffset;
+		break;
+	case 2:
+		z1Off = 0.3125;
+		z0Off = -delayOffset;
+		break;
+	case 3:
+		x1Off = -0.3125;
+		x0Off = delayOffset;
+		break;
+	}
+
+	bool hadFixedTexture = fixedTexture >= 0;
+	if (!hadFixedTexture)
+		fixedTexture = tt.getTexture(Facing::DOWN, data);
+	tesselateTorch(tt, static_cast<double>(x) + x0Off, static_cast<double>(y) + torchY, static_cast<double>(z) + z0Off, 0.0, 0.0);
+	tesselateTorch(tt, static_cast<double>(x) + x1Off, static_cast<double>(y) + torchY, static_cast<double>(z) + z1Off, 0.0, 0.0);
+	if (!hadFixedTexture)
+		fixedTexture = -1;
+
+	int_t tex = tt.getTexture(Facing::UP, data);
+	if (fixedTexture >= 0)
+		tex = fixedTexture;
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	double u0 = static_cast<double>(xt) / 256.0;
+	double u1 = (static_cast<double>(xt) + 15.99) / 256.0;
+	double v0 = static_cast<double>(yt) / 256.0;
+	double v1 = (static_cast<double>(yt) + 15.99) / 256.0;
+	float topY = static_cast<float>(y) + 2.0f / 16.0f;
+	float vx0 = static_cast<float>(x + 1);
+	float vx1 = static_cast<float>(x + 1);
+	float vx2 = static_cast<float>(x + 0);
+	float vx3 = static_cast<float>(x + 0);
+	float vz0 = static_cast<float>(z + 0);
+	float vz1 = static_cast<float>(z + 1);
+	float vz2 = static_cast<float>(z + 1);
+	float vz3 = static_cast<float>(z + 0);
+	if (orient == 2)
+	{
+		vx1 = static_cast<float>(x + 0);
+		vx0 = vx1;
+		vx3 = static_cast<float>(x + 1);
+		vx2 = vx3;
+		vz3 = static_cast<float>(z + 1);
+		vz0 = vz3;
+		vz2 = static_cast<float>(z + 0);
+		vz1 = vz2;
+	}
+	else if (orient == 3)
+	{
+		vx3 = static_cast<float>(x + 0);
+		vx0 = vx3;
+		vx2 = static_cast<float>(x + 1);
+		vx1 = vx2;
+		vz1 = static_cast<float>(z + 0);
+		vz0 = vz1;
+		vz3 = static_cast<float>(z + 1);
+		vz2 = vz3;
+	}
+	else if (orient == 1)
+	{
+		vx3 = static_cast<float>(x + 1);
+		vx0 = vx3;
+		vx2 = static_cast<float>(x + 0);
+		vx1 = vx2;
+		vz1 = static_cast<float>(z + 1);
+		vz0 = vz1;
+		vz3 = static_cast<float>(z + 0);
+		vz2 = vz3;
+	}
+
+	t.vertexUV(vx3, topY, vz3, u0, v0);
+	t.vertexUV(vx2, topY, vz2, u0, v1);
+	t.vertexUV(vx1, topY, vz1, u1, v1);
+	t.vertexUV(vx0, topY, vz0, u1, v0);
+	return true;
 }
 
 bool TileRenderer::tesselateDustInWorld(Tile &tt, int_t x, int_t y, int_t z)

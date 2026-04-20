@@ -18,6 +18,7 @@
 #include "world/level/tile/ButtonTile.h"
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/PressurePlateTile.h"
+#include "world/level/tile/NotGateTile.h"
 
 namespace
 {
@@ -113,22 +114,36 @@ Recipes::Recipes()
 	addShapedRecipe(ItemInstance(Items::bread->getShiftedIndex(), 1, 0), {"###"}, {
 		{'#', ItemInstance(Items::wheat->getShiftedIndex(), 1, 0)}
 	});
+	addShapedRecipe(ItemInstance(Items::cookie->getShiftedIndex(), 8, 0), {"#X#"}, {
+		{'#', ItemInstance(Items::wheat->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::dyePowder->getShiftedIndex(), 1, 3)}
+	});
 	addShapedRecipe(ItemInstance(Items::flintAndSteel->getShiftedIndex(), 1, 0), {"A ", " B"}, {
 		{'A', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)},
 		{'B', ItemInstance(Items::flint->getShiftedIndex(), 1, 0)}
 	});
-
 	addShapedRecipe(ItemInstance(Items::sign->getShiftedIndex(), 1, 0), {"###", "###", " X "}, {
 		{'#', ItemInstance(Tile::wood.id, 1, -1)},
 		{'X', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
 	});
 
+	addShapedRecipe(ItemInstance(Tile::torchRedstoneActive.id, 1, 0), {"X", "#"}, {
+		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
+	});
+
+	addShapedRecipe(ItemInstance(Items::redstoneRepeater->getShiftedIndex(), 1, 0), {"#X#", "III"}, {
+		{'#', ItemInstance(Tile::torchRedstoneActive.id, 1, 0)},
+		{'X', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)},
+		{'I', ItemInstance(Tile::rock.id, 1, 0)}
+	});
+
 	addShapedRecipe(ItemInstance(Tile::buttonStone.id, 1, 0), {"#"}, {
-		{'#', ItemInstance(Tile::cobblestone.id, 1, -1)}
+		{'#', ItemInstance(Tile::rock.id, 1, 0)}
 	});
 
 	addShapedRecipe(ItemInstance(Tile::pressurePlateStone.id, 1, 0), {"##"}, {
-		{'#', ItemInstance(Tile::cobblestone.id, 1, -1)}
+		{'#', ItemInstance(Tile::rock.id, 1, 0)}
 	});
 
 	addShapedRecipe(ItemInstance(Tile::pressurePlateWood.id, 1, 0), {"##"}, {

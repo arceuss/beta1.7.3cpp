@@ -2,7 +2,7 @@
 
 #include "world/level/tile/WoodTile.h"
 #include "world/level/tile/TreeTile.h"
-#include "world/level/tile/WorkbenchTile.h"
+#include "world/level/tile/BookshelfTile.h"
 #include "world/level/tile/Tile.h"
 
 namespace
@@ -18,7 +18,7 @@ namespace
 		static int_t EFFECTIVE_TILES[] = {
 			Tile::wood.id,
 			Tile::treeTrunk.id,
-			Tile::workBench.id,
+			Tile::bookshelf.id,
 		};
 		return EffectiveTiles{EFFECTIVE_TILES, sizeof(EFFECTIVE_TILES) / sizeof(EFFECTIVE_TILES[0])};
 	}
