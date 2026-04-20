@@ -6,6 +6,7 @@
 #include "world/level/tile/entity/NoteTileEntity.h"
 #include "world/level/tile/entity/RecordPlayerTileEntity.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
+#include "world/level/tile/entity/ChestTileEntity.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 
 void TileEntity::load(CompoundTag &tag)
@@ -46,6 +47,8 @@ TileEntity *TileEntity::loadStatic(CompoundTag &tag)
 		tileEntity = new DispenserTileEntity();
 	if (id == u"Sign")
 		tileEntity = new SignTileEntity();
+	if (id == u"Chest")
+		tileEntity = new ChestTileEntity();
 	if (tileEntity != nullptr)
 		tileEntity->load(tag);
 	return tileEntity;

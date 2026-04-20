@@ -796,9 +796,43 @@ void Entity::rideTick()
 		return;
 	}
 
-	fallDistance = 0.0f;
-	baseTick();
-	riding->positionRider();
+	// Zero rider motion (Java: updateRidden zeros motion before full tick)
+	xd = 0.0;
+	yd = 0.0;
+	zd = 0.0;
+
+	// Run the rider's full tick (Java: this.onUpdate())
+	tick();
+
+	if (riding != nullptr)
+	{
+		riding->positionRider();
+
+		// Sync rider rotation to vehicle rotation changes
+		xRideRotA += (riding->yRot - riding->yRotO);
+		yRideRotA += (riding->xRot - riding->xRotO);
+
+		// Wrap to [-180, 180)
+		while (xRideRotA >= 180.0) xRideRotA -= 360.0;
+		while (xRideRotA < -180.0) xRideRotA += 360.0;
+		while (yRideRotA >= 180.0) yRideRotA -= 360.0;
+		while (yRideRotA < -180.0) yRideRotA += 360.0;
+
+		// Clamp half-delta to ±10 (Java: float var5 = 10.0F)
+		double yawDelta = xRideRotA * 0.5;
+		double pitchDelta = yRideRotA * 0.5;
+		constexpr double maxDelta = 10.0;
+		if (yawDelta > maxDelta) yawDelta = maxDelta;
+		if (yawDelta < -maxDelta) yawDelta = -maxDelta;
+		if (pitchDelta > maxDelta) pitchDelta = maxDelta;
+		if (pitchDelta < -maxDelta) pitchDelta = -maxDelta;
+
+		xRideRotA -= yawDelta;
+		yRideRotA -= pitchDelta;
+
+		yRot += static_cast<float>(yawDelta);
+		xRot += static_cast<float>(pitchDelta);
+	}
 }
 
 void Entity::positionRider()
