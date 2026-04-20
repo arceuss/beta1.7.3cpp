@@ -7,8 +7,6 @@ class ChestTile : public Tile
 public:
 	explicit ChestTile(int_t id);
 
-	bool isCubeShaped() override { return false; }
-	bool isSolidRender() override { return false; }
 	int_t getTexture(LevelSource &level, int_t x, int_t y, int_t z, Facing face) override;
 	int_t getTexture(Facing face) override;
 	void onPlace(Level &level, int_t x, int_t y, int_t z) override;
