@@ -631,7 +631,7 @@ void Level::updateNeighborsAt(int_t x, int_t y, int_t z, int_t tile)
 
 void Level::neighborChanged(int_t x, int_t y, int_t z, int_t tile)
 {
-	if (editingBlocks || noNeighborUpdate || isOnline)
+	if (noNeighborUpdate || isOnline)
 		return;
 	Tile *ptile = Tile::tiles[getTile(x, y, z)];
 	if (ptile != nullptr)
@@ -663,7 +663,7 @@ bool Level::isBlockProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir)
 	Tile *t = Tile::tiles[id];
 	if (t == nullptr)
 		return false;
-	return t->isIndirectSignalTo(*this, x, y, z, dir);
+	return t->isDirectSignalTo(*this, x, y, z, dir);
 }
 
 bool Level::isBlockGettingPowered(int_t x, int_t y, int_t z)
