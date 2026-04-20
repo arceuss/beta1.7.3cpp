@@ -1,5 +1,6 @@
 #include "tools/BlockSmoke.h"
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -8,18 +9,24 @@
 #include "client/renderer/TileRenderer.h"
 #include "world/item/Items.h"
 #include "world/item/Item.h"
+#include "world/item/ItemPickaxe.h"
 #include "world/item/ItemInstance.h"
+#include "world/item/crafting/CraftingContainer.h"
+#include "world/item/crafting/Recipes.h"
 #include "world/entity/player/Player.h"
 #include "world/level/Level.h"
 #include "world/phys/Vec3.h"
 #include "util/Mth.h"
 #include "world/level/LevelListener.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/StoneTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/ButtonTile.h"
 #include "world/level/tile/PressurePlateTile.h"
 #include "world/level/tile/NotGateTile.h"
+#include "world/level/tile/RepeaterTile.h"
+#include "world/level/tile/LockedChestTile.h"
 #include "world/level/tile/DoorTile.h"
 #include "world/level/tile/NoteTile.h"
 #include "world/level/tile/DispenserTile.h"
@@ -29,6 +36,7 @@
 #include "world/level/tile/entity/NoteTileEntity.h"
 #include "java/Random.h"
 #include "java/File.h"
+#include "java/String.h"
 
 namespace
 {
@@ -37,9 +45,10 @@ namespace
 		std::vector<jstring> sounds;
 		std::vector<jstring> particles;
 		std::vector<jstring> streams;
+		int_t dirtyCalls = 0;
 
 		void tileChanged(int_t, int_t, int_t) override {}
-		void setTilesDirty(int_t, int_t, int_t, int_t, int_t, int_t) override {}
+		void setTilesDirty(int_t, int_t, int_t, int_t, int_t, int_t) override { dirtyCalls++; }
 		void allChanged() override {}
 		void playSound(const jstring &name, double, double, double, float, float) override { sounds.push_back(name); }
 		void addParticle(const jstring &name, double, double, double, double, double, double) override { particles.push_back(name); }
@@ -55,6 +64,7 @@ namespace
 			sounds.clear();
 			particles.clear();
 			streams.clear();
+			dirtyCalls = 0;
 		}
 	};
 
@@ -70,6 +80,16 @@ struct InspectableNoteParticle : public NoteParticle
 		float currentSize() const { return size; }
 	};
 
+	struct GridCraftingContainer : public CraftingContainer
+	{
+		std::array<ItemInstance, 9> slots;
+
+		ItemInstance getItem(int_t x, int_t y) const override
+		{
+			return slots[static_cast<std::size_t>(x + y * 3)];
+		}
+	};
+
 	bool expect(bool condition, const char *message)
 	{
 		if (!condition)
@@ -83,6 +103,50 @@ struct InspectableNoteParticle : public NoteParticle
 	bool expectNear(double actual, double expected, double epsilon, const char *message)
 	{
 		return expect(std::abs(actual - expected) <= epsilon, message);
+	}
+
+	void logEvents(const char *label, const std::vector<jstring> &values)
+	{
+		std::cerr << label << "[" << values.size() << "]";
+		for (std::size_t i = 0; i < values.size(); ++i)
+			std::cerr << (i == 0 ? " " : ", ") << String::toUTF8(values[i]);
+		std::cerr << std::endl;
+	}
+
+	bool containsPrefix(const std::vector<jstring> &values, const jstring &prefix)
+	{
+		for (std::size_t i = 0; i < values.size(); ++i)
+		{
+			if (values[i].find(prefix) == 0)
+				return true;
+		}
+		return false;
+	}
+
+	void logRepeatedDoorState(Level &level, const CaptureListener &listener, const char *phase, int_t doorX, int_t doorY, int_t doorZ, int_t supportX, int_t supportY, int_t supportZ, int_t leverX, int_t leverY, int_t leverZ)
+	{
+		std::cerr << "diag door " << phase
+			<< ": leverData=" << level.getData(leverX, leverY, leverZ)
+			<< " supportPowered=" << level.isBlockIndirectlyGettingPowered(supportX, supportY, supportZ)
+			<< " doorData=" << level.getData(doorX, doorY, doorZ)
+			<< " doorPowered=" << level.isBlockIndirectlyGettingPowered(doorX, doorY, doorZ)
+			<< std::endl;
+		logEvents("diag door sounds", listener.sounds);
+		logEvents("diag door particles", listener.particles);
+	}
+
+	void logRepeatedNoteState(Level &level, const CaptureListener &listener, const char *phase, int_t noteX, int_t noteY, int_t noteZ, int_t leverX, int_t leverY, int_t leverZ, NoteTileEntity *noteEntity)
+	{
+		std::cerr << "diag note " << phase
+			<< ": leverData=" << level.getData(leverX, leverY, leverZ)
+			<< " notePowered=" << level.isBlockGettingPowered(noteX, noteY, noteZ)
+			<< " leverProvidesEast=" << level.isBlockProvidingPowerTo(leverX, leverY, leverZ, 5)
+			<< " aboveTile=" << level.getTile(noteX, noteY + 1, noteZ)
+			<< " belowTile=" << level.getTile(noteX, noteY - 1, noteZ)
+			<< " notePrev=" << (noteEntity != nullptr ? noteEntity->previousRedstoneState : false)
+			<< std::endl;
+		logEvents("diag note sounds", listener.sounds);
+		logEvents("diag note particles", listener.particles);
 	}
 }
 
@@ -110,6 +174,24 @@ int runBlockSmoke()
 		ok &= expect(Tile::tiles[80]->getResource(0, random) == Items::snowball->getShiftedIndex(), "snow block should drop snowballs");
 		ok &= expect(Tile::tiles[64]->getResource(0, random) == Items::doorWood->getShiftedIndex(), "wood door bottom half should drop wood door item");
 		ok &= expect(Tile::tiles[64]->getResource(8, random) == 0, "wood door top half should not drop an item");
+		ItemInstance woodAxe(Items::axeWood->getShiftedIndex(), 1, 0);
+		ok &= expect(woodAxe.getDestroySpeed(*Tile::tiles[47]) > 1.0f, "axe should be the preferred tool for bookshelves");
+		ok &= expect(woodAxe.getDestroySpeed(*Tile::tiles[58]) == 1.0f, "workbench should not get an axe speed bonus in b173");
+		ItemInstance stoneShovel(Items::shovelStone->getShiftedIndex(), 1, 0);
+		ok &= expect(stoneShovel.getDestroySpeed(*Tile::tiles[80]) > 1.0f, "shovel should be effective against snow blocks");
+		ok &= expect(stoneShovel.canDestroySpecial(*Tile::tiles[80]), "shovel should harvest snow blocks as a special case");
+		ItemInstance woodPick(Items::pickaxeWood->getShiftedIndex(), 1, 0);
+		ok &= expect(!woodPick.canDestroySpecial(*Tile::tiles[41]), "wood pickaxe should not harvest gold blocks");
+		ItemInstance stonePick(Items::pickaxeStone->getShiftedIndex(), 1, 0);
+		ok &= expect(stonePick.getDestroySpeed(*Tile::tiles[41]) > 1.0f, "pickaxe should be the preferred tool for gold blocks");
+		ok &= expect(!stonePick.canDestroySpecial(*Tile::tiles[41]), "stone pickaxe should not harvest gold blocks");
+		ItemInstance ironPick(Items::pickaxeIron->getShiftedIndex(), 1, 0);
+		ok &= expect(ironPick.canDestroySpecial(*Tile::tiles[41]), "iron pickaxe should harvest gold blocks");
+		ItemInstance diamondPick(Items::pickaxeDiamond->getShiftedIndex(), 1, 0);
+		ok &= expect(diamondPick.canDestroySpecial(*Tile::tiles[49]), "diamond pickaxe should harvest obsidian");
+		ItemInstance woodSword(Items::swordWood->getShiftedIndex(), 1, 0);
+		ok &= expect(woodSword.getDestroySpeed(*Tile::tiles[30]) == 15.0f, "sword should be the preferred tool for cobwebs before shears");
+		ok &= expect(woodSword.canDestroySpecial(*Tile::tiles[30]), "sword should harvest cobwebs as a special case");
 
 		Vec3::resetPool();
 		Vec3 *xRotVec = Vec3::newTemp(0.0, 1.0, 0.0);
@@ -146,6 +228,57 @@ int runBlockSmoke()
 		ok &= expect(ItemInstance(Tile::lever.id, 1, 0).getIcon() == 96, "lever block item should use lever texture icon");
 		ok &= expect(Tile::torchRedstoneIdle.descriptionId == u"tile.notGate", "redstone torch off should use localized notGate key");
 		ok &= expect(Tile::torchRedstoneActive.descriptionId == u"tile.notGate", "redstone torch on should use localized notGate key");
+		ok &= expect(Tile::repeaterIdle.getRenderShape() == Tile::SHAPE_REPEATER, "repeater should use the custom repeater render shape");
+		ok &= expect(Tile::repeaterIdle.getTexture(Facing::UP, 0) == 131, "idle repeater should use the beta top texture");
+		ok &= expect(Tile::repeaterActive.getTexture(Facing::UP, 0) == 147, "active repeater should use the lit beta top texture");
+		ok &= expect(Tile::repeaterIdle.getTexture(Facing::DOWN, 0) == 115, "idle repeater torches should use the off texture");
+		ok &= expect(Tile::repeaterActive.getTexture(Facing::DOWN, 0) == 99, "active repeater torches should use the on texture");
+		ok &= expect(Tile::lightEmission[94] == 9, "active repeater should emit the beta light level");
+		ok &= expect(Tile::lightBlock[93] == 0, "idle repeater should not block light");
+		ok &= expect(Tile::lightBlock[94] == 0, "active repeater should not block light");
+		ok &= expect(Tile::repeaterIdle.descriptionId == u"tile.diode", "idle repeater should use the diode localization key");
+		ok &= expect(Tile::repeaterActive.descriptionId == u"tile.diode", "active repeater should use the diode localization key");
+		ok &= expect(Items::redstoneRepeater->getShiftedIndex() == 356, "repeater item should use the beta shifted id 356");
+		ok &= expect(ItemInstance(Items::redstoneRepeater->getShiftedIndex(), 1, 0).getIcon() == 86, "repeater item should use the beta diode icon");
+		GridCraftingContainer redstoneTorchRecipe{};
+		redstoneTorchRecipe.slots[0] = ItemInstance(Items::redstone->getShiftedIndex(), 1, 0);
+		redstoneTorchRecipe.slots[3] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		ItemInstance redstoneTorchOut = Recipes::getInstance().getItemFor(redstoneTorchRecipe);
+		ok &= expect(redstoneTorchOut.itemID == Tile::torchRedstoneActive.id, "redstone torch recipe should match b173");
+		GridCraftingContainer repeaterRecipe{};
+		repeaterRecipe.slots[0] = ItemInstance(Tile::torchRedstoneActive.id, 1, 0);
+		repeaterRecipe.slots[1] = ItemInstance(Items::redstone->getShiftedIndex(), 1, 0);
+		repeaterRecipe.slots[2] = ItemInstance(Tile::torchRedstoneActive.id, 1, 0);
+		repeaterRecipe.slots[3] = ItemInstance(Tile::rock.id, 1, 0);
+		repeaterRecipe.slots[4] = ItemInstance(Tile::rock.id, 1, 0);
+		repeaterRecipe.slots[5] = ItemInstance(Tile::rock.id, 1, 0);
+		ItemInstance repeaterOut = Recipes::getInstance().getItemFor(repeaterRecipe);
+		ok &= expect(repeaterOut.itemID == Items::redstoneRepeater->getShiftedIndex(), "repeater recipe should match b173");
+		GridCraftingContainer stoneButtonRecipe{};
+		stoneButtonRecipe.slots[0] = ItemInstance(Tile::rock.id, 1, 0);
+		ItemInstance stoneButtonOut = Recipes::getInstance().getItemFor(stoneButtonRecipe);
+		ok &= expect(stoneButtonOut.itemID == Tile::buttonStone.id, "stone button recipe should use stone, not cobblestone");
+		GridCraftingContainer stonePlateRecipe{};
+		stonePlateRecipe.slots[0] = ItemInstance(Tile::rock.id, 1, 0);
+		stonePlateRecipe.slots[1] = ItemInstance(Tile::rock.id, 1, 0);
+		ItemInstance stonePlateOut = Recipes::getInstance().getItemFor(stonePlateRecipe);
+		ok &= expect(stonePlateOut.itemID == Tile::pressurePlateStone.id, "stone pressure plate recipe should use stone, not cobblestone");
+
+		ok &= expect(Tile::lightEmission[95] == 15, "locked chest should emit full light");
+		ok &= expect(Tile::lockedChest.getTexture(Facing::UP, 0) == 25, "locked chest top should use the beta top texture");
+		ok &= expect(Tile::lockedChest.getTexture(Facing::SOUTH, 0) == 27, "locked chest default front should use the beta latch texture");
+		ok &= expect(Tile::lockedChest.descriptionId == u"tile.lockedchest", "locked chest should use the lockedchest localization key");
+		ok &= expect(Items::bread->getMaxStackSize() == 1, "bread should use the beta food stack limit");
+		ok &= expect(Items::cookie->getShiftedIndex() == 357, "cookie should use the beta shifted id 357");
+		ok &= expect(Items::cookie->getMaxStackSize() == 8, "cookie should stack to eight like beta");
+		ok &= expect(ItemInstance(Items::cookie->getShiftedIndex(), 1, 0).getIcon() == 92, "cookie should use the beta cookie icon");
+		GridCraftingContainer cookieRecipe{};
+		cookieRecipe.slots[0] = ItemInstance(Items::wheat->getShiftedIndex(), 1, 0);
+		cookieRecipe.slots[1] = ItemInstance(Items::dyePowder->getShiftedIndex(), 1, 3);
+		cookieRecipe.slots[2] = ItemInstance(Items::wheat->getShiftedIndex(), 1, 0);
+		ItemInstance cookieOut = Recipes::getInstance().getItemFor(cookieRecipe);
+		ok &= expect(cookieOut.itemID == Items::cookie->getShiftedIndex() && cookieOut.stackSize == 8, "cookie recipe should match b173test");
+
 		std::cerr << "block-smoke: level setup" << std::endl;
 		Level level(File::open(u"build/block-smoke-workdir"), u"block-smoke-world", 12345);
 		CaptureListener listener;
@@ -153,6 +286,35 @@ int runBlockSmoke()
 		Player player(level);
 		player.yRot = 0.0f;
 		int_t baseY = 80;
+
+		auto advancePendingTicks = [&](int_t ticks) {
+			for (int_t i = 0; i < ticks; ++i)
+			{
+				level.time++;
+				for (int_t pass = 0; pass < 32; ++pass)
+					level.tickPendingTicks(false);
+			}
+		};
+
+		std::cerr << "block-smoke: food items" << std::endl;
+		player.health = 10;
+		ItemInstance breadStack(Items::bread->getShiftedIndex(), 1, 0);
+		breadStack.use(level, player);
+		ok &= expect(player.health == 15, "bread should heal five points on use");
+		ok &= expect(breadStack.isEmpty(), "bread should be consumed on use");
+		player.health = 10;
+		ItemInstance cookieStack(Items::cookie->getShiftedIndex(), 2, 0);
+		cookieStack.use(level, player);
+		ok &= expect(player.health == 11, "cookie should heal one point on use");
+		ok &= expect(cookieStack.stackSize == 1, "cookie should consume one item per use");
+		player.health = 20;
+
+		std::cerr << "block-smoke: locked chest" << std::endl;
+		ok &= expect(level.setTile(220, baseY + 1, 10, Tile::lockedChest.id), "locked chest should place");
+		level.setTile(220, baseY + 1, 9, 1);
+		ok &= expect(Tile::lockedChest.getTexture(level, 220, baseY + 1, 10, Facing::SOUTH) == 27, "locked chest front should face away from a north obstruction");
+		Tile::lockedChest.tick(level, 220, baseY + 1, 10, random);
+		ok &= expect(level.getTile(220, baseY + 1, 10) == 0, "locked chest should disappear when ticked");
 
 		std::cerr << "block-smoke: lighting" << std::endl;
 		level.setTile(10, baseY, 0, 1);
@@ -337,12 +499,16 @@ int runBlockSmoke()
 		level.setData(32, baseY + 1, 0, 5);
 		for (int_t x = 33; x <= 36; ++x)
 			ok &= expect(level.setTile(x, baseY + 1, 0, Tile::redstoneWire.id), "lever test wire should place");
+		listener.clear();
 		ok &= expect(Tile::lever.use(level, 32, baseY + 1, 0, player), "lever source should toggle on");
+		ok &= expect(listener.dirtyCalls > 0, "runtime wire power changes should dirty render ranges without re-placement");
 		ok &= expect(level.getData(33, baseY + 1, 0) == 15, "lever should power first wire at strength 15");
 		ok &= expect(level.getData(34, baseY + 1, 0) == 14, "lever should power second wire at strength 14");
 		ok &= expect(level.getData(35, baseY + 1, 0) == 13, "lever should power third wire at strength 13");
 		ok &= expect(level.getData(36, baseY + 1, 0) == 12, "lever should power fourth wire at strength 12");
+		listener.clear();
 		ok &= expect(Tile::lever.use(level, 32, baseY + 1, 0, player), "lever source should toggle off");
+		ok &= expect(listener.dirtyCalls > 0, "runtime wire depower should dirty render ranges without re-placement");
 		ok &= expect(level.getData(33, baseY + 1, 0) == 0, "lever should depower first wire when switched off");
 		ok &= expect(level.getData(34, baseY + 1, 0) == 0, "lever should depower second wire when switched off");
 		ok &= expect(level.getData(35, baseY + 1, 0) == 0, "lever should depower third wire when switched off");
@@ -392,6 +558,41 @@ int runBlockSmoke()
 		ok &= expect(level.getData(51, baseY + 2, 0) == 14, "button should power second wire through attached block at strength 14");
 		ok &= expect(level.getData(52, baseY + 2, 0) == 13, "button should power third wire through attached block at strength 13");
 		ok &= expect(level.getData(53, baseY + 2, 0) == 12, "button should power fourth wire through attached block at strength 12");
+		
+		std::cerr << "block-smoke: repeater propagation" << std::endl;
+		for (int_t x = 210; x <= 213; ++x)
+			level.setTile(x, baseY, 0, 1);
+		ok &= expect(level.setTile(210, baseY + 1, 0, Tile::lever.id), "repeater test lever should place");
+		level.setData(210, baseY + 1, 0, 5);
+		ok &= expect(level.setTile(211, baseY + 1, 0, Tile::redstoneWire.id), "repeater test input wire should place");
+		player.yRot = 270.0f;
+		ItemInstance repeaterItem(Items::redstoneRepeater->getShiftedIndex(), 1, 0);
+		ok &= expect(repeaterItem.useOn(player, level, 212, baseY, 0, Facing::UP), "repeater item should place on top of a solid block");
+		ok &= expect(level.getTile(212, baseY + 1, 0) == Tile::repeaterIdle.id, "repeater item should place the idle repeater block");
+		ok &= expect((level.getData(212, baseY + 1, 0) & 3) == 1, "repeater placement should face away from the player");
+		ok &= expect(repeaterItem.stackSize == 0, "repeater item should be consumed on placement");
+		ok &= expect(level.setTile(213, baseY + 1, 0, Tile::redstoneWire.id), "repeater test output wire should place");
+		ok &= expect(RedStoneDustTile::isPowerProviderOrWire(level, 212, baseY + 1, 0, 3), "dust helper should connect to the repeater front");
+		ok &= expect(Tile::lever.use(level, 210, baseY + 1, 0, player), "repeater test lever should toggle on");
+		ok &= expect(level.getData(211, baseY + 1, 0) == 15, "repeater input wire should power at strength 15");
+		advancePendingTicks(1);
+		ok &= expect(level.getTile(212, baseY + 1, 0) == Tile::repeaterIdle.id, "repeater should stay idle until its default delay expires");
+		ok &= expect(level.getData(213, baseY + 1, 0) == 0, "repeater should not power its output before the delay completes");
+		advancePendingTicks(1);
+		ok &= expect(level.getTile(212, baseY + 1, 0) == Tile::repeaterActive.id, "repeater should switch to the active block after two ticks");
+		ok &= expect(level.getData(213, baseY + 1, 0) == 15, "repeater should power the output wire after the delay");
+		ok &= expect(Tile::repeaterActive.use(level, 212, baseY + 1, 0, player), "active repeater should cycle its delay on use");
+		ok &= expect((level.getData(212, baseY + 1, 0) & 12) == 4, "repeater should advance to the second delay setting");
+		ok &= expect(Tile::lever.use(level, 210, baseY + 1, 0, player), "repeater test lever should toggle off");
+		for (int_t i = 0; i < 3; ++i)
+		{
+			advancePendingTicks(1);
+			ok &= expect(level.getTile(212, baseY + 1, 0) == Tile::repeaterActive.id, "repeater should stay active until the four-tick delay expires");
+		}
+		advancePendingTicks(1);
+		ok &= expect(level.getTile(212, baseY + 1, 0) == Tile::repeaterIdle.id, "repeater should turn off after four ticks at the second delay setting");
+		ok &= expect(level.getData(213, baseY + 1, 0) == 0, "repeater should depower the output wire after turning off");
+		player.yRot = 0.0f;
 		
 		std::cerr << "block-smoke: button bounds" << std::endl;
 		level.setTile(148, baseY + 1, 0, 1);
@@ -468,14 +669,18 @@ int runBlockSmoke()
 		ok &= expect(level.setTile(16, baseY + 1, 0, Tile::lever.id), "repeat-test door lever should place");
 		level.setData(16, baseY + 1, 0, 1);
 		listener.clear();
+		logRepeatedDoorState(level, listener, "before first toggle", 14, baseY + 1, 0, 15, baseY + 1, 0, 16, baseY + 1, 0);
 		ok &= expect(Tile::lever.use(level, 16, baseY + 1, 0, player), "repeat-test door lever should toggle on");
 		ok &= expect((level.getData(14, baseY + 1, 0) & 4) != 0, "door should open on first redstone activation");
+		logRepeatedDoorState(level, listener, "after first toggle", 14, baseY + 1, 0, 15, baseY + 1, 0, 16, baseY + 1, 0);
 		listener.clear();
 		ok &= expect(Tile::lever.use(level, 16, baseY + 1, 0, player), "repeat-test door lever should toggle off");
 		ok &= expect((level.getData(14, baseY + 1, 0) & 4) == 0, "door should close when redstone power is removed");
+		logRepeatedDoorState(level, listener, "after second toggle", 14, baseY + 1, 0, 15, baseY + 1, 0, 16, baseY + 1, 0);
 		listener.clear();
 		ok &= expect(Tile::lever.use(level, 16, baseY + 1, 0, player), "repeat-test door lever should toggle on again");
 		ok &= expect((level.getData(14, baseY + 1, 0) & 4) != 0, "door should reopen on second redstone activation");
+		logRepeatedDoorState(level, listener, "after third toggle", 14, baseY + 1, 0, 15, baseY + 1, 0, 16, baseY + 1, 0);
 		
 		std::cerr << "block-smoke: repeated powered note block" << std::endl;
 		level.setTile(8, baseY, 0, 5);
@@ -486,20 +691,24 @@ int runBlockSmoke()
 		auto repeatNoteEntity = std::dynamic_pointer_cast<NoteTileEntity>(level.getTileEntity(8, baseY + 1, 0));
 		ok &= expect(repeatNoteEntity != nullptr, "repeat-test note block should create a tile entity");
 		listener.clear();
+		logRepeatedNoteState(level, listener, "before first toggle", 8, baseY + 1, 0, 9, baseY + 1, 0, repeatNoteEntity.get());
 		ok &= expect(Tile::lever.use(level, 9, baseY + 1, 0, player), "repeat-test note lever should toggle on");
-		ok &= expect(!listener.sounds.empty() && listener.sounds.back().find(u"note.") == 0, "note block should play on first redstone activation");
+		ok &= expect(containsPrefix(listener.sounds, u"note."), "note block should play on first redstone activation");
 		ok &= expect(!listener.particles.empty() && listener.particles.back() == u"note", "note block should spawn a particle on first redstone activation");
 		if (repeatNoteEntity != nullptr)
 			ok &= expect(repeatNoteEntity->previousRedstoneState, "note block should latch powered state after first activation");
+		logRepeatedNoteState(level, listener, "after first toggle", 8, baseY + 1, 0, 9, baseY + 1, 0, repeatNoteEntity.get());
 		listener.clear();
 		ok &= expect(Tile::lever.use(level, 9, baseY + 1, 0, player), "repeat-test note lever should toggle off");
 		ok &= expect(listener.particles.empty(), "note block should not trigger a note on power removal");
 		if (repeatNoteEntity != nullptr)
 			ok &= expect(!repeatNoteEntity->previousRedstoneState, "note block should clear powered latch after power removal");
+		logRepeatedNoteState(level, listener, "after second toggle", 8, baseY + 1, 0, 9, baseY + 1, 0, repeatNoteEntity.get());
 		listener.clear();
 		ok &= expect(Tile::lever.use(level, 9, baseY + 1, 0, player), "repeat-test note lever should toggle on again");
-		ok &= expect(!listener.sounds.empty() && listener.sounds.back().find(u"note.") == 0, "note block should play again on second redstone activation");
+		ok &= expect(containsPrefix(listener.sounds, u"note."), "note block should play again on second redstone activation");
 		ok &= expect(!listener.particles.empty() && listener.particles.back() == u"note", "note block should spawn a particle on second redstone activation");
+		logRepeatedNoteState(level, listener, "after third toggle", 8, baseY + 1, 0, 9, baseY + 1, 0, repeatNoteEntity.get());
 		
 		std::cerr << "block-smoke: door" << std::endl;
 		level.setTile(0, baseY, 0, 5);

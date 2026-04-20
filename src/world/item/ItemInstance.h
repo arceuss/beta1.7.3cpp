@@ -35,6 +35,7 @@ public:
 	float getDestroySpeed(Tile &tile) const;
 	bool canDestroySpecial(Tile &tile) const;
 	int_t getAttackDamage(Entity &entity) const;
+	void use(Level &level, Player &player);
 	bool useOn(Player &player, Level &level, int_t x, int_t y, int_t z, Facing face);
 	void damageItem(int_t amount);
 	bool hurtEnemy(Entity &target, Entity &attacker);

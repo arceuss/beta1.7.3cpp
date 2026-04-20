@@ -1,6 +1,8 @@
 #include "world/item/ItemSword.h"
 
 #include "world/item/ItemInstance.h"
+#include "world/level/tile/Tile.h"
+#include "world/level/tile/WebTile.h"
 
 ItemSword::ItemSword(int_t baseId, ToolMaterialType material) : Item(baseId)
 {
@@ -13,8 +15,13 @@ ItemSword::ItemSword(int_t baseId, ToolMaterialType material) : Item(baseId)
 float ItemSword::getDestroySpeed(const ItemInstance &stack, Tile &tile) const
 {
 	(void)stack;
-	(void)tile;
-	return 1.5f;
+	return tile.id == Tile::cobweb.id ? 15.0f : 1.5f;
+}
+
+bool ItemSword::canDestroySpecial(const ItemInstance &stack, Tile &tile) const
+{
+	(void)stack;
+	return tile.id == Tile::cobweb.id;
 }
 
 int_t ItemSword::getAttackDamage(const ItemInstance &stack, Entity &entity) const

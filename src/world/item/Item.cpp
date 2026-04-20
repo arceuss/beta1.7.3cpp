@@ -75,6 +75,13 @@ int_t Item::getAttackDamage(const ItemInstance &stack, Entity &entity) const
 	return 1;
 }
 
+void Item::use(ItemInstance &stack, Level &level, Player &player) const
+{
+	(void)stack;
+	(void)level;
+	(void)player;
+}
+
 bool Item::useOn(ItemInstance &stack, Player &player, Level &level, int_t x, int_t y, int_t z, Facing face) const
 {
 	(void)stack;

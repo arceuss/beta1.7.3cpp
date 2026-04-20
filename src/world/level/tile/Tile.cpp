@@ -84,7 +84,8 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/ButtonTile.h"
 #include "world/level/tile/PressurePlateTile.h"
-
+#include "world/level/tile/RepeaterTile.h"
+#include "world/level/tile/LockedChestTile.h"
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
 DirtTile Tile::dirt = DirtTile(3, 2);
@@ -159,6 +160,9 @@ Tile Tile::netherrack = Tile(87, 103, Material::stone);
 SoulSandTile Tile::soulSand = SoulSandTile(88, 104, Material::sand);
 GlowStoneTile Tile::glowstone = GlowStoneTile(89, 105, Material::stone);
 PumpkinTile Tile::jackOLantern = PumpkinTile(91, 102, true);
+RepeaterTile Tile::repeaterIdle = RepeaterTile(93, false);
+RepeaterTile Tile::repeaterActive = RepeaterTile(94, true);
+LockedChestTile Tile::lockedChest = LockedChestTile(95);
 
 // Phase 2 blocks
 DoorTile Tile::doorWood = DoorTile(64, 97, Material::wood, false);
@@ -246,12 +250,15 @@ void Tile::initTiles()
 	soulSand.setDestroyTime(0.5f).setSoundType(soundSandFootstep);
 	glowstone.setDestroyTime(0.3f).setSoundType(soundGlassFootstep).setLightEmission(15);
 	jackOLantern.setDestroyTime(1.0f).setSoundType(soundWoodFootstep).setLightEmission(15);
+	repeaterIdle.setDestroyTime(0.0f).setSoundType(soundWoodFootstep);
+	repeaterActive.setDestroyTime(0.0f).setLightEmission(9).setSoundType(soundWoodFootstep);
 
 	// Phase 2 block configuration
 	doorWood.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
 	ladder.setDestroyTime(0.4f).setSoundType(soundWoodFootstep);
 	stairsWood.setDestroyTime(2.0f).setLightBlock(255).setSoundType(soundWoodFootstep);
 	stairsStone.setDestroyTime(2.0f).setLightBlock(255).setSoundType(soundStoneFootstep);
+	lockedChest.setDestroyTime(0.0f).setLightEmission(15).setSoundType(soundWoodFootstep);
 	trapdoor.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
 	doorIron.setDestroyTime(5.0f).setSoundType(soundMetalFootstep);
 	signPost.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
@@ -336,6 +343,7 @@ void Tile::initTiles()
 	ladder.setDescriptionId(u"tile.ladder");
 	stairsWood.setDescriptionId(u"tile.stairsWood");
 	stairsStone.setDescriptionId(u"tile.stairsStone");
+	lockedChest.setDescriptionId(u"tile.lockedchest");
 	trapdoor.setDescriptionId(u"tile.trapdoor");
 	doorIron.setDescriptionId(u"tile.doorIron");
 	netherrack.setDescriptionId(u"tile.hellrock");
@@ -344,6 +352,8 @@ void Tile::initTiles()
 	jackOLantern.setDescriptionId(u"tile.litpumpkin");
 	signPost.setDescriptionId(u"tile.sign");
 	signWall.setDescriptionId(u"tile.sign");
+	repeaterIdle.setDescriptionId(u"tile.diode");
+	repeaterActive.setDescriptionId(u"tile.diode");
 	// Phase 3 description IDs
 	redstoneWire.setDescriptionId(u"tile.redstoneDust");
 	lever.setDescriptionId(u"tile.lever");
