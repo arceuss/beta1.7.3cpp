@@ -123,10 +123,10 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 
 	if (oldPower != newPower)
 	{
-		// Set metadata without triggering implicit notifications (Java pattern:
-		// setBlockMetadataWithNotify under editingBlocks, then markBlocksDirty)
-		level.setDataNoUpdate(x, y, z, newPower);
+		level.editingBlocks = true;
+		level.setData(x, y, z, newPower);
 		level.setTilesDirty(x, y, z, x, y, z);
+		level.editingBlocks = false;
 
 		// Recursively propagate to connected wires
 		static const int_t rdx[] = {-1, 1, 0, 0};
@@ -158,14 +158,17 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 				propagateCurrentStrength(level, nx, ny, nz, x, y, z);
 		}
 
-		// Queue neighbor notifications for all power changes (not just 0<->nonzero)
-		deferredNotifications.insert(posKey(x, y, z));
-		deferredNotifications.insert(posKey(x - 1, y, z));
-		deferredNotifications.insert(posKey(x + 1, y, z));
-		deferredNotifications.insert(posKey(x, y - 1, z));
-		deferredNotifications.insert(posKey(x, y + 1, z));
-		deferredNotifications.insert(posKey(x, y, z - 1));
-		deferredNotifications.insert(posKey(x, y, z + 1));
+		// Queue neighbor notifications only on 0 <-> nonzero transitions
+		if (oldPower == 0 || newPower == 0)
+		{
+			deferredNotifications.insert(posKey(x, y, z));
+			deferredNotifications.insert(posKey(x - 1, y, z));
+			deferredNotifications.insert(posKey(x + 1, y, z));
+			deferredNotifications.insert(posKey(x, y - 1, z));
+			deferredNotifications.insert(posKey(x, y + 1, z));
+			deferredNotifications.insert(posKey(x, y, z - 1));
+			deferredNotifications.insert(posKey(x, y, z + 1));
+		}
 	}
 }
 
@@ -270,6 +273,7 @@ void RedStoneDustTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, 
 	{
 		updateAndPropagateCurrentStrength(level, x, y, z);
 	}
+	Tile::neighborChanged(level, x, y, z, tile);
 }
 
 bool RedStoneDustTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
