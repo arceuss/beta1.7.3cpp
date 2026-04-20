@@ -598,12 +598,29 @@ void Entity::playerTouch(Player &player)
 
 void Entity::push(Entity &entity)
 {
+	double dx = entity.x - x;
+	double dz = entity.z - z;
+	double distSqr = dx * dx + dz * dz;
+	if (distSqr < 1.0e-4)
+		return;
 
+	double dist = std::sqrt(distSqr);
+	dx /= dist;
+	dz /= dist;
+	double scale = 1.0 / dist;
+	if (scale > 1.0)
+		scale = 1.0;
+	dx *= scale * 0.05 * (1.0f - pushthrough);
+	dz *= scale * 0.05 * (1.0f - pushthrough);
+	push(-dx, 0.0, -dz);
+	entity.push(dx, 0.0, dz);
 }
 
 void Entity::push(double x, double y, double z)
 {
-
+	xd += x;
+	yd += y;
+	zd += z;
 }
 
 void Entity::markHurt()
@@ -773,27 +790,71 @@ AABB *Entity::getCollideAgainstBox(Entity &entity)
 
 void Entity::rideTick()
 {
+	if (riding == nullptr || riding->removed)
+	{
+		ride(nullptr);
+		return;
+	}
 
+	fallDistance = 0.0f;
+	baseTick();
+	riding->positionRider();
 }
 
 void Entity::positionRider()
 {
-
+	if (rider != nullptr)
+		rider->setPos(x, y + getRideHeight() + rider->getRidingHeight(), z);
 }
 
 double Entity::getRidingHeight()
 {
-	return 0.0;
+	return heightOffset;
 }
 
 double Entity::getRideHeight()
 {
-	return 0.0;
+	return bbHeight * 0.75;
 }
 
 void Entity::ride(std::shared_ptr<Entity> entity)
 {
+	if (riding == entity)
+		return;
 
+	auto findSelf = [&]() -> std::shared_ptr<Entity> {
+		for (const auto &candidate : level.getAllEntities())
+		{
+			if (candidate.get() == this)
+				return candidate;
+		}
+		for (const auto &player : level.players)
+		{
+			if (player.get() == this)
+				return std::static_pointer_cast<Entity>(player);
+		}
+		return nullptr;
+	};
+
+	if (riding != nullptr)
+		riding->rider = nullptr;
+	if (entity != nullptr && entity->rider != nullptr)
+		entity->rider->riding = nullptr;
+
+	riding = entity;
+	if (entity != nullptr)
+	{
+		auto self = findSelf();
+		if (self == nullptr)
+		{
+			riding = nullptr;
+			return;
+		}
+		entity->rider = self;
+		xRideRotA = 0.0;
+		yRideRotA = 0.0;
+		entity->positionRider();
+	}
 }
 
 void Entity::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
@@ -846,12 +907,12 @@ void Entity::setEquippedSlot(int_t slot, int_t itemId, int_t auxValue)
 
 bool Entity::isOnFire()
 {
-	return false;
+	return onFire > 0 || getSharedFlag(FLAG_ONFIRE);
 }
 
 bool Entity::isRiding()
 {
-	return false;
+	return riding != nullptr || getSharedFlag(FLAG_RIDING);
 }
 
 bool Entity::isSneaking()

@@ -228,6 +228,8 @@ const std::map<jstring, int_t> &itemAliases()
 	addItemAliases(aliases, Items::paper);
 	addItemAliases(aliases, Items::book);
 	addItemAliases(aliases, Items::sugar);
+	addItemAliases(aliases, Items::compass);
+	addItemAliases(aliases, Items::clock, {u"watch"});
 
 	addItemAliases(aliases, Items::swordWood, {u"woodsword", u"woodensword"});
 	addItemAliases(aliases, Items::shovelWood, {u"woodshovel", u"woodenspade"});

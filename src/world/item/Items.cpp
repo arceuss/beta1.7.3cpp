@@ -12,10 +12,12 @@
 #include "world/item/ItemSlab.h"
 #include "world/item/ItemDye.h"
 #include "world/item/ItemDoor.h"
+#include "world/item/ItemFlintAndSteel.h"
 #include "world/item/RecordItem.h"
 #include "world/item/ItemSign.h"
 #include "world/item/ItemRedStone.h"
 #include "world/item/ItemRepeater.h"
+#include "world/item/ItemMinecart.h"
 #include "world/level/tile/Tile.h"
 
 namespace Items
@@ -41,6 +43,11 @@ namespace Items
 	Item *reed = nullptr;
 	Item *doorWood = nullptr;
 	Item *doorIron = nullptr;
+	Item *minecart = nullptr;
+	Item *minecartPowered = nullptr;
+	Item *minecartChest = nullptr;
+	Item *compass = nullptr;
+	Item *clock = nullptr;
 	Item *record13 = nullptr;
 	Item *recordCat = nullptr;
 	Item *coal = nullptr;
@@ -87,8 +94,7 @@ namespace Items
 			return;
 		initialized = true;
 
-		flintAndSteel = new Item(3);
-		flintAndSteel->setMaxStackSize(1).setMaxDamage(64).setIconIndex(5).setDescriptionId(u"item.flintAndSteel");
+		flintAndSteel = new ItemFlintAndSteel(3);
 
 		ingotIron = new Item(9);
 		ingotIron->setIconIndex(23).setDescriptionId(u"item.ingotIron");
@@ -197,6 +203,21 @@ namespace Items
 
 		doorIron = new ItemDoor(74, Tile::doorIron);
 		doorIron->setIconIndex(44).setDescriptionId(u"item.doorIron");
+
+		minecart = new ItemMinecart(72, 0);
+		minecart->setIconIndex(135).setDescriptionId(u"item.minecart");
+
+		minecartPowered = new ItemMinecart(87, 2);
+		minecartPowered->setIconIndex(167).setDescriptionId(u"item.minecartPowered");
+
+		minecartChest = new ItemMinecart(86, 1);
+		minecartChest->setIconIndex(151).setDescriptionId(u"item.minecartChest");
+
+		compass = new Item(89);
+		compass->setIconIndex(54).setDescriptionId(u"item.compass");
+
+		clock = new Item(91);
+		clock->setIconIndex(70).setDescriptionId(u"item.clock");
 
 		record13 = new RecordItem(2000, u"13");
 		record13->setIconIndex(240).setDescriptionId(u"item.record");

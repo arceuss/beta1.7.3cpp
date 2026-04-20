@@ -13,6 +13,7 @@
 #include "java/IOUtil.h"
 
 #include "world/level/tile/LiquidTile.h"
+#include "world/level/tile/FireTile.h"
 #include "util/Mth.h"
 
 int_t Level::maxLoop = 0;
@@ -1586,7 +1587,29 @@ bool Level::handleMaterialAcceleration(AABB &bb, const Material &material, Entit
 
 bool Level::containsFireTile(AABB &bb)
 {
-	// TODO
+	int_t x0 = Mth::floor(bb.x0);
+	int_t x1 = Mth::floor(bb.x1 + 1.0);
+	int_t y0 = Mth::floor(bb.y0);
+	int_t y1 = Mth::floor(bb.y1 + 1.0);
+	int_t z0 = Mth::floor(bb.z0);
+	int_t z1 = Mth::floor(bb.z1 + 1.0);
+
+	if (hasChunksAt(x0, y0, z0, x1, y1, z1))
+	{
+		for (int_t x = x0; x < x1; ++x)
+		{
+			for (int_t y = y0; y < y1; ++y)
+			{
+				for (int_t z = z0; z < z1; ++z)
+				{
+					int_t tile = getTile(x, y, z);
+					if (tile == Tile::fire.id || tile == Tile::lava.id || tile == Tile::calmLava.id)
+						return true;
+				}
+			}
+		}
+	}
+
 	return false;
 }
 
@@ -1605,7 +1628,12 @@ void Level::extinguishFire(int_t x, int_t y, int_t z, Facing f)
 	if (f == Facing::EAST)
 		x++;
 
-	// TODO
+	if (getTile(x, y, z) == Tile::fire.id)
+	{
+		playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5,
+			u"random.fizz", 0.5f, 2.6f + (random.nextFloat() - random.nextFloat()) * 0.8f);
+		setTile(x, y, z, 0);
+	}
 }
 
 jstring Level::gatherStats()

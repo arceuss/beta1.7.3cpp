@@ -2,9 +2,11 @@
 
 #include "client/renderer/entity/FallingTileRenderer.h"
 #include "client/renderer/entity/ItemRenderer.h"
+#include "client/renderer/entity/MinecartRenderer.h"
 #include "client/renderer/entity/PlayerRenderer.h"
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/FallingTile.h"
+#include "world/entity/item/EntityMinecart.h"
 #include "OpenGL.h"
 
 
@@ -18,6 +20,12 @@ FallingTileRenderer &EntityRenderDispatcher::getFallingTileRenderer()
 ItemRenderer &EntityRenderDispatcher::getItemRenderer()
 {
 	static ItemRenderer renderer(instance);
+	return renderer;
+}
+
+MinecartRenderer &EntityRenderDispatcher::getMinecartRenderer()
+{
+	static MinecartRenderer renderer(instance);
 	return renderer;
 }
 
@@ -74,6 +82,14 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		itemRenderer.postRender(entity, x, y, z, rot, a);
 		return;
 	}
+	if (dynamic_cast<EntityMinecart *>(&entity) != nullptr)
+	{
+		MinecartRenderer &minecartRenderer = getMinecartRenderer();
+		minecartRenderer.render(entity, x, y, z, rot, a);
+		minecartRenderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
 
 	playerRenderer.render(entity, x, y, z, rot, a);
 	playerRenderer.postRender(entity, x, y, z, rot, a);

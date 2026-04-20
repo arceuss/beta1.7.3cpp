@@ -1,10 +1,12 @@
 #include "client/player/LocalPlayer.h"
 
 #include "client/Minecraft.h"
+#include "client/gui/ChestScreen.h"
 #include "client/gui/DispenserScreen.h"
 #include "client/gui/FurnaceScreen.h"
 #include "client/gui/WorkbenchScreen.h"
 #include "client/particle/TakeAnimationParticle.h"
+#include "world/entity/item/EntityMinecart.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
 #include "world/level/tile/entity/SignTileEntity.h"
@@ -38,14 +40,57 @@ void LocalPlayer::updateAi()
 	}
 }
 
+void LocalPlayer::handleInsidePortal()
+{
+	if (changingDimensionDelay > 0)
+	{
+		changingDimensionDelay = 10;
+		return;
+	}
+
+	isInsidePortal = true;
+}
+
 void LocalPlayer::aiStep()
 {
 	oPortalTime = portalTime;
 
 	if (isInsidePortal)
 	{
-		// TODO
+		if (!level.isOnline && riding != nullptr)
+			ride(nullptr);
+
+		if (minecraft.screen != nullptr)
+			minecraft.setScreen(nullptr);
+
+		if (portalTime == 0.0f)
+			minecraft.soundEngine.playUI(u"portal.trigger", 1.0f, random.nextFloat() * 0.4f + 0.8f);
+
+		portalTime += 0.0125f;
+		if (portalTime >= 1.0f)
+		{
+			portalTime = 1.0f;
+			if (!level.isOnline)
+			{
+				changingDimensionDelay = 10;
+				minecraft.soundEngine.playUI(u"portal.travel", 1.0f, random.nextFloat() * 0.4f + 0.8f);
+				minecraft.toggleDimension();
+			}
+		}
+
+		isInsidePortal = false;
 	}
+	else
+	{
+		if (portalTime > 0.0f)
+			portalTime -= 0.05f;
+
+		if (portalTime < 0.0f)
+			portalTime = 0.0f;
+	}
+
+	if (changingDimensionDelay > 0)
+		--changingDimensionDelay;
 
 	input->tick(*this);
 
@@ -90,6 +135,21 @@ void LocalPlayer::startCrafting(int_t x, int_t y, int_t z)
 {
 	minecraft.setScreen(Util::make_shared<WorkbenchScreen>(minecraft, *minecraft.level, x, y, z));
 }
+
+void LocalPlayer::startChest(std::shared_ptr<ChestTileEntity> chest)
+{
+	minecraft.setScreen(Util::make_shared<ChestScreen>(minecraft, chest));
+}
+
+void LocalPlayer::startChest(std::shared_ptr<CompoundContainer> chest)
+{
+	minecraft.setScreen(Util::make_shared<ChestScreen>(minecraft, chest));
+}
+
+void LocalPlayer::startChest(std::shared_ptr<EntityMinecart> chest)
+	{
+		minecraft.setScreen(Util::make_shared<ChestScreen>(minecraft, chest));
+	}
 
 void LocalPlayer::startFurnace(std::shared_ptr<FurnaceTileEntity> furnace)
 {

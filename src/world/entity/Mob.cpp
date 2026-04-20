@@ -99,7 +99,7 @@ void Mob::spawnAnim()
 
 void Mob::rideTick()
 {
-
+	Entity::rideTick();
 }
 
 void Mob::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)

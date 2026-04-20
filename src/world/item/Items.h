@@ -27,6 +27,11 @@ namespace Items
 	extern Item *reed;
 	extern Item *doorWood;
 	extern Item *doorIron;
+	extern Item *minecart;
+	extern Item *minecartPowered;
+	extern Item *minecartChest;
+	extern Item *compass;
+	extern Item *clock;
 	extern Item *record13;
 	extern Item *recordCat;
 	extern Item *coal;

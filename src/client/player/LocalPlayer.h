@@ -13,6 +13,9 @@ class User;
 
 class FurnaceTileEntity;
 class DispenserTileEntity;
+class ChestTileEntity;
+class EntityMinecart;
+class CompoundContainer;
 class SignTileEntity;
 class LocalPlayer : public Player
 {
@@ -35,6 +38,7 @@ public:
 	LocalPlayer(Minecraft &minecraft, Level &level, User *user, int_t dimension);
 
 	void updateAi() override;
+	void handleInsidePortal() override;
 	void aiStep() override;
 
 	void releaseAllKeys();
@@ -47,6 +51,9 @@ public:
 	void take(Entity &entity, int_t count) override;
 	void respawn() override;
 	void startCrafting(int_t x, int_t y, int_t z);
+	void startChest(std::shared_ptr<ChestTileEntity> chest);
+	void startChest(std::shared_ptr<CompoundContainer> chest);
+	void startChest(std::shared_ptr<EntityMinecart> chest);
 	void startFurnace(std::shared_ptr<FurnaceTileEntity> furnace);
 	void startDispenser(std::shared_ptr<DispenserTileEntity> dispenser);
 	void openTextEdit(std::shared_ptr<SignTileEntity> sign);
