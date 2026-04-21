@@ -382,7 +382,7 @@ void EntityMinecart::tick()
 				xd = xd / curSpeed * (curSpeed + slopeDelta);
 				zd = zd / curSpeed * (curSpeed + slopeDelta);
 			}
-			setPos(x, newRailPos->y + heightOffset, z);
+			setPos(x, newRailPos->y, z);
 		}
 
 		int_t newTileX = Mth::floor(x);
