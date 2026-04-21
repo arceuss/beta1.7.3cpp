@@ -909,8 +909,6 @@ void Entity::ride(std::shared_ptr<Entity> entity)
 
 	riding = entity;
 	entity->rider = self;
-	entity->positionRider();
-	syncPositionHistory();
 }
 
 void Entity::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
