@@ -284,7 +284,7 @@ int runBlockSmoke()
 		ok &= expect(Tile::lockedChest.getTexture(Facing::SOUTH, 0) == 27, "locked chest default front should use the beta latch texture");
 		ok &= expect(Tile::lockedChest.descriptionId == u"tile.lockedchest", "locked chest should use the lockedchest localization key");
 		ok &= expect(Tile::chest.descriptionId == u"tile.chest", "chest should use the chest localization key");
-		ok &= expect(Tile::lightBlock[54] == 0, "chest should not block light in the current render/collision model");
+		ok &= expect(Tile::lightBlock[54] == 255, "chest should fully block light as a full cube (b173 parity)");
 		ok &= expect(Items::minecartChest->getShiftedIndex() == 342, "chest minecart item should use the beta shifted id 342");
 		ok &= expect(ItemInstance(Items::minecartChest->getShiftedIndex(), 1, 0).getIcon() == 151, "chest minecart item should use the beta chest minecart icon");
 		GridCraftingContainer chestRecipe{};
@@ -384,6 +384,11 @@ int runBlockSmoke()
 		Player player(level);
 		player.yRot = 0.0f;
 		int_t baseY = 80;
+		auto mountPlayer = std::make_shared<Player>(level);
+		mountPlayer->setPos(248.5, baseY + 2.0, 2.5);
+		mountPlayer->yRot = 0.0f;
+		ok &= expect(level.addEntity(mountPlayer), "minecart rider player should join the level");
+
 
 		auto advancePendingTicks = [&](int_t ticks) {
 			for (int_t i = 0; i < ticks; ++i)
@@ -541,15 +546,57 @@ int runBlockSmoke()
 		level.removeEntityImmediately(detectorCart);
 		Tile::railDetector.tick(level, 250, baseY + 1, 0, random);
 		ok &= expect((level.getData(250, baseY + 1, 0) & 8) == 0, "detector rail should depower when rechecked with no minecart");
-		for (int_t x = 252; x <= 255; ++x)
+		for (int_t x = 252; x <= 260; ++x)
 			level.setTile(x, baseY, 0, 1);
-		for (int_t x = 252; x <= 255; ++x)
-			ok &= expect(level.setTileAndData(x, baseY + 1, 0, Tile::railPowered.id, 1 | 8), "powered rail launch segment should place and stay powered");
-		auto launchCart = std::make_shared<EntityMinecart>(level, 252.5, baseY + 1.0, 0.5, EntityMinecart::TYPE_RIDEABLE);
-		launchCart->xd = 0.3;
-		for (int_t i = 0; i < 20; ++i)
+		// Place redstone torch underneath to power the rail segment
+		level.setTile(252, baseY + 1, 0, Tile::torchRedstoneActive.id);
+		level.setData(252, baseY + 1, 0, 5);
+		for (int_t x = 253; x <= 260; ++x)
+			ok &= expect(level.setTileAndData(x, baseY + 1, 0, Tile::railPowered.id, 1), "powered rail launch segment should place");
+		for (int_t x = 253; x <= 260; ++x)
+			Tile::railPowered.neighborChanged(level, x, baseY + 1, 0, Tile::torchRedstoneActive.id);
+		ok &= expect((level.getData(253, baseY + 1, 0) & 8) != 0, "powered rail adjacent to torch should be powered");
+		auto launchCart = std::make_shared<EntityMinecart>(level, 253.5, baseY + 1.0, 0.5, EntityMinecart::TYPE_RIDEABLE);
+		launchCart->xd = 0.02;
+		for (int_t i = 0; i < 60; ++i)
 			launchCart->tick();
-		ok &= expect(launchCart->x > 252.5001, "minecart should advance along powered rails");
+		ok &= expect(launchCart->x > 254.0, "minecart should accelerate along powered rails");
+
+		std::cerr << "block-smoke: rideable minecart mount toggles" << std::endl;
+		auto rideCart = std::make_shared<EntityMinecart>(level, 250.5, baseY + 1.0, 2.5, EntityMinecart::TYPE_RIDEABLE);
+		ok &= expect(level.addEntity(rideCart), "rideable minecart should join the level");
+		ok &= expect(rideCart->interact(*mountPlayer), "rideable minecart should mount on first interaction");
+		double mountedY = rideCart->y + rideCart->getRideHeight() + mountPlayer->getRidingHeight();
+		ok &= expect(mountPlayer->riding == rideCart, "minecart interact should set the player's riding pointer");
+		ok &= expect(rideCart->rider == mountPlayer, "minecart interact should set the cart rider pointer");
+		ok &= expectNear(mountPlayer->x, rideCart->x, 1.0e-6, "mounted player should snap to the cart seat x immediately");
+		ok &= expectNear(mountPlayer->y, mountedY, 1.0e-6, "mounted player should snap to the cart seat y immediately");
+		ok &= expectNear(mountPlayer->z, rideCart->z, 1.0e-6, "mounted player should snap to the cart seat z immediately");
+		ok &= expectNear(mountPlayer->xo, mountPlayer->x, 1.0e-6, "mounted player should sync previous x to the seat immediately");
+		ok &= expectNear(mountPlayer->yo, mountPlayer->y, 1.0e-6, "mounted player should sync previous y to the seat immediately");
+		ok &= expectNear(mountPlayer->zo, mountPlayer->z, 1.0e-6, "mounted player should sync previous z to the seat immediately");
+		ok &= expectNear(mountPlayer->xOld, mountPlayer->x, 1.0e-6, "mounted player should sync xOld to the seat immediately");
+		ok &= expectNear(mountPlayer->yOld, mountPlayer->y, 1.0e-6, "mounted player should sync yOld to the seat immediately");
+		ok &= expectNear(mountPlayer->zOld, mountPlayer->z, 1.0e-6, "mounted player should sync zOld to the seat immediately");
+		rideCart->xd = 0.0;
+		rideCart->zd = 0.0;
+		mountPlayer->xd = 0.0;
+		mountPlayer->zd = 0.0;
+		rideCart->push(*mountPlayer);
+		mountPlayer->push(*rideCart);
+		ok &= expectNear(rideCart->xd, 0.0, 1.0e-9, "mounted rider collisions should not push the minecart");
+		ok &= expectNear(rideCart->zd, 0.0, 1.0e-9, "mounted rider collisions should not push the minecart sideways");
+		ok &= expectNear(mountPlayer->xd, 0.0, 1.0e-9, "mounted vehicle collisions should not push the rider");
+		ok &= expectNear(mountPlayer->zd, 0.0, 1.0e-9, "mounted vehicle collisions should not push the rider sideways");
+		ok &= expect(rideCart->interact(*mountPlayer), "rideable minecart should dismount on second interaction");
+		double dismountedY = rideCart->bb.y0 + rideCart->bbHeight + mountPlayer->heightOffset;
+		ok &= expect(mountPlayer->riding == nullptr, "second minecart interaction should clear the player's riding pointer");
+		ok &= expect(rideCart->rider == nullptr, "second minecart interaction should clear the cart rider pointer");
+		ok &= expectNear(mountPlayer->x, rideCart->x, 1.0e-6, "dismounted player should stay aligned with the cart x");
+		ok &= expectNear(mountPlayer->y, dismountedY, 1.0e-6, "dismounted player should be placed above the cart");
+		ok &= expectNear(mountPlayer->bb.y0, rideCart->bb.y0 + rideCart->bbHeight, 1.0e-6, "dismounted player feet should rest on top of the cart");
+		ok &= expectNear(mountPlayer->z, rideCart->z, 1.0e-6, "dismounted player should stay aligned with the cart z");
+		level.removeEntityImmediately(rideCart);
 
 		level.setTile(20, baseY + 1, 0, 0);
 		std::cerr << "block-smoke: lever helper connectivity" << std::endl;

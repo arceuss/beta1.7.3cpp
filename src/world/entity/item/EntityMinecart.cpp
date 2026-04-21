@@ -241,7 +241,7 @@ void EntityMinecart::tick()
 	{
 		Vec3 *railPos = getPosOnTrack(x, y, z);
 		int_t data = level.getData(tileX, tileY, tileZ);
-		y = tileY + heightOffset;
+		y = static_cast<double>(tileY) + static_cast<double>(heightOffset);
 		bool boosting = false;
 		bool braking = false;
 		if (tileId == 27)
@@ -253,7 +253,7 @@ void EntityMinecart::tick()
 			data &= 7;
 
 		if (data >= 2 && data <= 5)
-			y = tileY + 1 + heightOffset;
+			y = static_cast<double>(tileY + 1) + static_cast<double>(heightOffset);
 		if (data == 2)
 			xd -= slopeAccel;
 		if (data == 3)

@@ -33,7 +33,7 @@ bool Mob::isPickable()
 
 bool Mob::isPushable()
 {
-	return false;
+	return !removed;
 }
 
 float Mob::getHeadHeight()
