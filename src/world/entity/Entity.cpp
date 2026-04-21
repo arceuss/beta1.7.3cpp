@@ -598,6 +598,8 @@ void Entity::playerTouch(Player &player)
 
 void Entity::push(Entity &entity)
 {
+	if (entity.rider.get() == this || entity.riding.get() == this)
+		return;
 	double dx = entity.x - x;
 	double dz = entity.z - z;
 	double distSqr = dx * dx + dz * dz;
@@ -853,9 +855,6 @@ double Entity::getRideHeight()
 
 void Entity::ride(std::shared_ptr<Entity> entity)
 {
-	if (riding == entity)
-		return;
-
 	auto findSelf = [&]() -> std::shared_ptr<Entity> {
 		for (const auto &candidate : level.getAllEntities())
 		{
@@ -869,26 +868,49 @@ void Entity::ride(std::shared_ptr<Entity> entity)
 		}
 		return nullptr;
 	};
+	auto syncPositionHistory = [&]() {
+		xo = xOld = x;
+		yo = yOld = y;
+		zo = zOld = z;
+	};
+
+	xRideRotA = 0.0;
+	yRideRotA = 0.0;
+
+	if (entity == nullptr)
+	{
+		if (riding != nullptr)
+		{
+			setPos(riding->x, riding->bb.y0 + riding->bbHeight + heightOffset, riding->z);
+			syncPositionHistory();
+			riding->rider = nullptr;
+		}
+		riding = nullptr;
+		return;
+	}
+
+	if (riding == entity)
+	{
+		entity->rider = nullptr;
+		riding = nullptr;
+		setPos(entity->x, entity->bb.y0 + entity->bbHeight + heightOffset, entity->z);
+		syncPositionHistory();
+		return;
+	}
 
 	if (riding != nullptr)
 		riding->rider = nullptr;
-	if (entity != nullptr && entity->rider != nullptr)
+	if (entity->rider != nullptr)
 		entity->rider->riding = nullptr;
 
+	auto self = findSelf();
+	if (self == nullptr)
+		return;
+
 	riding = entity;
-	if (entity != nullptr)
-	{
-		auto self = findSelf();
-		if (self == nullptr)
-		{
-			riding = nullptr;
-			return;
-		}
-		entity->rider = self;
-		xRideRotA = 0.0;
-		yRideRotA = 0.0;
-		entity->positionRider();
-	}
+	entity->rider = self;
+	entity->positionRider();
+	syncPositionHistory();
 }
 
 void Entity::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
