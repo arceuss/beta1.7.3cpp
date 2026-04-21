@@ -51,11 +51,6 @@ bool RedStoneDustTile::isPowerProviderOrWire(LevelSource &level, int_t x, int_t 
 	return false;
 }
 
-int64_t RedStoneDustTile::posKey(int_t x, int_t y, int_t z)
-{
-	return (int64_t(x) << 32) | (int64_t(y) << 16) | int64_t(z);
-}
-
 void RedStoneDustTile::updateAndPropagateCurrentStrength(Level &level, int_t x, int_t y, int_t z)
 {
 	deferredNotifications.clear();
@@ -65,12 +60,9 @@ void RedStoneDustTile::updateAndPropagateCurrentStrength(Level &level, int_t x, 
 	auto notifications = deferredNotifications;
 	deferredNotifications.clear();
 
-	for (int64_t key : notifications)
+	for (const TilePos &pos : notifications)
 	{
-		int_t dx = int_t(key >> 32);
-		int_t dy = int_t(int16_t((key >> 16) & 0xFFFF));
-		int_t dz = int_t(int16_t(key & 0xFFFF));
-		level.notifyBlocksOfNeighborChange(dx, dy, dz, id);
+		level.notifyBlocksOfNeighborChange(pos.x, pos.y, pos.z, id);
 	}
 }
 
@@ -123,10 +115,10 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 
 	if (oldPower != newPower)
 	{
-		level.editingBlocks = true;
+		level.noNeighborUpdate = true;
 		level.setData(x, y, z, newPower);
 		level.setTilesDirty(x, y, z, x, y, z);
-		level.editingBlocks = false;
+		level.noNeighborUpdate = false;
 
 		// Recursively propagate to connected wires
 		static const int_t rdx[] = {-1, 1, 0, 0};
@@ -161,13 +153,13 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 		// Queue neighbor notifications only on 0 <-> nonzero transitions
 		if (oldPower == 0 || newPower == 0)
 		{
-			deferredNotifications.insert(posKey(x, y, z));
-			deferredNotifications.insert(posKey(x - 1, y, z));
-			deferredNotifications.insert(posKey(x + 1, y, z));
-			deferredNotifications.insert(posKey(x, y - 1, z));
-			deferredNotifications.insert(posKey(x, y + 1, z));
-			deferredNotifications.insert(posKey(x, y, z - 1));
-			deferredNotifications.insert(posKey(x, y, z + 1));
+			deferredNotifications.emplace(x, y, z);
+			deferredNotifications.emplace(x - 1, y, z);
+			deferredNotifications.emplace(x + 1, y, z);
+			deferredNotifications.emplace(x, y - 1, z);
+			deferredNotifications.emplace(x, y + 1, z);
+			deferredNotifications.emplace(x, y, z - 1);
+			deferredNotifications.emplace(x, y, z + 1);
 		}
 	}
 }
