@@ -1,6 +1,7 @@
 #pragma once
 
 #include "world/level/tile/Tile.h"
+#include "world/level/TilePos.h"
 #include <unordered_set>
 #include <vector>
 
@@ -33,12 +34,11 @@ public:
 
 private:
 	bool wiresProvidePower = true;
-	std::unordered_set<int64_t> deferredNotifications;
+	std::unordered_set<TilePos> deferredNotifications;
 	static int_t WIRE_ID;
 
 	void updateAndPropagateCurrentStrength(Level &level, int_t x, int_t y, int_t z);
 	void propagateCurrentStrength(Level &level, int_t x, int_t y, int_t z, int_t fromX, int_t fromY, int_t fromZ);
 	void notifyWireNeighborsOfNeighborChange(Level &level, int_t x, int_t y, int_t z);
 	int_t getMaxCurrentStrength(Level &level, int_t x, int_t y, int_t z, int_t currentMax);
-	static int64_t posKey(int_t x, int_t y, int_t z);
 };
