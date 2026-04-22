@@ -4,9 +4,11 @@
 #include "client/renderer/entity/ItemRenderer.h"
 #include "client/renderer/entity/MinecartRenderer.h"
 #include "client/renderer/entity/PlayerRenderer.h"
+#include "client/renderer/entity/TNTPrimedRenderer.h"
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/FallingTile.h"
 #include "world/entity/item/EntityMinecart.h"
+#include "world/entity/PrimedTNT.h"
 #include "OpenGL.h"
 
 
@@ -26,6 +28,12 @@ ItemRenderer &EntityRenderDispatcher::getItemRenderer()
 MinecartRenderer &EntityRenderDispatcher::getMinecartRenderer()
 {
 	static MinecartRenderer renderer(instance);
+	return renderer;
+}
+
+TNTPrimedRenderer &EntityRenderDispatcher::getTNTPrimedRenderer()
+{
+	static TNTPrimedRenderer renderer(instance);
 	return renderer;
 }
 
@@ -90,6 +98,13 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
+	if (dynamic_cast<PrimedTNT *>(&entity) != nullptr)
+	{
+		TNTPrimedRenderer &tntRenderer = getTNTPrimedRenderer();
+		tntRenderer.render(entity, x, y, z, rot, a);
+		tntRenderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
 
 	playerRenderer.render(entity, x, y, z, rot, a);
 	playerRenderer.postRender(entity, x, y, z, rot, a);

@@ -14,6 +14,8 @@
 #include "world/level/tile/FurnaceTile.h"
 #include "world/level/tile/SlabTile.h"
 #include "world/level/tile/StoneTile.h"
+#include "world/level/tile/TNTTile.h"
+#include "world/level/tile/SandTile.h"
 #include "world/item/ItemSign.h"
 #include "world/level/tile/RailTile.h"
 #include "world/level/tile/DetectorRailTile.h"
@@ -22,6 +24,7 @@
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/PressurePlateTile.h"
 #include "world/level/tile/NotGateTile.h"
+#include "world/level/tile/PistonBaseTile.h"
 
 namespace
 {
@@ -179,6 +182,21 @@ Recipes::Recipes()
 		{'#', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)},
 		{'X', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
 	});
+
+	addShapedRecipe(ItemInstance(Items::shears->getShiftedIndex(), 1, 0), {" #", "# "}, {
+		{'#', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)}
+	});
+
+	addShapedRecipe(ItemInstance(Tile::pistonBase.id, 1, 0), {"TTT", "#X#", "#R#"}, {
+		{'T', ItemInstance(Tile::wood.id, 1, -1)},
+		{'#', ItemInstance(Tile::cobblestone.id, 1, -1)},
+		{'X', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)},
+		{'R', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Tile::pistonStickyBase.id, 1, 0), {"S", "P"}, {
+		{'S', ItemInstance(Items::slimeball->getShiftedIndex(), 1, 0)},
+		{'P', ItemInstance(Tile::pistonBase.id, 1, 0)}
+	});
 	
 	addShapedRecipe(ItemInstance(Tile::buttonStone.id, 1, 0), {"#"}, {
 		{'#', ItemInstance(Tile::rock.id, 1, 0)}
@@ -195,6 +213,11 @@ Recipes::Recipes()
 	addShapedRecipe(ItemInstance(Tile::lever.id, 1, 0), {"#", "X"}, {
 		{'#', ItemInstance(Tile::cobblestone.id, 1, -1)},
 		{'X', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
+	});
+
+	addShapedRecipe(ItemInstance(Tile::tnt.id, 1, 0), {"X#X", "#X#", "X#X"}, {
+		{'X', ItemInstance(Items::gunpowder->getShiftedIndex(), 1, 0)},
+		{'#', ItemInstance(Tile::sand.id, 1, 0)}
 	});
 	std::sort(shapedRecipes.begin(), shapedRecipes.end(), [](const ShapedRecipe &a, const ShapedRecipe &b) {
 		return a.size() > b.size();

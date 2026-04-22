@@ -7,6 +7,7 @@
 #include "world/entity/item/EntityItem.h"
 #include "world/item/ItemInstance.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/PistonBaseTile.h"
 
 #include "java/String.h"
 #include "util/Mth.h"
@@ -56,7 +57,9 @@ void ItemRenderer::render(Entity &entity, double x, double y, double z, float ro
 			float tb = static_cast<float>(tileColor & 255) / 255.0f;
 			glColor4f(tr, tg, tb, 1.0f);
 		}
-		float scale = tile->isCubeShaped() ? 0.25f : 0.5f;
+		float scale = 0.5f;
+		if (tile->isCubeShaped() || tile->id == Tile::pistonBase.id || tile->id == Tile::pistonStickyBase.id)
+			scale = 0.25f;
 		glScalef(scale, scale, scale);
 		for (int_t i = 0; i < count; ++i)
 		{

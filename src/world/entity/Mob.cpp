@@ -7,7 +7,7 @@
 
 Mob::Mob(Level &level) : Entity(level)
 {
-
+	blocksBuilding = true;
 	footSize = 0.5f;
 }
 

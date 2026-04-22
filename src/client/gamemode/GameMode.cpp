@@ -37,6 +37,8 @@ namespace
 	{
 		if (!isPlacementReplaceable(level, x, y, z))
 			return false;
+		if (!tile.mayPlace(level, x, y, z))
+			return false;
 		AABB *placementBox = tile.getAABB(level, x, y, z);
 		return placementBox == nullptr || level.isUnobstructed(*placementBox);
 	}
@@ -169,12 +171,12 @@ bool GameMode::useItemOn(std::shared_ptr<Player> &player, Level &level, ItemInst
 		placementFace = Facing::DOWN;
 
 	if (!canPlaceSelectedTile(level, *placedTile, placeX, placeY, placeZ))
-		return true;
+		return false;
 
 	if (!level.setTileAndData(placeX, placeY, placeZ, placedTile->id, item->itemDamage))
-		return true;
+		return false;
 	if (level.getTile(placeX, placeY, placeZ) != placedTile->id)
-		return true;
+		return false;
 
 	placedTile->setPlacedOnFace(level, placeX, placeY, placeZ, placementFace);
 	placedTile->setPlacedBy(level, placeX, placeY, placeZ, *player);

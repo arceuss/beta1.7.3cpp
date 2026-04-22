@@ -54,7 +54,6 @@ int_t CropsTile::getResource(int_t data, Random &random)
 
 void CropsTile::playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data)
 {
-	spawnResources(level, x, y, z, data);
 	if (level.isOnline)
 		return;
 

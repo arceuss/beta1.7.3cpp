@@ -18,7 +18,9 @@
 #include "client/particle/PortalParticle.h"
 #include "client/particle/NoteParticle.h"
 #include "client/renderer/SignRenderer.h"
+#include "client/renderer/entity/PistonTileEntityRenderer.h"
 #include "world/level/tile/entity/SignTileEntity.h"
+#include "world/level/tile/entity/PistonTileEntity.h"
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LeafTile.h"
@@ -82,6 +84,8 @@ LevelRenderer::LevelRenderer(Minecraft &mc, Textures &textures) : mc(mc), textur
 	t.end();
 
 	glEndList();
+
+	pistonRenderer = std::make_unique<PistonTileEntityRenderer>(&textures);
 }
 
 void LevelRenderer::renderStars()
@@ -150,6 +154,8 @@ void LevelRenderer::setLevel(std::shared_ptr<Level> level)
 
 	this->level = level;
 	this->tileRenderer = Util::make_unique<TileRenderer>(this->level.get(), false);
+	if (pistonRenderer != nullptr)
+		pistonRenderer->setLevel(this->level.get());
 	if (level != nullptr)
 	{
 		level->addListener(*this);
@@ -282,6 +288,14 @@ void LevelRenderer::renderEntities(Vec3 &cam, Culler &culler, float a)
 			float brightness = level->getBrightness(signEntity->x, signEntity->y, signEntity->z);
 			glColor3f(brightness, brightness, brightness);
 			SignRenderer::renderSign(*signEntity, signEntity->x - EntityRenderDispatcher::xOff, signEntity->y - EntityRenderDispatcher::yOff, signEntity->z - EntityRenderDispatcher::zOff, a, *mc.font, mc.textures);
+		}
+
+		auto pistonEntity = std::dynamic_pointer_cast<PistonTileEntity>(tileEntity);
+		if (pistonEntity && pistonRenderer != nullptr)
+		{
+			float brightness = level->getBrightness(pistonEntity->x, pistonEntity->y, pistonEntity->z);
+			glColor3f(brightness, brightness, brightness);
+			pistonRenderer->render(*pistonEntity, pistonEntity->x - EntityRenderDispatcher::xOff, pistonEntity->y - EntityRenderDispatcher::yOff, pistonEntity->z - EntityRenderDispatcher::zOff, a);
 		}
 	}
 	}

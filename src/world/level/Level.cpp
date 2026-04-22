@@ -14,6 +14,7 @@
 
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/FireTile.h"
+#include "world/level/Explosion.h"
 #include "util/Mth.h"
 
 int_t Level::maxLoop = 0;
@@ -741,6 +742,21 @@ void Level::scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t d
 
 	tickNextTickSet.insert(entry);
 	tickNextTickList.insert(entry);
+}
+
+Explosion Level::createExplosion(Entity *entity, double x, double y, double z, float size)
+{
+	Explosion explosion(*this, entity, x, y, z, size);
+	explosion.doExplosionA();
+	explosion.doExplosionB(true);
+	return explosion;
+}
+
+void Level::playNoteAt(int_t x, int_t y, int_t z, int_t type, int_t data)
+{
+	int_t tileId = getTile(x, y, z);
+	if (tileId > 0 && Tile::tiles[tileId] != nullptr)
+		Tile::tiles[tileId]->playBlock(*this, x, y, z, type, data);
 }
 
 bool Level::canSeeSky(int_t x, int_t y, int_t z)
@@ -2081,4 +2097,15 @@ void Level::broadcastEntityEvent(std::shared_ptr<Entity> entity, byte_t event)
 std::shared_ptr<ChunkSource> Level::getChunkSource()
 {
 	return chunkSource;
+}
+
+bool Level::isRaining()
+{
+	return false;
+}
+
+bool Level::canBlockBeRainedOn(int_t x, int_t y, int_t z)
+{
+	(void)x; (void)y; (void)z;
+	return false;
 }

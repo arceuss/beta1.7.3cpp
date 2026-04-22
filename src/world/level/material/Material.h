@@ -1,5 +1,7 @@
 #pragma once
 
+#include "java/Type.h"
+
 class DecorationMaterial;
 class GasMaterial;
 class LiquidMaterial;
@@ -22,6 +24,8 @@ public:
 	static Material builtSnow;
 	static Material tnt;
 	static Material web;
+	static Material fire;
+	static Material piston;
 
 	static Material &plants();
 	static Material &cactus();
@@ -33,6 +37,7 @@ public:
 private:
 	bool flammableFlag = false;
 	bool harvestableFlag = true;
+	int_t mobilityFlag = 0;
 
 public:
 	virtual ~Material() {}
@@ -43,11 +48,16 @@ public:
 	virtual bool blocksLight() const;
 	virtual bool blocksMotion() const;
 	virtual bool isHarvestable() const;
+	int_t getMobilityFlag() const;
 
 private:
 	Material &flammable();
 	Material &noHarvest();
+	Material &setNoPushMobility();
+	Material &setImmovableMobility();
 
 public:
 	virtual bool isFlammable() const;
+
+	friend class Tile;
 };

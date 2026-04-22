@@ -7,6 +7,7 @@
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/EntityMinecart.h"
 #include "world/entity/item/FallingTile.h"
+#include "world/entity/PrimedTNT.h"
 namespace EntityIO
 {
 

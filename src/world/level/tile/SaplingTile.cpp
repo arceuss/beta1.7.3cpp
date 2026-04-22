@@ -81,7 +81,9 @@ int_t SaplingTile::getTexture(Facing face, int_t data)
 
 int_t SaplingTile::getResource(int_t data, Random &random)
 {
-	return id + 256; // saplings drop themselves as items
+	(void)data;
+	(void)random;
+	return id;
 }
 
 int_t SaplingTile::getSpawnResourcesAuxValue(int_t data)

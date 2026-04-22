@@ -1,6 +1,7 @@
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/FurnaceTile.h"
 #include "world/level/tile/SlabTile.h"
+#include "world/level/tile/TNTTile.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -91,6 +92,9 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/DetectorRailTile.h"
 #include "world/level/tile/ChestTile.h"
 #include "world/level/tile/LockedChestTile.h"
+#include "world/level/tile/PistonBaseTile.h"
+#include "world/level/tile/PistonExtensionTile.h"
+#include "world/level/tile/PistonMovingTile.h"
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
 DirtTile Tile::dirt = DirtTile(3, 2);
@@ -170,9 +174,14 @@ SoulSandTile Tile::soulSand = SoulSandTile(88, 104, Material::sand);
 GlowStoneTile Tile::glowstone = GlowStoneTile(89, 105, Material::stone);
 PortalTile Tile::portal = PortalTile(90, 14);
 PumpkinTile Tile::jackOLantern = PumpkinTile(91, 102, true);
+TNTTile Tile::tnt = TNTTile(46, 8);
 RepeaterTile Tile::repeaterIdle = RepeaterTile(93, false);
 RepeaterTile Tile::repeaterActive = RepeaterTile(94, true);
 LockedChestTile Tile::lockedChest = LockedChestTile(95);
+PistonBaseTile Tile::pistonStickyBase = PistonBaseTile(29, 106, true);
+PistonBaseTile Tile::pistonBase = PistonBaseTile(33, 107, false);
+PistonExtensionTile Tile::pistonExtension = PistonExtensionTile(34, 107);
+PistonMovingTile Tile::pistonMoving = PistonMovingTile(36);
 
 // Phase 2 blocks
 DoorTile Tile::doorWood = DoorTile(64, 97, Material::wood, false);
@@ -263,8 +272,13 @@ void Tile::initTiles()
 	glowstone.setDestroyTime(0.3f).setSoundType(soundGlassFootstep).setLightEmission(15);
 	portal.setDestroyTime(-1.0f).setLightEmission(11).setSoundType(soundGlassFootstep);
 	jackOLantern.setDestroyTime(1.0f).setSoundType(soundWoodFootstep).setLightEmission(15);
+	tnt.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	repeaterIdle.setDestroyTime(0.0f).setSoundType(soundWoodFootstep);
 	repeaterActive.setDestroyTime(0.0f).setLightEmission(9).setSoundType(soundWoodFootstep);
+	pistonStickyBase.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
+	pistonBase.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
+	pistonExtension.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
+	pistonMoving.setDestroyTime(-1.0f);
 
 	// Phase 2 block configuration
 	doorWood.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
@@ -348,6 +362,7 @@ void Tile::initTiles()
 	torch.setDescriptionId(u"tile.torch");
 	fire.setDescriptionId(u"tile.fire");
 	jukebox.setDescriptionId(u"tile.jukebox");
+	tnt.setDescriptionId(u"tile.tnt");
 
 	// Phase 1 description IDs
 	sponge.setDescriptionId(u"tile.sponge");
@@ -379,6 +394,8 @@ void Tile::initTiles()
 	signWall.setDescriptionId(u"tile.sign");
 	repeaterIdle.setDescriptionId(u"tile.diode");
 	repeaterActive.setDescriptionId(u"tile.diode");
+	pistonBase.setDescriptionId(u"tile.pistonBase");
+	pistonStickyBase.setDescriptionId(u"tile.pistonStickyBase");
 	// Phase 3 description IDs
 	redstoneWire.setDescriptionId(u"tile.redstoneDust");
 	lever.setDescriptionId(u"tile.lever");
@@ -829,9 +846,8 @@ bool Tile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 	return true;
 }
 
-void Tile::playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data)
+void Tile::playerDestroy(Level &, int_t, int_t, int_t, int_t)
 {
-	spawnResources(level, x, y, z, data);
 }
 
 void Tile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
@@ -850,4 +866,13 @@ bool Tile::isDirectSignalTo(Level &, int_t, int_t, int_t, int_t)
 bool Tile::isIndirectSignalTo(Level &, int_t, int_t, int_t, int_t)
 {
 	return false;
+}
+
+void Tile::playBlock(Level &, int_t, int_t, int_t, int_t, int_t)
+{
+}
+
+int_t Tile::getMobilityFlag() const
+{
+	return material.getMobilityFlag();
 }
