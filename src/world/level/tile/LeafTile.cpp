@@ -4,6 +4,12 @@
 
 #include "world/level/FoliageColor.h"
 #include "world/level/tile/TreeTile.h"
+#include "world/level/tile/SaplingTile.h"
+#include "world/item/Item.h"
+#include "world/item/ItemInstance.h"
+#include "world/item/Items.h"
+#include "world/entity/player/Player.h"
+#include "world/entity/item/EntityItem.h"
 
 LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::wood, false)
 {
@@ -146,7 +152,9 @@ int_t LeafTile::getResourceCount(Random &random)
 
 int_t LeafTile::getResource(int_t data, Random &random)
 {
-	return 6 + 256; // Block.sapling = ID 6
+	(void)data;
+	(void)random;
+	return Tile::sapling.id;
 }
 int_t LeafTile::getSpawnResourcesAuxValue(int_t data)
 {
@@ -176,5 +184,14 @@ void LeafTile::stepOn(Level &level, int_t x, int_t y, int_t z, Entity &entity)
 
 void LeafTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
 {
-	Tile::harvestBlock(level, player, x, y, z, data);
+	ItemInstance *selected = player.getSelectedItem();
+	if (selected != nullptr && selected->itemID == Items::shears->getShiftedIndex())
+	{
+		auto item = std::make_shared<EntityItem>(level, x + 0.5, y + 0.5, z + 0.5, ItemInstance(id, 1, data & 3));
+		level.addEntity(item);
+	}
+	else
+	{
+		Tile::harvestBlock(level, player, x, y, z, data);
+	}
 }

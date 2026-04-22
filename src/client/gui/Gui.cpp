@@ -10,8 +10,11 @@
 
 #include "client/Minecraft.h"
 #include "world/level/Level.h"
+#include "world/level/tile/Tile.h"
+#include "world/level/tile/PistonBaseTile.h"
 #include "java/Runtime.h"
 #include "java/System.h"
+#include <cmath>
 
 #ifndef GL_RESCALE_NORMAL
 #define GL_RESCALE_NORMAL 32826
@@ -134,9 +137,53 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 		drawString(font, u"x: " + String::toString(minecraft.player->x), 2, 64, 0xE0E0E0);
 		drawString(font, u"y: " + String::toString(minecraft.player->y), 2, 72, 0xE0E0E0);
 		drawString(font, u"z: " + String::toString(minecraft.player->z), 2, 80, 0xE0E0E0);
-		// drawString(font, u"xRot: " + String::toString(minecraft.player->xRot), 2, 88, 0xE0E0E0);
-		// drawString(font, u"yRot: " + String::toString(minecraft.player->yRot), 2, 96, 0xE0E0E0);
-		// drawString(font, u"tilt: " + String::toString(minecraft.player->tilt), 2, 104, 0xE0E0E0);
+
+		// Targeted block info
+		if (minecraft.hitResult.type == HitResult::Type::TILE)
+		{
+			int_t bx = minecraft.hitResult.x;
+			int_t by = minecraft.hitResult.y;
+			int_t bz = minecraft.hitResult.z;
+			int_t tileId = minecraft.level->getTile(bx, by, bz);
+			int_t data = minecraft.level->getData(bx, by, bz);
+			static const jstring faceNames[] = { u"DOWN", u"UP", u"NORTH", u"SOUTH", u"WEST", u"EAST" };
+			jstring blockInfo = u"Block: " + String::toString(tileId) + u" data: " + String::toString(data);
+			if (tileId == Tile::pistonBase.id || tileId == Tile::pistonStickyBase.id || tileId == 34)
+			{
+				int_t facing = PistonBaseTile::getDirection(data);
+				blockInfo += u" facing: " + faceNames[facing];
+				if (PistonBaseTile::isPowered(data))
+					blockInfo += u" EXT";
+			}
+		drawString(font, blockInfo, 2, 92, 0xE0E0E0);
+			drawString(font, u"Hit face: " + faceNames[static_cast<int>(minecraft.hitResult.f)], 2, 102, 0xE0E0E0);
+		}
+
+		// Player look direction
+		{
+			static const jstring faceNames[] = { u"DOWN", u"UP", u"NORTH", u"SOUTH", u"WEST", u"EAST" };
+			float yaw = minecraft.player->yRot;
+			int_t lookDir;
+			if (minecraft.player->xRot > 45.0f)
+				lookDir = 0; // DOWN
+			else if (minecraft.player->xRot < -45.0f)
+				lookDir = 1; // UP
+			else
+			{
+				// Normalize yaw to 0..360
+				float y = fmodf(yaw, 360.0f);
+				if (y < 0.0f) y += 360.0f;
+				if (y < 45.0f || y >= 315.0f)
+					lookDir = 3; // SOUTH
+				else if (y < 135.0f)
+					lookDir = 4; // WEST
+				else if (y < 225.0f)
+					lookDir = 2; // NORTH
+				else
+					lookDir = 5; // EAST
+			}
+			drawString(font, u"Looking: " + faceNames[lookDir], 2, 112, 0xE0E0E0);
+		}
 	}
 
 	// b173-style chat overlay (always renders; adapts to open/closed state)

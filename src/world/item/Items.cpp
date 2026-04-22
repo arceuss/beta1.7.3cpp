@@ -18,6 +18,7 @@
 #include "world/item/ItemRedStone.h"
 #include "world/item/ItemRepeater.h"
 #include "world/item/ItemMinecart.h"
+#include "world/item/ItemShears.h"
 #include "world/level/tile/Tile.h"
 
 namespace Items
@@ -69,6 +70,8 @@ namespace Items
 	Item *sign = nullptr;
 	Item *redstoneRepeater = nullptr;
 	Item *snowball = nullptr;
+	Item *slimeball = nullptr;
+	Item *shears = nullptr;
 	Item *swordIron = nullptr;
 	Item *shovelIron = nullptr;
 	ItemPickaxe *pickaxeIron = nullptr;
@@ -278,6 +281,12 @@ namespace Items
 
 		snowball = new Item(76);
 		snowball->setIconIndex(14).setDescriptionId(u"item.snowball");
+
+		slimeball = new Item(85);
+		slimeball->setIconIndex(30).setDescriptionId(u"item.slimeball");
+
+		shears = new ItemShears(103);
+		shears->setIconIndex(93).setDescriptionId(u"item.shears");
 
 		sign = new ItemSign(67);
 		sign->setIconIndex(42).setDescriptionId(u"item.sign");

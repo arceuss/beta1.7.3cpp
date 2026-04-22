@@ -71,6 +71,8 @@ namespace Items
 	extern Item *sign;
 	extern Item *redstoneRepeater;
 	extern Item *snowball;
+	extern Item *slimeball;
+	extern Item *shears;
 	extern ItemArmor *helmetLeather;
 	extern ItemArmor *plateLeather;
 	extern ItemArmor *legsLeather;

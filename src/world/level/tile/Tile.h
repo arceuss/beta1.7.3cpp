@@ -73,11 +73,15 @@ class RepeaterTile;
 class LockedChestTile;
 class ChestTile;
 
+class TNTTile;
 class RailTile;
 class DetectorRailTile;
 class PortalTile;
 class TransparentTile;
 class LiquidTile;
+class PistonBaseTile;
+class PistonExtensionTile;
+class PistonMovingTile;
 class Tile //: public Descriptive<Tile>
 {
 private:
@@ -102,8 +106,9 @@ public:
 		SHAPE_LEVER,
 		SHAPE_CACTUS,
 		SHAPE_REPEATER = 15,
+		SHAPE_PISTON_BASE = 16,
+		SHAPE_PISTON_EXTENSION = 17,
 	};
-
 	// Tile properties
 	static std::array<Tile *, 256> tiles;
 
@@ -200,6 +205,7 @@ public:
 	static GlowStoneTile glowstone;
 	static PortalTile portal;
 	static PumpkinTile jackOLantern;
+	static TNTTile tnt;
 
 	// Phase 2 blocks
 	static DoorTile doorWood;
@@ -222,6 +228,10 @@ public:
 	static ButtonTile buttonStone;
 	static RepeaterTile repeaterIdle;
 	static RepeaterTile repeaterActive;
+	static PistonBaseTile pistonBase;
+	static PistonBaseTile pistonStickyBase;
+	static PistonExtensionTile pistonExtension;
+	static PistonMovingTile pistonMoving;
 	static void initTiles();
 
 public:
@@ -232,6 +242,9 @@ public:
 protected:
 	float destroySpeed = 0.0f;
 	float explosionResistance = 0.0f;
+
+public:
+	float getDestroyTime() const { return destroySpeed; }
 
 public:
 	StepSound *soundType = nullptr;
@@ -351,4 +364,8 @@ public:
 
 	virtual void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data);
 	virtual void playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data);
+	virtual void onBlockDestroyedByExplosion(Level &level, int_t x, int_t y, int_t z) {}
+	virtual float getExplosionResistance(Entity *entity) { (void)entity; return explosionResistance; }
+	virtual void playBlock(Level &level, int_t x, int_t y, int_t z, int_t type, int_t data);
+	virtual int_t getMobilityFlag() const;
 };

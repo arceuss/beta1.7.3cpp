@@ -10,6 +10,7 @@ class PlayerRenderer;
 class FallingTileRenderer;
 class MinecartRenderer;
 class ItemRenderer;
+class TNTPrimedRenderer;
 
 class EntityRenderDispatcher
 {
@@ -22,6 +23,7 @@ private:
 	static FallingTileRenderer &getFallingTileRenderer();
 	static ItemRenderer &getItemRenderer();
 	static MinecartRenderer &getMinecartRenderer();
+	static TNTPrimedRenderer &getTNTPrimedRenderer();
 	Font *font = nullptr;
 public:
 	static double xOff;

@@ -49,6 +49,12 @@
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "nbt/CompoundTag.h"
 #include "world/level/tile/entity/NoteTileEntity.h"
+#include "world/level/tile/PistonBaseTile.h"
+#include "world/level/tile/PistonExtensionTile.h"
+#include "world/level/tile/PistonMovingTile.h"
+#include "world/level/tile/LeafTile.h"
+#include "world/level/tile/WebTile.h"
+#include "world/level/tile/TNTTile.h"
 #include "java/Random.h"
 #include "java/File.h"
 #include "java/String.h"
@@ -1120,7 +1126,54 @@ int runBlockSmoke()
 		ok &= expect(clockFx.tileImage == 1, "clock texture fx should target the items atlas");
 		ok &= expect(clockFx.iconIndex == 70, "clock texture fx should target the clock icon slot");
 		ok &= expect(clockPixels, "clock texture fx should draw clock pixels");
-	
+
+		std::cerr << "block-smoke: pistons" << std::endl;
+		ok &= expect(Tile::pistonBase.id == 33, "normal piston base should use id 33");
+		ok &= expect(Tile::pistonStickyBase.id == 29, "sticky piston base should use id 29");
+		ok &= expect(Tile::pistonExtension.id == 34, "piston extension should use id 34");
+		ok &= expect(Tile::pistonMoving.id == 36, "piston moving should use id 36");
+		ok &= expect(Tile::pistonBase.tex == 107, "normal piston should use texture 107");
+		ok &= expect(Tile::pistonStickyBase.tex == 106, "sticky piston should use texture 106");
+		ok &= expect(Tile::pistonBase.getMobilityFlag() == 2, "piston base material should be immovable");
+		ok &= expect(Tile::pistonExtension.getMobilityFlag() == 2, "piston extension material should be immovable");
+		ok &= expect(Tile::leaves.getMobilityFlag() == 1, "leaves should be breakable when pushed");
+		ok &= expect(Tile::fire.getMobilityFlag() == 1, "fire should be breakable when pushed");
+		ok &= expect(Tile::cobweb.getMobilityFlag() == 1, "cobweb should be breakable when pushed");
+		ok &= expect(Tile::pistonBase.getRenderShape() == Tile::SHAPE_PISTON_BASE, "piston base should render as piston base shape");
+		ok &= expect(Tile::pistonExtension.getRenderShape() == Tile::SHAPE_PISTON_EXTENSION, "piston extension should render as piston extension shape");
+		ok &= expect(Tile::pistonMoving.getRenderShape() == Tile::SHAPE_INVISIBLE, "piston moving should be invisible");
+		GridCraftingContainer pistonRecipe{};
+		pistonRecipe.slots[0] = ItemInstance(Tile::wood.id, 1, -1);
+		pistonRecipe.slots[1] = ItemInstance(Tile::wood.id, 1, -1);
+		pistonRecipe.slots[2] = ItemInstance(Tile::wood.id, 1, -1);
+		pistonRecipe.slots[3] = ItemInstance(Tile::cobblestone.id, 1, -1);
+		pistonRecipe.slots[4] = ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0);
+		pistonRecipe.slots[5] = ItemInstance(Tile::cobblestone.id, 1, -1);
+		pistonRecipe.slots[6] = ItemInstance(Tile::cobblestone.id, 1, -1);
+		pistonRecipe.slots[7] = ItemInstance(Items::redstone->getShiftedIndex(), 1, 0);
+		pistonRecipe.slots[8] = ItemInstance(Tile::cobblestone.id, 1, -1);
+		ItemInstance pistonOut = Recipes::getInstance().getItemFor(pistonRecipe);
+		ok &= expect(pistonOut.itemID == Tile::pistonBase.id, "piston recipe should match b173");
+		GridCraftingContainer stickyPistonRecipe{};
+		stickyPistonRecipe.slots[0] = ItemInstance(Items::slimeball->getShiftedIndex(), 1, 0);
+		stickyPistonRecipe.slots[3] = ItemInstance(Tile::pistonBase.id, 1, 0);
+		ItemInstance stickyPistonOut = Recipes::getInstance().getItemFor(stickyPistonRecipe);
+		ok &= expect(stickyPistonOut.itemID == Tile::pistonStickyBase.id, "sticky piston recipe should match b173");
+
+		level.setTile(300, baseY, 0, 1);
+		ok &= expect(level.setTile(300, baseY + 1, 0, Tile::pistonBase.id), "piston base should place");
+		level.setData(300, baseY + 1, 0, 5);
+		ok &= expect(PistonBaseTile::getDirection(level.getData(300, baseY + 1, 0)) == 5, "piston data should store direction");
+		ok &= expect(!PistonBaseTile::isPowered(level.getData(300, baseY + 1, 0)), "unpowered piston should not have powered bit");
+		level.setTile(301, baseY + 1, 0, Tile::redstoneWire.id);
+		level.setData(301, baseY + 1, 0, 15);
+		Tile::pistonBase.neighborChanged(level, 300, baseY + 1, 0, Tile::redstoneWire.id);
+		ok &= expect(PistonBaseTile::isPowered(level.getData(300, baseY + 1, 0)), "piston should become powered from adjacent wire");
+
+		std::cerr << "block-smoke: TNT drop" << std::endl;
+		ok &= expect(Tile::tnt.getResourceCount(random) == 0, "TNT should not drop via getResourceCount");
+		ok &= expect(Tile::tnt.descriptionId == u"tile.tnt", "TNT should use the tnt localization key");
+
 		if (ok)
 		{
 			std::cout << "block-smoke: PASS" << std::endl;

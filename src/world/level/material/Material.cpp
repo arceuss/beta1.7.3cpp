@@ -19,22 +19,27 @@ Material Material::glass;
 Material Material::iron = Material().noHarvest();
 Material Material::builtSnow = Material().noHarvest();
 Material Material::tnt = Material().flammable();
-Material Material::web = Material().noHarvest();
+Material Material::web = Material().noHarvest().setNoPushMobility();
+Material Material::fire = Material().setNoPushMobility();
+Material Material::piston = Material().setImmovableMobility();
 Material &Material::plants()
 {
 	static DecorationMaterial material(false, false, false, true);
+	material.setNoPushMobility();
 	return material;
 }
 
 Material &Material::cactus()
 {
 	static DecorationMaterial material(false, false, true, false);
+	material.setNoPushMobility();
 	return material;
 }
 
 Material &Material::pumpkin()
 {
 	static DecorationMaterial material(true, true, true, false);
+	material.setNoPushMobility();
 	return material;
 }
 
@@ -42,6 +47,7 @@ Material &Material::snow()
 {
 	static DecorationMaterial material(false, false, false, true);
 	static bool initialized = (material.noHarvest(), true);
+	material.setNoPushMobility();
 	(void)initialized;
 	return material;
 }
@@ -55,6 +61,7 @@ Material &Material::ice()
 Material &Material::circuits()
 {
 	static DecorationMaterial material(false, false, false, true);
+	material.setNoPushMobility();
 	return material;
 }
 
@@ -97,6 +104,23 @@ Material &Material::flammable()
 Material &Material::noHarvest()
 {
 	harvestableFlag = false;
+	return *this;
+}
+
+int_t Material::getMobilityFlag() const
+{
+	return mobilityFlag;
+}
+
+Material &Material::setNoPushMobility()
+{
+	mobilityFlag = 1;
+	return *this;
+}
+
+Material &Material::setImmovableMobility()
+{
+	mobilityFlag = 2;
 	return *this;
 }
 

@@ -32,6 +32,8 @@
 
 #include "util/Memory.h"
 
+class Explosion;
+
 class Level : public LevelSource
 {
 private:
@@ -371,5 +373,10 @@ public:
 	bool isBlockIndirectlyGettingPowered(int_t x, int_t y, int_t z);
 	void notifyBlocksOfNeighborChange(int_t x, int_t y, int_t z, int_t tileId);
 	void scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t delay);
+	Explosion createExplosion(Entity *entity, double x, double y, double z, float size);
+	void playNoteAt(int_t x, int_t y, int_t z, int_t type, int_t data);
 	std::shared_ptr<ChunkSource> getChunkSource();
+
+	bool isRaining();
+	bool canBlockBeRainedOn(int_t x, int_t y, int_t z);
 };

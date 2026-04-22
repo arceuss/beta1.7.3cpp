@@ -11,6 +11,8 @@
 #include "world/level/material/LiquidMaterial.h"
 
 #include "util/Mth.h"
+#include "world/level/tile/PistonBaseTile.h"
+#include "world/level/tile/PistonExtensionTile.h"
 #include <cmath>
 
 namespace
@@ -84,14 +86,16 @@ namespace
 	}
 }
 
-TileRenderer::TileRenderer(LevelSource *levelSource, bool ambientOcclusion, bool fancyGrass) : level(levelSource), ambientOcclusion(ambientOcclusion), fancyGrass(fancyGrass)
-{
-
+TileRenderer::TileRenderer(LevelSource *levelSource, bool ambientOcclusion, bool fancyGrass)
+	: level(levelSource), ambientOcclusion(ambientOcclusion), fancyGrass(fancyGrass)
+	, northFlip(FLIP_NONE), southFlip(FLIP_NONE), eastFlip(FLIP_NONE), westFlip(FLIP_NONE), upFlip(FLIP_NONE), downFlip(FLIP_NONE)
+	{
 }
 
-TileRenderer::TileRenderer(bool ambientOcclusion, bool fancyGrass) : ambientOcclusion(ambientOcclusion), fancyGrass(fancyGrass)
-{
-
+TileRenderer::TileRenderer(bool ambientOcclusion, bool fancyGrass)
+	: ambientOcclusion(ambientOcclusion), fancyGrass(fancyGrass)
+	, northFlip(FLIP_NONE), southFlip(FLIP_NONE), eastFlip(FLIP_NONE), westFlip(FLIP_NONE), upFlip(FLIP_NONE), downFlip(FLIP_NONE)
+	{
 }
 
 void TileRenderer::tesselateInWorld(Tile &tile, int_t x, int_t y, int_t z, int_t fixedTexture)
@@ -139,7 +143,10 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateRepeaterInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_LEVER)
 		return tesselateLeverInWorld(tt, x, y, z);
-
+	if (shape == Tile::SHAPE_PISTON_BASE)
+		return tesselatePistonBaseInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_PISTON_EXTENSION)
+		return tesselatePistonExtensionInWorld(tt, x, y, z);
 	return false;
 }
 
@@ -928,107 +935,283 @@ bool TileRenderer::tesselateBlockInWorld(Tile &tt, int_t x, int_t y, int_t z, fl
 }
 
 void TileRenderer::renderFaceUp(Tile &tt, double x, double y, double z, int_t tex)
-{
-	Tesselator &t = Tesselator::instance;
-
-	if (fixedTexture >= 0) tex = fixedTexture;
-
-	int_t xt = (tex & 0xF) << 4;
-	int_t yt = tex & 0xF0;
-
-	double u0 = (xt + tt.xx0 * 16.0) / 256.0;
-	double u1 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
-	double v0 = (yt + tt.zz0 * 16.0) / 256.0;
-	double v1 = (yt + tt.zz1 * 16.0 - 0.01) / 256.0;
-
-	if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
 	{
-		u0 = ((xt + 0.0f) / 256.0f);
-		u1 = ((xt + 15.99f) / 256.0f);
-	}
+		Tesselator &t = Tesselator::instance;
 
-	if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
-	{
-		v0 = ((yt + 0.0f) / 256.0f);
-		v1 = ((yt + 15.99f) / 256.0f);
-	}
+		if (fixedTexture >= 0) tex = fixedTexture;
 
-	double x0 = x + tt.xx0;
-	double x1 = x + tt.xx1;
-	double y0 = y + tt.yy0;
-	double z0 = z + tt.zz0;
-	double z1 = z + tt.zz1;
+		int_t xt = (tex & 0xF) << 4;
+		int_t yt = tex & 0xF0;
 
-	if (enableAO)
-	{
-		t.color(colorR0, colorG0, colorB0);
-		t.vertexUV(x0, y0, z1, u0, v1);
-		t.color(colorR1, colorG1, colorB1);
-		t.vertexUV(x0, y0, z0, u0, v0);
-		t.color(colorR2, colorG2, colorB2);
-		t.vertexUV(x1, y0, z0, u1, v0);
-		t.color(colorR3, colorG3, colorB3);
-		t.vertexUV(x1, y0, z1, u1, v1);
-	}
-	else
-	{
-		t.vertexUV(x0, y0, z1, u0, v1);
-		t.vertexUV(x0, y0, z0, u0, v0);
-		t.vertexUV(x1, y0, z0, u1, v0);
-		t.vertexUV(x1, y0, z1, u1, v1);
-	}
+		double u00 = (xt + tt.xx0 * 16.0) / 256.0;
+		double u11 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
+		double v00 = (yt + tt.zz0 * 16.0) / 256.0;
+		double v11 = (yt + tt.zz1 * 16.0 - 0.01) / 256.0;
+
+		if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+		{
+			u00 = ((xt + 0.0f) / 256.0f);
+			u11 = ((xt + 15.99f) / 256.0f);
+		}
+
+		if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+		{
+			v00 = ((yt + 0.0f) / 256.0f);
+			v11 = ((yt + 15.99f) / 256.0f);
+		}
+
+		double u01 = u11, u10 = u00, v01 = v00, v10 = v11;
+
+		if (upFlip == FLIP_CW)
+		{
+			u00 = (xt + tt.zz0 * 16.0) / 256.0;
+			v00 = (yt + (1.0 - tt.xx1) * 16.0) / 256.0;
+			u11 = (xt + tt.zz1 * 16.0 - 0.01) / 256.0;
+			v11 = (yt + (1.0 - tt.xx0) * 16.0 - 0.01) / 256.0;
+
+			if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+			{
+				u00 = ((xt + 0.0f) / 256.0f);
+				u11 = ((xt + 15.99f) / 256.0f);
+			}
+
+			if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+			{
+				v00 = ((yt + 0.0f) / 256.0f);
+				v11 = ((yt + 15.99f) / 256.0f);
+			}
+
+			u01 = u11;
+			u10 = u00;
+			v01 = v00;
+			v10 = v11;
+			u01 = u00;
+			u10 = u11;
+			v00 = v11;
+			v11 = v01;
+		}
+
+		else if (upFlip == FLIP_CCW)
+		{
+			u00 = (xt + (1.0 - tt.zz1) * 16.0) / 256.0;
+			v00 = (yt + tt.xx0 * 16.0) / 256.0;
+			u11 = (xt + (1.0 - tt.zz0) * 16.0 - 0.01) / 256.0;
+			v11 = (yt + tt.xx1 * 16.0 - 0.01) / 256.0;
+
+			if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+			{
+				u00 = ((xt + 0.0f) / 256.0f);
+				u11 = ((xt + 15.99f) / 256.0f);
+			}
+
+			if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+			{
+				v00 = ((yt + 0.0f) / 256.0f);
+				v11 = ((yt + 15.99f) / 256.0f);
+			}
+
+			u01 = u11;
+			u10 = u00;
+			v01 = v00;
+			v10 = v11;
+			u00 = u01;
+			u11 = u10;
+			v01 = v11;
+			v10 = v00;
+		}
+
+		else if (upFlip == FLIP_180)
+		{
+			u00 = (xt + (1.0 - tt.xx0) * 16.0) / 256.0;
+			u11 = (xt + (1.0 - tt.xx1) * 16.0 - 0.01) / 256.0;
+			v00 = (yt + (1.0 - tt.zz0) * 16.0) / 256.0;
+			v11 = (yt + (1.0 - tt.zz1) * 16.0 - 0.01) / 256.0;
+
+			if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+			{
+				u00 = ((xt + 0.0f) / 256.0f);
+				u11 = ((xt + 15.99f) / 256.0f);
+			}
+
+			if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+			{
+				v00 = ((yt + 0.0f) / 256.0f);
+				v11 = ((yt + 15.99f) / 256.0f);
+			}
+
+			u01 = u11;
+			u10 = u00;
+			v01 = v00;
+			v10 = v11;
+		}
+
+
+		double x0 = x + tt.xx0;
+		double x1 = x + tt.xx1;
+		double y0 = y + tt.yy0;
+		double z0 = z + tt.zz0;
+		double z1 = z + tt.zz1;
+
+
+		if (enableAO)
+		{
+			t.color(colorR0, colorG0, colorB0);
+			t.vertexUV(x0, y0, z1, u10, v10);
+			t.color(colorR1, colorG1, colorB1);
+			t.vertexUV(x0, y0, z0, u00, v00);
+			t.color(colorR2, colorG2, colorB2);
+			t.vertexUV(x1, y0, z0, u01, v01);
+			t.color(colorR3, colorG3, colorB3);
+			t.vertexUV(x1, y0, z1, u11, v11);
+		}
+
+		else
+		{
+			t.vertexUV(x0, y0, z1, u10, v10);
+			t.vertexUV(x0, y0, z0, u00, v00);
+			t.vertexUV(x1, y0, z0, u01, v01);
+			t.vertexUV(x1, y0, z1, u11, v11);
+		}
 }
 
 void TileRenderer::renderFaceDown(Tile &tt, double x, double y, double z, int_t tex)
-{
-	Tesselator &t = Tesselator::instance;
-
-	if (fixedTexture >= 0) tex = fixedTexture;
-
-	int_t xt = (tex & 0xF) << 4;
-	int_t yt = tex & 0xF0;
-
-	double u0 = (xt + tt.xx0 * 16.0) / 256.0;
-	double u1 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
-	double v0 = (yt + tt.zz0 * 16.0) / 256.0;
-	double v1 = (yt + tt.zz1 * 16.0 - 0.01) / 256.0;
-
-	if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
 	{
-		u0 = ((xt + 0.0f) / 256.0f);
-		u1 = ((xt + 15.99f) / 256.0f);
-	}
+		Tesselator &t = Tesselator::instance;
 
-	if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
-	{
-		v0 = ((yt + 0.0f) / 256.0f);
-		v1 = ((yt + 15.99f) / 256.0f);
-	}
+		if (fixedTexture >= 0) tex = fixedTexture;
 
-	double x0 = x + tt.xx0;
-	double x1 = x + tt.xx1;
-	double y1 = y + tt.yy1;
-	double z0 = z + tt.zz0;
-	double z1 = z + tt.zz1;
+		int_t xt = (tex & 0xF) << 4;
+		int_t yt = tex & 0xF0;
 
-	if (enableAO)
-	{
-		t.color(colorR0, colorG0, colorB0);
-		t.vertexUV(x1, y1, z1, u1, v1);
-		t.color(colorR1, colorG1, colorB1);
-		t.vertexUV(x1, y1, z0, u1, v0);
-		t.color(colorR2, colorG2, colorB2);
-		t.vertexUV(x0, y1, z0, u0, v0);
-		t.color(colorR3, colorG3, colorB3);
-		t.vertexUV(x0, y1, z1, u0, v1);
-	}
-	else
-	{
-		t.vertexUV(x1, y1, z1, u1, v1);
-		t.vertexUV(x1, y1, z0, u1, v0);
-		t.vertexUV(x0, y1, z0, u0, v0);
-		t.vertexUV(x0, y1, z1, u0, v1);
-	}
+		double u00 = (xt + tt.xx0 * 16.0) / 256.0;
+		double u11 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
+		double v00 = (yt + tt.zz0 * 16.0) / 256.0;
+		double v11 = (yt + tt.zz1 * 16.0 - 0.01) / 256.0;
+
+		if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+		{
+			u00 = ((xt + 0.0f) / 256.0f);
+			u11 = ((xt + 15.99f) / 256.0f);
+		}
+
+		if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+		{
+			v00 = ((yt + 0.0f) / 256.0f);
+			v11 = ((yt + 15.99f) / 256.0f);
+		}
+
+		double u01 = u11, u10 = u00, v01 = v00, v10 = v11;
+
+		if (downFlip == FLIP_CW)
+		{
+			u00 = (xt + (1.0 - tt.zz1) * 16.0) / 256.0;
+			v00 = (yt + tt.xx0 * 16.0) / 256.0;
+			u11 = (xt + (1.0 - tt.zz0) * 16.0 - 0.01) / 256.0;
+			v11 = (yt + tt.xx1 * 16.0 - 0.01) / 256.0;
+
+			if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+			{
+				u00 = ((xt + 0.0f) / 256.0f);
+				u11 = ((xt + 15.99f) / 256.0f);
+			}
+
+			if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+			{
+				v00 = ((yt + 0.0f) / 256.0f);
+				v11 = ((yt + 15.99f) / 256.0f);
+			}
+
+			u01 = u11;
+			u10 = u00;
+			v01 = v00;
+			v10 = v11;
+			u00 = u01;
+			u11 = u10;
+			v01 = v11;
+			v10 = v00;
+		}
+
+		else if (downFlip == FLIP_CCW)
+		{
+			u00 = (xt + tt.zz0 * 16.0) / 256.0;
+			v00 = (yt + (1.0 - tt.xx1) * 16.0) / 256.0;
+			u11 = (xt + tt.zz1 * 16.0 - 0.01) / 256.0;
+			v11 = (yt + (1.0 - tt.xx0) * 16.0 - 0.01) / 256.0;
+
+			if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+			{
+				u00 = ((xt + 0.0f) / 256.0f);
+				u11 = ((xt + 15.99f) / 256.0f);
+			}
+
+			if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+			{
+				v00 = ((yt + 0.0f) / 256.0f);
+				v11 = ((yt + 15.99f) / 256.0f);
+			}
+
+			u01 = u11;
+			u10 = u00;
+			v01 = v00;
+			v10 = v11;
+			u01 = u00;
+			u10 = u11;
+			v00 = v11;
+			v11 = v01;
+		}
+
+		else if (downFlip == FLIP_180)
+		{
+			u00 = (xt + (1.0 - tt.xx0) * 16.0) / 256.0;
+			u11 = (xt + (1.0 - tt.xx1) * 16.0 - 0.01) / 256.0;
+			v00 = (yt + (1.0 - tt.zz0) * 16.0) / 256.0;
+			v11 = (yt + (1.0 - tt.zz1) * 16.0 - 0.01) / 256.0;
+
+			if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
+			{
+				u00 = ((xt + 0.0f) / 256.0f);
+				u11 = ((xt + 15.99f) / 256.0f);
+			}
+
+			if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
+			{
+				v00 = ((yt + 0.0f) / 256.0f);
+				v11 = ((yt + 15.99f) / 256.0f);
+			}
+
+			u01 = u11;
+			u10 = u00;
+			v01 = v00;
+			v10 = v11;
+		}
+
+
+		double x0 = x + tt.xx0;
+		double x1 = x + tt.xx1;
+		double y1 = y + tt.yy1;
+		double z0 = z + tt.zz0;
+		double z1 = z + tt.zz1;
+
+
+		if (enableAO)
+		{
+			t.color(colorR0, colorG0, colorB0);
+			t.vertexUV(x1, y1, z1, u11, v11);
+			t.color(colorR1, colorG1, colorB1);
+			t.vertexUV(x1, y1, z0, u01, v01);
+			t.color(colorR2, colorG2, colorB2);
+			t.vertexUV(x0, y1, z0, u00, v00);
+			t.color(colorR3, colorG3, colorB3);
+			t.vertexUV(x0, y1, z1, u10, v10);
+		}
+
+		else
+		{
+			t.vertexUV(x1, y1, z1, u11, v11);
+			t.vertexUV(x1, y1, z0, u01, v01);
+			t.vertexUV(x0, y1, z0, u00, v00);
+			t.vertexUV(x0, y1, z1, u10, v10);
+		}
 }
 
 void TileRenderer::renderNorth(Tile &tt, double x, double y, double z, int_t tex)
@@ -1039,26 +1222,67 @@ void TileRenderer::renderNorth(Tile &tt, double x, double y, double z, int_t tex
 	int_t xt = (tex & 0xF) << 4;
 	int_t yt = tex & 0xF0;
 
-	double u0 = (xt + tt.xx0 * 16.0) / 256.0;
-	double u1 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
-	double v0 = (yt + tt.yy0 * 16.0) / 256.0;
-	double v1 = (yt + tt.yy1 * 16.0 - 0.01) / 256.0;
+	double u00 = (xt + tt.xx0 * 16.0) / 256.0;
+	double u11 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
+	double v00 = (yt + (1.0 - tt.yy1) * 16.0) / 256.0;
+	double v11 = (yt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
 	if (xFlipTexture)
 	{
-		double tmp = u0;
-		u0 = u1;
-		u1 = tmp;
+		double tmp = u00;
+		u00 = u11;
+		u11 = tmp;
 	}
 
 	if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
 	{
-		u0 = ((xt + 0.0f) / 256.0f);
-		u1 = ((xt + 15.99f) / 256.0f);
+		u00 = ((xt + 0.0f) / 256.0f);
+		u11 = ((xt + 15.99f) / 256.0f);
 	}
 	if (tt.yy0 < 0.0 || tt.yy1 > 1.0)
 	{
-		v0 = ((yt + 0.0f) / 256.0f);
-		v1 = ((yt + 15.99f) / 256.0f);
+		v00 = ((yt + 0.0f) / 256.0f);
+		v11 = ((yt + 15.99f) / 256.0f);
+	}
+
+	double u01 = u11, u10 = u00, v01 = v00, v10 = v11;
+
+	if (northFlip == FLIP_CCW)
+	{
+		u00 = (xt + tt.yy0 * 16.0) / 256.0;
+		v00 = (yt + (1.0 - tt.xx0) * 16.0) / 256.0;
+		u11 = (xt + tt.yy1 * 16.0 - 0.01) / 256.0;
+		v11 = (yt + (1.0 - tt.xx1) * 16.0 - 0.01) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u01 = u00;
+		u10 = u11;
+		v00 = v11;
+		v11 = v01;
+	}
+	else if (northFlip == FLIP_CW)
+	{
+		u00 = (xt + (1.0 - tt.yy1) * 16.0) / 256.0;
+		v00 = (yt + tt.xx1 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.xx0 * 16.0 - 0.01) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u00 = u01;
+		u11 = u10;
+		v01 = v11;
+		v10 = v00;
+	}
+	else if (northFlip == FLIP_180)
+	{
+		u00 = (xt + (1.0 - tt.xx0) * 16.0) / 256.0;
+		v00 = (yt + tt.yy1 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.xx1) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.yy0 * 16.0 - 0.01) / 256.0;
+		u01 = u11; u10 = u00; v01 = v00; v10 = v11;
 	}
 
 	double x0 = x + tt.xx0;
@@ -1070,20 +1294,20 @@ void TileRenderer::renderNorth(Tile &tt, double x, double y, double z, int_t tex
 	if (enableAO)
 	{
 		t.color(colorR0, colorG0, colorB0);
-		t.vertexUV(x0, y1, z0, u1, v0);
+		t.vertexUV(x0, y1, z0, u01, v01);
 		t.color(colorR1, colorG1, colorB1);
-		t.vertexUV(x1, y1, z0, u0, v0);
+		t.vertexUV(x1, y1, z0, u00, v00);
 		t.color(colorR2, colorG2, colorB2);
-		t.vertexUV(x1, y0, z0, u0, v1);
+		t.vertexUV(x1, y0, z0, u10, v10);
 		t.color(colorR3, colorG3, colorB3);
-		t.vertexUV(x0, y0, z0, u1, v1);
+		t.vertexUV(x0, y0, z0, u11, v11);
 	}
 	else
 	{
-		t.vertexUV(x0, y1, z0, u1, v0);
-		t.vertexUV(x1, y1, z0, u0, v0);
-		t.vertexUV(x1, y0, z0, u0, v1);
-		t.vertexUV(x0, y0, z0, u1, v1);
+		t.vertexUV(x0, y1, z0, u01, v01);
+		t.vertexUV(x1, y1, z0, u00, v00);
+		t.vertexUV(x1, y0, z0, u10, v10);
+		t.vertexUV(x0, y0, z0, u11, v11);
 	}
 }
 
@@ -1095,26 +1319,67 @@ void TileRenderer::renderSouth(Tile &tt, double x, double y, double z, int_t tex
 	int_t xt = (tex & 0xF) << 4;
 	int_t yt = tex & 0xF0;
 
-	double u0 = (xt + tt.xx0 * 16.0) / 256.0;
-	double u1 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
-	double v0 = (yt + tt.yy0 * 16.0) / 256.0;
-	double v1 = (yt + tt.yy1 * 16.0 - 0.01) / 256.0;
+	double u00 = (xt + tt.xx0 * 16.0) / 256.0;
+	double u11 = (xt + tt.xx1 * 16.0 - 0.01) / 256.0;
+	double v00 = (yt + (1.0 - tt.yy1) * 16.0) / 256.0;
+	double v11 = (yt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
 	if (xFlipTexture)
 	{
-		double tmp = u0;
-		u0 = u1;
-		u1 = tmp;
+		double tmp = u00;
+		u00 = u11;
+		u11 = tmp;
 	}
 
 	if (tt.xx0 < 0.0 || tt.xx1 > 1.0)
 	{
-		u0 = ((xt + 0.0f) / 256.0f);
-		u1 = ((xt + 15.99f) / 256.0f);
+		u00 = ((xt + 0.0f) / 256.0f);
+		u11 = ((xt + 15.99f) / 256.0f);
 	}
 	if (tt.yy0 < 0.0 || tt.yy1 > 1.0)
 	{
-		v0 = ((yt + 0.0f) / 256.0f);
-		v1 = ((yt + 15.99f) / 256.0f);
+		v00 = ((yt + 0.0f) / 256.0f);
+		v11 = ((yt + 15.99f) / 256.0f);
+	}
+
+	double u01 = u11, u10 = u00, v01 = v00, v10 = v11;
+
+	if (southFlip == FLIP_CCW)
+	{
+		u00 = (xt + (1.0 - tt.yy1) * 16.0) / 256.0;
+		v00 = (yt + tt.xx0 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.xx1 * 16.0 - 0.01) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u00 = u01;
+		u11 = u10;
+		v01 = v11;
+		v10 = v00;
+	}
+	else if (southFlip == FLIP_CW)
+	{
+		u00 = (xt + tt.yy0 * 16.0) / 256.0;
+		v11 = (yt + (1.0 - tt.xx0) * 16.0 - 0.01) / 256.0;
+		u11 = (xt + tt.yy1 * 16.0 - 0.01) / 256.0;
+		v00 = (yt + (1.0 - tt.xx1) * 16.0) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u01 = u00;
+		u10 = u11;
+		v00 = v11;
+		v11 = v01;
+	}
+	else if (southFlip == FLIP_180)
+	{
+		u00 = (xt + (1.0 - tt.xx0) * 16.0) / 256.0;
+		v00 = (yt + tt.yy1 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.xx1) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.yy0 * 16.0 - 0.01) / 256.0;
+		u01 = u11; u10 = u00; v01 = v00; v10 = v11;
 	}
 
 	double x0 = x + tt.xx0;
@@ -1126,20 +1391,20 @@ void TileRenderer::renderSouth(Tile &tt, double x, double y, double z, int_t tex
 	if (enableAO)
 	{
 		t.color(colorR0, colorG0, colorB0);
-		t.vertexUV(x0, y1, z1, u0, v0);
+		t.vertexUV(x0, y1, z1, u00, v00);
 		t.color(colorR1, colorG1, colorB1);
-		t.vertexUV(x0, y0, z1, u0, v1);
+		t.vertexUV(x0, y0, z1, u10, v10);
 		t.color(colorR2, colorG2, colorB2);
-		t.vertexUV(x1, y0, z1, u1, v1);
+		t.vertexUV(x1, y0, z1, u11, v11);
 		t.color(colorR3, colorG3, colorB3);
-		t.vertexUV(x1, y1, z1, u1, v0);
+		t.vertexUV(x1, y1, z1, u01, v01);
 	}
 	else
 	{
-		t.vertexUV(x0, y1, z1, u0, v0);
-		t.vertexUV(x0, y0, z1, u0, v1);
-		t.vertexUV(x1, y0, z1, u1, v1);
-		t.vertexUV(x1, y1, z1, u1, v0);
+		t.vertexUV(x0, y1, z1, u00, v00);
+		t.vertexUV(x0, y0, z1, u10, v10);
+		t.vertexUV(x1, y0, z1, u11, v11);
+		t.vertexUV(x1, y1, z1, u01, v01);
 	}
 }
 
@@ -1151,26 +1416,67 @@ void TileRenderer::renderWest(Tile &tt, double x, double y, double z, int_t tex)
 	int_t xt = (tex & 0xF) << 4;
 	int_t yt = tex & 0xF0;
 
-	double u0 = (xt + tt.zz0 * 16.0) / 256.0;
-	double u1 = (xt + tt.zz1 * 16.0 - 0.01) / 256.0;
-	double v0 = (yt + tt.yy0 * 16.0) / 256.0;
-	double v1 = (yt + tt.yy1 * 16.0 - 0.01) / 256.0;
+	double u00 = (xt + tt.zz0 * 16.0) / 256.0;
+	double u11 = (xt + tt.zz1 * 16.0 - 0.01) / 256.0;
+	double v00 = (yt + (1.0 - tt.yy1) * 16.0) / 256.0;
+	double v11 = (yt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
 	if (xFlipTexture)
 	{
-		double tmp = u0;
-		u0 = u1;
-		u1 = tmp;
+		double tmp = u00;
+		u00 = u11;
+		u11 = tmp;
 	}
 
 	if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
 	{
-		u0 = ((xt + 0.0f) / 256.0f);
-		u1 = ((xt + 15.99f) / 256.0f);
+		u00 = ((xt + 0.0f) / 256.0f);
+		u11 = ((xt + 15.99f) / 256.0f);
 	}
 	if (tt.yy0 < 0.0 || tt.yy1 > 1.0)
 	{
-		v0 = ((yt + 0.0f) / 256.0f);
-		v1 = ((yt + 15.99f) / 256.0f);
+		v00 = ((yt + 0.0f) / 256.0f);
+		v11 = ((yt + 15.99f) / 256.0f);
+	}
+
+	double u01 = u11, u10 = u00, v01 = v00, v10 = v11;
+
+	if (westFlip == FLIP_CCW)
+	{
+		u00 = (xt + (1.0 - tt.yy1) * 16.0) / 256.0;
+		v00 = (yt + tt.zz0 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.zz1 * 16.0 - 0.01) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u00 = u01;
+		u11 = u10;
+		v01 = v11;
+		v10 = v00;
+	}
+	else if (westFlip == FLIP_CW)
+	{
+		u00 = (xt + tt.yy0 * 16.0) / 256.0;
+		v00 = (yt + (1.0 - tt.zz1) * 16.0) / 256.0;
+		u11 = (xt + tt.yy1 * 16.0 - 0.01) / 256.0;
+		v11 = (yt + (1.0 - tt.zz0) * 16.0 - 0.01) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u01 = u00;
+		u10 = u11;
+		v00 = v11;
+		v11 = v01;
+	}
+	else if (westFlip == FLIP_180)
+	{
+		u00 = (xt + (1.0 - tt.zz0) * 16.0) / 256.0;
+		v00 = (yt + tt.yy1 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.zz1) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.yy0 * 16.0 - 0.01) / 256.0;
+		u01 = u11; u10 = u00; v01 = v00; v10 = v11;
 	}
 
 	double x0 = x + tt.xx0;
@@ -1182,20 +1488,20 @@ void TileRenderer::renderWest(Tile &tt, double x, double y, double z, int_t tex)
 	if (enableAO)
 	{
 		t.color(colorR0, colorG0, colorB0);
-		t.vertexUV(x0, y1, z1, u1, v0);
+		t.vertexUV(x0, y1, z1, u01, v01);
 		t.color(colorR1, colorG1, colorB1);
-		t.vertexUV(x0, y1, z0, u0, v0);
+		t.vertexUV(x0, y1, z0, u00, v00);
 		t.color(colorR2, colorG2, colorB2);
-		t.vertexUV(x0, y0, z0, u0, v1);
+		t.vertexUV(x0, y0, z0, u10, v10);
 		t.color(colorR3, colorG3, colorB3);
-		t.vertexUV(x0, y0, z1, u1, v1);
+		t.vertexUV(x0, y0, z1, u11, v11);
 	}
 	else
 	{
-		t.vertexUV(x0, y1, z1, u1, v0);
-		t.vertexUV(x0, y1, z0, u0, v0);
-		t.vertexUV(x0, y0, z0, u0, v1);
-		t.vertexUV(x0, y0, z1, u1, v1);
+		t.vertexUV(x0, y1, z1, u01, v01);
+		t.vertexUV(x0, y1, z0, u00, v00);
+		t.vertexUV(x0, y0, z0, u10, v10);
+		t.vertexUV(x0, y0, z1, u11, v11);
 	}
 }
 
@@ -1207,26 +1513,67 @@ void TileRenderer::renderEast(Tile &tt, double x, double y, double z, int_t tex)
 	int_t xt = (tex & 0xF) << 4;
 	int_t yt = tex & 0xF0;
 
-	double u0 = (xt + tt.zz0 * 16.0) / 256.0;
-	double u1 = (xt + tt.zz1 * 16.0 - 0.01) / 256.0;
-	double v0 = (yt + tt.yy0 * 16.0) / 256.0;
-	double v1 = (yt + tt.yy1 * 16.0 - 0.01) / 256.0;
+	double u00 = (xt + tt.zz0 * 16.0) / 256.0;
+	double u11 = (xt + tt.zz1 * 16.0 - 0.01) / 256.0;
+	double v00 = (yt + (1.0 - tt.yy1) * 16.0) / 256.0;
+	double v11 = (yt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
 	if (xFlipTexture)
 	{
-		double tmp = u0;
-		u0 = u1;
-		u1 = tmp;
+		double tmp = u00;
+		u00 = u11;
+		u11 = tmp;
 	}
 
 	if (tt.zz0 < 0.0 || tt.zz1 > 1.0)
 	{
-		u0 = ((xt + 0.0f) / 256.0f);
-		u1 = ((xt + 15.99f) / 256.0f);
+		u00 = ((xt + 0.0f) / 256.0f);
+		u11 = ((xt + 15.99f) / 256.0f);
 	}
 	if (tt.yy0 < 0.0 || tt.yy1 > 1.0)
 	{
-		v0 = ((yt + 0.0f) / 256.0f);
-		v1 = ((yt + 15.99f) / 256.0f);
+		v00 = ((yt + 0.0f) / 256.0f);
+		v11 = ((yt + 15.99f) / 256.0f);
+	}
+
+	double u01 = u11, u10 = u00, v01 = v00, v10 = v11;
+
+	if (eastFlip == FLIP_CCW)
+	{
+		u00 = (xt + tt.yy0 * 16.0) / 256.0;
+		v00 = (yt + (1.0 - tt.zz0) * 16.0) / 256.0;
+		u11 = (xt + tt.yy1 * 16.0 - 0.01) / 256.0;
+		v11 = (yt + (1.0 - tt.zz1) * 16.0 - 0.01) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u01 = u00;
+		u10 = u11;
+		v00 = v11;
+		v11 = v01;
+	}
+	else if (eastFlip == FLIP_CW)
+	{
+		u00 = (xt + (1.0 - tt.yy1) * 16.0) / 256.0;
+		v00 = (yt + tt.zz1 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.yy0) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.zz0 * 16.0 - 0.01) / 256.0;
+		u01 = u11;
+		u10 = u00;
+		v01 = v00;
+		v10 = v11;
+		u00 = u01;
+		u11 = u10;
+		v01 = v11;
+		v10 = v00;
+	}
+	else if (eastFlip == FLIP_180)
+	{
+		u00 = (xt + (1.0 - tt.zz0) * 16.0) / 256.0;
+		v00 = (yt + tt.yy1 * 16.0) / 256.0;
+		u11 = (xt + (1.0 - tt.zz1) * 16.0 - 0.01) / 256.0;
+		v11 = (yt + tt.yy0 * 16.0 - 0.01) / 256.0;
+		u01 = u11; u10 = u00; v01 = v00; v10 = v11;
 	}
 
 	double x1 = x + tt.xx1;
@@ -1238,20 +1585,20 @@ void TileRenderer::renderEast(Tile &tt, double x, double y, double z, int_t tex)
 	if (enableAO)
 	{
 		t.color(colorR0, colorG0, colorB0);
-		t.vertexUV(x1, y0, z1, u0, v1);
+		t.vertexUV(x1, y0, z1, u10, v10);
 		t.color(colorR1, colorG1, colorB1);
-		t.vertexUV(x1, y0, z0, u1, v1);
+		t.vertexUV(x1, y0, z0, u11, v11);
 		t.color(colorR2, colorG2, colorB2);
-		t.vertexUV(x1, y1, z0, u1, v0);
+		t.vertexUV(x1, y1, z0, u01, v01);
 		t.color(colorR3, colorG3, colorB3);
-		t.vertexUV(x1, y1, z1, u0, v0);
+		t.vertexUV(x1, y1, z1, u00, v00);
 	}
 	else
 	{
-		t.vertexUV(x1, y0, z1, u0, v1);
-		t.vertexUV(x1, y0, z0, u1, v1);
-		t.vertexUV(x1, y1, z0, u1, v0);
-		t.vertexUV(x1, y1, z1, u0, v0);
+		t.vertexUV(x1, y0, z1, u10, v10);
+		t.vertexUV(x1, y0, z0, u11, v11);
+		t.vertexUV(x1, y1, z0, u01, v01);
+		t.vertexUV(x1, y1, z1, u00, v00);
 	}
 }
 
@@ -1523,6 +1870,65 @@ void TileRenderer::renderTile(Tile &tile, int_t data)
 			tile.updateDefaultShape();
 			glTranslatef(0.5f, 0.5f, 0.5f);
 		}
+		else if (shape == Tile::SHAPE_PISTON_BASE)
+		{
+			int_t pistonData = (tile.id == Tile::pistonBase.id || tile.id == Tile::pistonStickyBase.id) ? 1 : data;
+			glTranslatef(-0.5f, -0.5f, -0.5f);
+			t.begin();
+			t.normal(0.0f, -1.0f, 0.0f);
+			renderFaceUp(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::DOWN, pistonData));
+			t.end();
+			t.begin();
+			t.normal(0.0f, 1.0f, 0.0f);
+			renderFaceDown(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::UP, pistonData));
+			t.end();
+			t.begin();
+			t.normal(0.0f, 0.0f, -1.0f);
+			renderNorth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::NORTH, pistonData));
+			t.end();
+			t.begin();
+			t.normal(0.0f, 0.0f, 1.0f);
+			renderSouth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::SOUTH, pistonData));
+			t.end();
+			t.begin();
+			t.normal(-1.0f, 0.0f, 0.0f);
+			renderWest(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::WEST, pistonData));
+			t.end();
+			t.begin();
+			t.normal(1.0f, 0.0f, 0.0f);
+			renderEast(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::EAST, pistonData));
+			t.end();
+			glTranslatef(0.5f, 0.5f, 0.5f);
+		}
+		else if (shape == Tile::SHAPE_PISTON_EXTENSION)
+		{
+			glTranslatef(-0.5f, -0.5f, -0.5f);
+			t.begin();
+			t.normal(0.0f, -1.0f, 0.0f);
+			renderFaceUp(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::DOWN, data));
+			t.end();
+			t.begin();
+			t.normal(0.0f, 1.0f, 0.0f);
+			renderFaceDown(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::UP, data));
+			t.end();
+			t.begin();
+			t.normal(0.0f, 0.0f, -1.0f);
+			renderNorth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::NORTH, data));
+			t.end();
+			t.begin();
+			t.normal(0.0f, 0.0f, 1.0f);
+			renderSouth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::SOUTH, data));
+			t.end();
+			t.begin();
+			t.normal(-1.0f, 0.0f, 0.0f);
+			renderWest(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::WEST, data));
+			t.end();
+			t.begin();
+			t.normal(1.0f, 0.0f, 0.0f);
+			renderEast(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::EAST, data));
+			t.end();
+			glTranslatef(0.5f, 0.5f, 0.5f);
+		}
 	}
 
 void TileRenderer::renderGuiTile(Tile &tile, int_t data)
@@ -1534,7 +1940,7 @@ void TileRenderer::renderGuiTile(Tile &tile, int_t data)
 
 bool TileRenderer::canRender(int_t renderShape)
 	{
-		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS || renderShape == Tile::SHAPE_STAIRS;
+		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS || renderShape == Tile::SHAPE_STAIRS || renderShape == Tile::SHAPE_PISTON_BASE || renderShape == Tile::SHAPE_PISTON_EXTENSION;
 	}
 
 
@@ -2291,4 +2697,253 @@ bool TileRenderer::tesselateLeverInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	}
 
 	return true;
+}
+bool TileRenderer::tesselatePistonBaseInWorld(Tile &tt, int_t x, int_t y, int_t z, bool forceExtended, int_t forceData)
+{
+	int_t data = (forceData == -1) ? level->getData(x, y, z) : forceData;
+	bool extended = forceExtended || PistonBaseTile::isPowered(data);
+	int_t facing = PistonBaseTile::getDirection(data);
+
+	const float thickness = 4.0f / 16.0f;
+
+	float oldX0 = static_cast<float>(tt.xx0), oldY0 = static_cast<float>(tt.yy0), oldZ0 = static_cast<float>(tt.zz0);
+	float oldX1 = static_cast<float>(tt.xx1), oldY1 = static_cast<float>(tt.yy1), oldZ1 = static_cast<float>(tt.zz1);
+
+	if (extended)
+	{
+		switch (facing)
+		{
+			case 0:
+				northFlip = FLIP_180; southFlip = FLIP_180;
+				eastFlip = FLIP_180; westFlip = FLIP_180;
+				tt.setShape(0.0f, thickness, 0.0f, 1.0f, 1.0f, 1.0f);
+				break;
+			case 1:
+				tt.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f - thickness, 1.0f);
+				break;
+			case 2:
+				eastFlip = FLIP_CW; westFlip = FLIP_CCW;
+				tt.setShape(0.0f, 0.0f, thickness, 1.0f, 1.0f, 1.0f);
+				break;
+			case 3:
+				eastFlip = FLIP_CCW; westFlip = FLIP_CW;
+				upFlip = FLIP_180; downFlip = FLIP_180;
+				tt.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f - thickness);
+				break;
+		case 4:
+			northFlip = FLIP_CW; southFlip = FLIP_CCW;
+			upFlip = FLIP_CCW; downFlip = FLIP_CW;
+				tt.setShape(thickness, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+				break;
+		case 5:
+			northFlip = FLIP_CCW; southFlip = FLIP_CW;
+			upFlip = FLIP_CW; downFlip = FLIP_CCW;
+				tt.setShape(0.0f, 0.0f, 0.0f, 1.0f - thickness, 1.0f, 1.0f);
+				break;
+		}
+		tesselateBlockInWorld(tt, x, y, z);
+		northFlip = FLIP_NONE; southFlip = FLIP_NONE;
+		eastFlip = FLIP_NONE; westFlip = FLIP_NONE;
+		upFlip = FLIP_NONE; downFlip = FLIP_NONE;
+	}
+	else
+	{
+		switch (facing)
+		{
+			case 0:
+				northFlip = FLIP_180; southFlip = FLIP_180;
+				eastFlip = FLIP_180; westFlip = FLIP_180;
+				break;
+			case 1:
+				break;
+			case 2:
+				eastFlip = FLIP_CW; westFlip = FLIP_CCW;
+				break;
+			case 3:
+				eastFlip = FLIP_CCW; westFlip = FLIP_CW;
+				upFlip = FLIP_180; downFlip = FLIP_180;
+				break;
+			case 4:
+				northFlip = FLIP_CW; southFlip = FLIP_CCW;
+				upFlip = FLIP_CCW; downFlip = FLIP_CW;
+				break;
+			case 5:
+				northFlip = FLIP_CCW; southFlip = FLIP_CW;
+				upFlip = FLIP_CW; downFlip = FLIP_CCW;
+				break;
+		}
+		tesselateBlockInWorld(tt, x, y, z);
+		northFlip = FLIP_NONE; southFlip = FLIP_NONE;
+		eastFlip = FLIP_NONE; westFlip = FLIP_NONE;
+		upFlip = FLIP_NONE; downFlip = FLIP_NONE;
+	}
+
+	tt.setShape(oldX0, oldY0, oldZ0, oldX1, oldY1, oldZ1);
+	return true;
+}
+
+void TileRenderer::tesselatePistonBaseForceExtended(Tile &tile, int_t x, int_t y, int_t z, int_t forceData)
+{
+	tesselatePistonBaseInWorld(tile, x, y, z, true, forceData);
+}
+
+bool TileRenderer::tesselatePistonExtensionInWorld(Tile &tt, int_t x, int_t y, int_t z, bool fullArm, int_t forceData)
+{
+	int_t data = (forceData == -1) ? level->getData(x, y, z) : forceData;
+	int_t facing = PistonExtensionTile::getDirection(data);
+
+	const float thickness = 4.0f / 16.0f;
+	const float leftEdge = 6.0f / 16.0f;
+	const float rightEdge = 10.0f / 16.0f;
+	float br = tt.getBrightness(*level, x, y, z);
+	float armLength = fullArm ? 1.0f : 0.5f;
+	float armLengthPixels = fullArm ? 16.0f : 8.0f;
+
+	float oldX0 = static_cast<float>(tt.xx0), oldY0 = static_cast<float>(tt.yy0), oldZ0 = static_cast<float>(tt.zz0);
+	float oldX1 = static_cast<float>(tt.xx1), oldY1 = static_cast<float>(tt.yy1), oldZ1 = static_cast<float>(tt.zz1);
+
+	switch (facing)
+	{
+		case 0:
+			northFlip = FLIP_180; southFlip = FLIP_180;
+			eastFlip = FLIP_180; westFlip = FLIP_180;
+			tt.setShape(0.0f, 0.0f, 0.0f, 1.0f, thickness, 1.0f);
+			tesselateBlockInWorld(tt, x, y, z);
+			renderPistonArmUpDown(x + leftEdge, x + rightEdge, y + thickness, y + thickness + armLength, z + rightEdge, z + rightEdge, br * 0.8f, armLengthPixels);
+			renderPistonArmUpDown(x + rightEdge, x + leftEdge, y + thickness, y + thickness + armLength, z + leftEdge, z + leftEdge, br * 0.8f, armLengthPixels);
+			renderPistonArmUpDown(x + leftEdge, x + leftEdge, y + thickness, y + thickness + armLength, z + leftEdge, z + rightEdge, br * 0.6f, armLengthPixels);
+			renderPistonArmUpDown(x + rightEdge, x + rightEdge, y + thickness, y + thickness + armLength, z + rightEdge, z + leftEdge, br * 0.6f, armLengthPixels);
+			break;
+		case 1:
+			tt.setShape(0.0f, 1.0f - thickness, 0.0f, 1.0f, 1.0f, 1.0f);
+			tesselateBlockInWorld(tt, x, y, z);
+			renderPistonArmUpDown(x + leftEdge, x + rightEdge, y - thickness + 1.0f - armLength, y - thickness + 1.0f, z + rightEdge, z + rightEdge, br * 0.8f, armLengthPixels);
+			renderPistonArmUpDown(x + rightEdge, x + leftEdge, y - thickness + 1.0f - armLength, y - thickness + 1.0f, z + leftEdge, z + leftEdge, br * 0.8f, armLengthPixels);
+			renderPistonArmUpDown(x + leftEdge, x + leftEdge, y - thickness + 1.0f - armLength, y - thickness + 1.0f, z + leftEdge, z + rightEdge, br * 0.6f, armLengthPixels);
+			renderPistonArmUpDown(x + rightEdge, x + rightEdge, y - thickness + 1.0f - armLength, y - thickness + 1.0f, z + rightEdge, z + leftEdge, br * 0.6f, armLengthPixels);
+			break;
+		case 2:
+			eastFlip = FLIP_CW; westFlip = FLIP_CCW;
+			tt.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, thickness);
+			tesselateBlockInWorld(tt, x, y, z);
+			renderPistonArmNorthSouth(x + leftEdge, x + leftEdge, y + rightEdge, y + leftEdge, z + thickness, z + thickness + armLength, br * 0.6f, armLengthPixels);
+			renderPistonArmNorthSouth(x + rightEdge, x + rightEdge, y + leftEdge, y + rightEdge, z + thickness, z + thickness + armLength, br * 0.6f, armLengthPixels);
+			renderPistonArmNorthSouth(x + leftEdge, x + rightEdge, y + leftEdge, y + leftEdge, z + thickness, z + thickness + armLength, br * 0.5f, armLengthPixels);
+			renderPistonArmNorthSouth(x + rightEdge, x + leftEdge, y + rightEdge, y + rightEdge, z + thickness, z + thickness + armLength, br, armLengthPixels);
+			break;
+		case 3:
+			eastFlip = FLIP_CCW; westFlip = FLIP_CW;
+			upFlip = FLIP_180; downFlip = FLIP_180;
+			tt.setShape(0.0f, 0.0f, 1.0f - thickness, 1.0f, 1.0f, 1.0f);
+			tesselateBlockInWorld(tt, x, y, z);
+			renderPistonArmNorthSouth(x + leftEdge, x + leftEdge, y + rightEdge, y + leftEdge, z - thickness + 1.0f - armLength, z - thickness + 1.0f, br * 0.6f, armLengthPixels);
+			renderPistonArmNorthSouth(x + rightEdge, x + rightEdge, y + leftEdge, y + rightEdge, z - thickness + 1.0f - armLength, z - thickness + 1.0f, br * 0.6f, armLengthPixels);
+			renderPistonArmNorthSouth(x + leftEdge, x + rightEdge, y + leftEdge, y + leftEdge, z - thickness + 1.0f - armLength, z - thickness + 1.0f, br * 0.5f, armLengthPixels);
+			renderPistonArmNorthSouth(x + rightEdge, x + leftEdge, y + rightEdge, y + rightEdge, z - thickness + 1.0f - armLength, z - thickness + 1.0f, br, armLengthPixels);
+			break;
+		case 4:
+			northFlip = FLIP_CW; southFlip = FLIP_CCW;
+			upFlip = FLIP_CCW; downFlip = FLIP_CW;
+			tt.setShape(0.0f, 0.0f, 0.0f, thickness, 1.0f, 1.0f);
+			tesselateBlockInWorld(tt, x, y, z);
+			renderPistonArmEastWest(x + thickness, x + thickness + armLength, y + leftEdge, y + leftEdge, z + rightEdge, z + leftEdge, br * 0.5f, armLengthPixels);
+			renderPistonArmEastWest(x + thickness, x + thickness + armLength, y + rightEdge, y + rightEdge, z + leftEdge, z + rightEdge, br, armLengthPixels);
+			renderPistonArmEastWest(x + thickness, x + thickness + armLength, y + leftEdge, y + rightEdge, z + leftEdge, z + leftEdge, br * 0.6f, armLengthPixels);
+			renderPistonArmEastWest(x + thickness, x + thickness + armLength, y + rightEdge, y + leftEdge, z + rightEdge, z + rightEdge, br * 0.6f, armLengthPixels);
+			break;
+		case 5:
+			northFlip = FLIP_CCW; southFlip = FLIP_CW;
+			upFlip = FLIP_CW; downFlip = FLIP_CCW;
+			tt.setShape(1.0f - thickness, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+			tesselateBlockInWorld(tt, x, y, z);
+			renderPistonArmEastWest(x - thickness + 1.0f - armLength, x - thickness + 1.0f, y + leftEdge, y + leftEdge, z + rightEdge, z + leftEdge, br * 0.5f, armLengthPixels);
+			renderPistonArmEastWest(x - thickness + 1.0f - armLength, x - thickness + 1.0f, y + rightEdge, y + rightEdge, z + leftEdge, z + rightEdge, br, armLengthPixels);
+			renderPistonArmEastWest(x - thickness + 1.0f - armLength, x - thickness + 1.0f, y + leftEdge, y + rightEdge, z + leftEdge, z + leftEdge, br * 0.6f, armLengthPixels);
+			renderPistonArmEastWest(x - thickness + 1.0f - armLength, x - thickness + 1.0f, y + rightEdge, y + leftEdge, z + rightEdge, z + rightEdge, br * 0.6f, armLengthPixels);
+			break;
+	}
+
+	northFlip = FLIP_NONE; southFlip = FLIP_NONE;
+	eastFlip = FLIP_NONE; westFlip = FLIP_NONE;
+	upFlip = FLIP_NONE; downFlip = FLIP_NONE;
+	tt.setShape(oldX0, oldY0, oldZ0, oldX1, oldY1, oldZ1);
+
+	return true;
+}
+
+void TileRenderer::tesselatePistonArmNoCulling(Tile &tile, int_t x, int_t y, int_t z, bool fullArm, int_t forceData)
+{
+	noCulling = true;
+	tesselatePistonExtensionInWorld(tile, x, y, z, fullArm, forceData);
+	noCulling = false;
+}
+
+void TileRenderer::renderPistonArmUpDown(float x0, float x1, float y0, float y1, float z0, float z1, float br, float armLengthPixels)
+{
+	Tesselator &t = Tesselator::instance;
+
+	constexpr int_t armTex = 108;
+	int_t xt = (armTex & 0xF) << 4;
+	int_t yt = armTex & 0xF0;
+
+	float u00 = xt / 256.0f;
+	float v00 = yt / 256.0f;
+	float u11 = (xt + armLengthPixels - 0.01f) / 256.0f;
+	float v11 = (yt + 4.0f - 0.01f) / 256.0f;
+
+	t.color(br, br, br);
+
+	t.vertexUV(x0, y1, z0, u11, v00);
+	t.vertexUV(x0, y0, z0, u00, v00);
+	t.vertexUV(x1, y0, z1, u00, v11);
+	t.vertexUV(x1, y1, z1, u11, v11);
+}
+
+void TileRenderer::renderPistonArmNorthSouth(float x0, float x1, float y0, float y1, float z0, float z1, float br, float armLengthPixels)
+{
+	Tesselator &t = Tesselator::instance;
+
+	constexpr int_t armTex = 108;
+	int_t xt = (armTex & 0xF) << 4;
+	int_t yt = armTex & 0xF0;
+
+	float u00 = xt / 256.0f;
+	float v00 = yt / 256.0f;
+	float u11 = (xt + armLengthPixels - 0.01f) / 256.0f;
+	float v11 = (yt + 4.0f - 0.01f) / 256.0f;
+
+	t.color(br, br, br);
+
+	t.vertexUV(x0, y0, z1, u11, v00);
+	t.vertexUV(x0, y0, z0, u00, v00);
+	t.vertexUV(x1, y1, z0, u00, v11);
+	t.vertexUV(x1, y1, z1, u11, v11);
+}
+
+void TileRenderer::renderPistonArmEastWest(float x0, float x1, float y0, float y1, float z0, float z1, float br, float armLengthPixels)
+{
+	Tesselator &t = Tesselator::instance;
+
+	constexpr int_t armTex = 108;
+	int_t xt = (armTex & 0xF) << 4;
+	int_t yt = armTex & 0xF0;
+
+	float u00 = xt / 256.0f;
+	float v00 = yt / 256.0f;
+	float u11 = (xt + armLengthPixels - 0.01f) / 256.0f;
+	float v11 = (yt + 4.0f - 0.01f) / 256.0f;
+
+	t.color(br, br, br);
+
+	t.vertexUV(x1, y0, z0, u11, v00);
+	t.vertexUV(x0, y0, z0, u00, v00);
+	t.vertexUV(x0, y1, z1, u00, v11);
+	t.vertexUV(x1, y1, z1, u11, v11);
+}
+
+void TileRenderer::renderAllFacesBlockInWorld(Tile &tile, int_t x, int_t y, int_t z)
+{
+	noCulling = true;
+	tesselateBlockInWorld(tile, x, y, z);
+	noCulling = false;
 }

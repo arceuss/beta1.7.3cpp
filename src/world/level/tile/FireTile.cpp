@@ -11,6 +11,7 @@
 #include "world/level/tile/StairTile.h"
 #include "world/level/tile/TallGrassTile.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/TNTTile.h"
 #include "world/level/tile/TreeTile.h"
 #include "world/level/tile/WoodTile.h"
 
@@ -44,6 +45,7 @@ namespace
 			setOdds(Tile::treeTrunk.id, 5, 5);
 			setOdds(Tile::leaves.id, 30, 60);
 			setOdds(Tile::bookshelf.id, 30, 20);
+			setOdds(Tile::tnt.id, 15, 100);
 			setOdds(Tile::tallGrass.id, 60, 100);
 			setOdds(Tile::wool.id, 30, 60);
 		}
@@ -103,19 +105,27 @@ namespace
 	void tryToCatchBlockOnFire(FireTile &fire, Level &level, int_t x, int_t y, int_t z, int_t chance, Random &random, int_t fireAge)
 	{
 		int_t flammability = getFlammabilityOdds(level.getTile(x, y, z));
-		if (random.nextInt(chance) >= flammability)
-			return;
+		if (random.nextInt(chance) < flammability)
+		{
+			bool isTnt = level.getTile(x, y, z) == Tile::tnt.id;
+			if (random.nextInt(fireAge + 10) < 5 && !level.canBlockBeRainedOn(x, y, z))
+			{
+				int_t newAge = fireAge + random.nextInt(5) / 4;
+				if (newAge > 15)
+					newAge = 15;
+				level.setTileAndData(x, y, z, fire.id, newAge);
+			}
+			else
+			{
+				level.setTile(x, y, z, 0);
+			}
 
-		if (random.nextInt(fireAge + 10) < 5)
-		{
-			int_t newAge = fireAge + random.nextInt(5) / 4;
-			if (newAge > 15)
-				newAge = 15;
-			level.setTileAndData(x, y, z, fire.id, newAge);
-		}
-		else
-		{
-			level.setTile(x, y, z, 0);
+			if (isTnt)
+			{
+				Tile *tile = Tile::tiles[Tile::tnt.id];
+				if (tile != nullptr)
+					tile->playerDestroy(level, x, y, z, 1);
+			}
 		}
 	}
 
@@ -147,7 +157,7 @@ namespace
 	}
 }
 
-FireTile::FireTile(int_t id, int_t tex) : Tile(id, tex, Material::plants())
+FireTile::FireTile(int_t id, int_t tex) : Tile(id, tex, Material::fire)
 {
 	setDestroyTime(0.0f);
 	setLightEmission(15);
@@ -205,6 +215,18 @@ void FireTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 	}
 
 	level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
+	if (!onNetherrack
+		&& level.isRaining()
+		&& (level.canBlockBeRainedOn(x, y, z)
+			|| level.canBlockBeRainedOn(x - 1, y, z)
+			|| level.canBlockBeRainedOn(x + 1, y, z)
+			|| level.canBlockBeRainedOn(x, y, z - 1)
+			|| level.canBlockBeRainedOn(x, y, z + 1)))
+	{
+		level.setTile(x, y, z, 0);
+		return;
+	}
+
 	if (!onNetherrack && !hasFlammableNeighbor(level, x, y, z))
 	{
 		if (!level.isBlockNormalCube(x, y - 1, z) || fireAge > 3)
@@ -244,6 +266,14 @@ void FireTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 
 				int_t spreadChance = (encouragement + 40) / (fireAge + 30);
 				if (spreadChance <= 0 || random.nextInt(chance) > spreadChance)
+					continue;
+
+				if (level.isRaining()
+					&& (level.canBlockBeRainedOn(xx, yy, zz)
+						|| level.canBlockBeRainedOn(xx - 1, yy, zz)
+						|| level.canBlockBeRainedOn(xx + 1, yy, zz)
+						|| level.canBlockBeRainedOn(xx, yy, zz - 1)
+						|| level.canBlockBeRainedOn(xx, yy, zz + 1)))
 					continue;
 
 				int_t newAge = fireAge + random.nextInt(5) / 4;

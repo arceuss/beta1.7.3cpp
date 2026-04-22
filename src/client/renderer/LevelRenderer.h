@@ -6,6 +6,7 @@
 #include "client/renderer/Chunk.h"
 #include "client/renderer/TileRenderer.h"
 #include "client/renderer/Textures.h"
+#include "client/renderer/entity/PistonTileEntityRenderer.h"
 #include "client/renderer/OffsettedRenderList.h"
 #include "client/renderer/culling/Culler.h"
 
@@ -48,6 +49,7 @@ private:
 	Minecraft &mc;
 
 	std::unique_ptr<TileRenderer> tileRenderer;
+	std::unique_ptr<PistonTileEntityRenderer> pistonRenderer;
 
 	std::vector<int_t> occlusionCheckIds;
 	bool occlusionCheck = false;
