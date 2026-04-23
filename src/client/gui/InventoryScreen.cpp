@@ -582,19 +582,24 @@ void InventoryScreen::handleSlotClick(int_t slot, int_t buttonNum)
 		if (craftingResult.isEmpty())
 			return;
 
+		ItemInstance result = craftingResult;
+		Item *resultItem = result.getItem();
+		if (resultItem != nullptr && minecraft.player != nullptr && minecraft.level != nullptr)
+			resultItem->onCreated(result, *minecraft.level, *minecraft.player);
+
 		ItemInstance *carried = inventory.getCarried();
 		if (carried == nullptr)
-			inventory.setCarried(craftingResult);
+			inventory.setCarried(result);
 		else
 		{
-			bool canMerge = carried->sameItem(craftingResult) && carried->isStackable() && craftingResult.isStackable();
+			bool canMerge = carried->sameItem(result) && carried->isStackable() && result.isStackable();
 			if (!canMerge)
 				return;
 
 			int_t space = carried->getMaxStackSize() - carried->stackSize;
-			if (space < craftingResult.stackSize)
+			if (space < result.stackSize)
 				return;
-			carried->stackSize += craftingResult.stackSize;
+			carried->stackSize += result.stackSize;
 		}
 
 		consumeCraftingIngredients();

@@ -1,10 +1,12 @@
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 
+#include "client/renderer/entity/BoatRenderer.h"
 #include "client/renderer/entity/FallingTileRenderer.h"
 #include "client/renderer/entity/ItemRenderer.h"
 #include "client/renderer/entity/MinecartRenderer.h"
 #include "client/renderer/entity/PlayerRenderer.h"
 #include "client/renderer/entity/TNTPrimedRenderer.h"
+#include "world/entity/item/EntityBoat.h"
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/FallingTile.h"
 #include "world/entity/item/EntityMinecart.h"
@@ -28,6 +30,12 @@ ItemRenderer &EntityRenderDispatcher::getItemRenderer()
 MinecartRenderer &EntityRenderDispatcher::getMinecartRenderer()
 {
 	static MinecartRenderer renderer(instance);
+	return renderer;
+}
+
+BoatRenderer &EntityRenderDispatcher::getBoatRenderer()
+{
+	static BoatRenderer renderer(instance);
 	return renderer;
 }
 
@@ -95,6 +103,14 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		MinecartRenderer &minecartRenderer = getMinecartRenderer();
 		minecartRenderer.render(entity, x, y, z, rot, a);
 		minecartRenderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<EntityBoat *>(&entity) != nullptr)
+	{
+		BoatRenderer &boatRenderer = getBoatRenderer();
+		boatRenderer.render(entity, x, y, z, rot, a);
+		boatRenderer.postRender(entity, x, y, z, rot, a);
 		return;
 	}
 

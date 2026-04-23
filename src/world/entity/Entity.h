@@ -17,6 +17,7 @@
 
 #include "util/Memory.h"
 
+class ItemInstance;
 class Level;
 class Material;
 class Player;
@@ -228,10 +229,7 @@ protected:
 public:
 	float getShadowHeightOffs();
 
-	// TODO
-	// spawnAtLocation
-	// spawnAtLocation
-	// spawnAtLocation
+	void spawnAtLocation(const ItemInstance &stack, float offset);
 
 	virtual bool isAlive();
 	bool isInWall();
@@ -240,7 +238,7 @@ public:
 	virtual AABB *getCollideAgainstBox(Entity &entity);
 
 	virtual void rideTick();
-	void positionRider();
+	virtual void positionRider();
 	virtual double getRidingHeight();
 	virtual double getRideHeight();
 

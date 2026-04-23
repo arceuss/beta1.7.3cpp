@@ -6,7 +6,7 @@
 #include "world/level/material/Material.h"
 #include "world/level/GrassColor.h"
 
-GrassTile::GrassTile(int_t id) : Tile(id, Material::dirt)
+GrassTile::GrassTile(int_t id) : Tile(id, Material::grassMaterial)
 {
 	
 }

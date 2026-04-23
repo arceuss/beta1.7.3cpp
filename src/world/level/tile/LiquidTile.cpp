@@ -64,6 +64,34 @@ float LiquidTile::getHeight(int_t data)
 	return static_cast<float>(data + 1) / 9.0f;
 }
 
+double LiquidTile::getSlopeAngle(LevelSource &level, int_t x, int_t y, int_t z, const Material &material)
+{
+	Vec3 flow(0, 0, 0);
+	bool gotFlow = false;
+	if (&material == static_cast<const Material *>(&Material::water))
+	{
+		if (Tile::tiles[Tile::water.id] != nullptr)
+		{
+			flow = static_cast<LiquidTile *>(Tile::tiles[Tile::water.id])->getFlowVector(static_cast<Level &>(level), x, y, z);
+			gotFlow = true;
+		}
+	}
+	if (&material == static_cast<const Material *>(&Material::lava))
+	{
+		if (Tile::tiles[Tile::lava.id] != nullptr)
+		{
+			flow = static_cast<LiquidTile *>(Tile::tiles[Tile::lava.id])->getFlowVector(static_cast<Level &>(level), x, y, z);
+			gotFlow = true;
+		}
+	}
+
+	if (!gotFlow)
+		return -1000.0;
+	if (flow.x == 0.0 && flow.z == 0.0)
+		return -1000.0;
+	return std::atan2(flow.z, flow.x) - Mth::PI * 0.5;
+}
+
 bool LiquidTile::mayPick(int_t data, bool canPickLiquid)
 {
 	return canPickLiquid && data == 0;
@@ -153,32 +181,32 @@ int_t LiquidTile::getEffectiveFlowDepth(Level &level, int_t x, int_t y, int_t z)
 Vec3 LiquidTile::getFlowVector(Level &level, int_t x, int_t y, int_t z)
 {
 	Vec3 vec(0.0, 0.0, 0.0);
-	int_t depth = getEffectiveFlowDepth(level, x, y, z);
+	int_t depth = getRenderedDepth(level, x, y, z);
 
 	for (int_t dir = 0; dir < 4; ++dir)
 	{
-		int_t nx = x, nz = z;
+		int_t nx = x;
+		int_t nz = z;
 		if (dir == 0) nx = x - 1;
-		else if (dir == 1) nz = z - 1;
-		else if (dir == 2) nx = x + 1;
-		else nz = z + 1;
+		if (dir == 1) nz = z - 1;
+		if (dir == 2) nx = x + 1;
+		if (dir == 3) nz = z + 1;
 
-		int_t adjDepth = getEffectiveFlowDepth(level, nx, y, nz);
+		int_t adjDepth = getRenderedDepth(level, nx, y, nz);
 		if (adjDepth < 0)
 		{
-			if (&level.getMaterial(nx, y, nz) != &material && !level.getMaterial(nx, y, nz).isSolid())
+			if (!level.getMaterial(nx, y, nz).blocksMotion())
 			{
-				adjDepth = getEffectiveFlowDepth(level, nx, y - 1, nz);
+				adjDepth = getRenderedDepth(level, nx, y - 1, nz);
 				if (adjDepth >= 0)
 				{
 					int_t diff = adjDepth - (depth - 8);
 					vec.x += static_cast<double>((nx - x) * diff);
-					vec.y += 6.0;
 					vec.z += static_cast<double>((nz - z) * diff);
 				}
 			}
 		}
-		else if (adjDepth > depth)
+		else if (adjDepth >= 0)
 		{
 			int_t diff = adjDepth - depth;
 			vec.x += static_cast<double>((nx - x) * diff);
@@ -188,20 +216,26 @@ Vec3 LiquidTile::getFlowVector(Level &level, int_t x, int_t y, int_t z)
 
 	if (level.getData(x, y, z) >= 8)
 	{
-		bool surrounded = true;
-		for (int_t dir = 0; dir < 4 && surrounded; ++dir)
+		bool hasOpening = false;
+		if (hasOpening || shouldRenderFace(level, x, y, z - 1, Facing::NORTH)) hasOpening = true;
+		if (hasOpening || shouldRenderFace(level, x, y, z + 1, Facing::SOUTH)) hasOpening = true;
+		if (hasOpening || shouldRenderFace(level, x - 1, y, z, Facing::WEST)) hasOpening = true;
+		if (hasOpening || shouldRenderFace(level, x + 1, y, z, Facing::EAST)) hasOpening = true;
+		if (hasOpening || shouldRenderFace(level, x, y + 1, z - 1, Facing::NORTH)) hasOpening = true;
+		if (hasOpening || shouldRenderFace(level, x, y + 1, z + 1, Facing::SOUTH)) hasOpening = true;
+		if (hasOpening || shouldRenderFace(level, x - 1, y + 1, z, Facing::WEST)) hasOpening = true;
+		if (hasOpening || shouldRenderFace(level, x + 1, y + 1, z, Facing::EAST)) hasOpening = true;
+		if (hasOpening)
 		{
-			int_t nx = x, nz = z;
-			if (dir == 0) nx = x - 1;
-			else if (dir == 1) nz = z - 1;
-			else if (dir == 2) nx = x + 1;
-			else nz = z + 1;
-
-			if (!level.getMaterial(nx, y, nz).isSolid())
-				surrounded = false;
+			double len = Mth::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+			if (len > 0.0)
+			{
+				vec.x /= len;
+				vec.y /= len;
+				vec.z /= len;
+			}
+			vec.y -= 6.0;
 		}
-		if (surrounded)
-			vec.y += 6.0;
 	}
 
 	double len = Mth::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);

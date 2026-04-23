@@ -5,6 +5,7 @@
 #include "world/entity/Entity.h"
 #include "world/entity/Mob.h"
 #include "world/entity/item/EntityItem.h"
+#include "world/entity/item/EntityBoat.h"
 #include "world/entity/item/EntityMinecart.h"
 #include "world/entity/item/FallingTile.h"
 #include "world/entity/PrimedTNT.h"

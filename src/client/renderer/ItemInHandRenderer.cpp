@@ -2,17 +2,104 @@
 
 #include "client/Minecraft.h"
 #include "client/Lighting.h"
+#include "client/gui/Font.h"
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 #include "client/renderer/Textures.h"
 #include "client/renderer/entity/PlayerRenderer.h"
+#include "client/renderer/Tesselator.h"
 
 #include "util/Mth.h"
 
+#include "world/item/ItemMap.h"
+#include "world/item/Items.h"
+#include "world/level/MapData.h"
 #include "world/level/material/LiquidMaterial.h"
 
 ItemInHandRenderer::ItemInHandRenderer(Minecraft &mc) : mc(mc)
 {
 
+}
+
+void ItemInHandRenderer::renderMapFirstPerson(float a, float h)
+{
+	auto &localPlayer = *mc.player;
+
+	if (mc.font == nullptr)
+		return;
+	if (mapItemRenderer == nullptr)
+		mapItemRenderer = std::make_unique<MapItemRenderer>(*mc.font, mc.options);
+
+	float swing = localPlayer.getAttackAnim(a);
+	float swing1 = Mth::sin(swing * Mth::PI);
+	float swing2 = Mth::sin(Mth::sqrt(swing) * Mth::PI);
+	glTranslatef(-swing2 * 0.4f, Mth::sin(Mth::sqrt(swing) * Mth::PI * 2.0f) * 0.2f, -swing1 * 0.2f);
+
+	float pitch = 1.0f - (localPlayer.xRotO + (localPlayer.xRot - localPlayer.xRotO) * a) / 45.0f + 0.1f;
+	if (pitch < 0.0f) pitch = 0.0f;
+	if (pitch > 1.0f) pitch = 1.0f;
+	pitch = -Mth::cos(pitch * Mth::PI) * 0.5f + 0.5f;
+
+	float d = 0.8f;
+	glTranslatef(0.0f, -(1.0f - h) * 1.2f - pitch * 0.5f + 0.04f, -0.9f * d);
+	glRotatef(90.0f, 0.0f, 1.0f, 0.0f);
+	glRotatef(pitch * -85.0f, 0.0f, 0.0f, 1.0f);
+	glEnable(GL_RESCALE_NORMAL);
+
+	// Player hands while holding map
+	{
+		const jstring fallbackTexture = localPlayer.getTexture();
+		glBindTexture(GL_TEXTURE_2D, mc.textures.loadHttpTexture(localPlayer.customTextureUrl, &fallbackTexture));
+		auto &playerRenderer = EntityRenderDispatcher::playerRenderer;
+		for (int i = 0; i < 2; i++)
+		{
+			int flip = i * 2 - 1;
+			glPushMatrix();
+			glTranslatef(0.0f, -0.6f, 1.1f * flip);
+			glRotatef(-45.0f * flip, 1.0f, 0.0f, 0.0f);
+			glRotatef(-90.0f, 0.0f, 0.0f, 1.0f);
+			glRotatef(59.0f, 0.0f, 0.0f, 1.0f);
+			glRotatef(-65.0f * flip, 0.0f, 1.0f, 0.0f);
+			playerRenderer.renderHand();
+			glPopMatrix();
+		}
+	}
+
+	swing = localPlayer.getAttackAnim(a);
+	swing1 = Mth::sin(swing * swing * Mth::PI);
+	swing2 = Mth::sin(Mth::sqrt(swing) * Mth::PI);
+	glRotatef(-swing1 * 20.0f, 0.0f, 1.0f, 0.0f);
+	glRotatef(-swing2 * 20.0f, 0.0f, 0.0f, 1.0f);
+	glRotatef(-swing2 * 80.0f, 1.0f, 0.0f, 0.0f);
+
+	float scale = 0.38f;
+	glScalef(scale, scale, scale);
+	glRotatef(90.0f, 0.0f, 1.0f, 0.0f);
+	glRotatef(180.0f, 0.0f, 0.0f, 1.0f);
+	glTranslatef(-1.0f, -1.0f, 0.0f);
+
+	float mapScale = 2.0f / 128.0f;
+	glScalef(mapScale, mapScale, mapScale);
+
+	// Render map background
+	Tesselator &t = Tesselator::instance;
+	glBindTexture(GL_TEXTURE_2D, mc.textures.loadTexture(u"/misc/mapbg.png"));
+	glNormal3f(0.0f, 0.0f, -1.0f);
+	constexpr int_t bgBorder = 7;
+	t.begin();
+	t.vertexUV((float)(0 - bgBorder), (float)(128 + bgBorder), 0.0f, 0.0f, 1.0f);
+	t.vertexUV((float)(128 + bgBorder), (float)(128 + bgBorder), 0.0f, 1.0f, 1.0f);
+	t.vertexUV((float)(128 + bgBorder), (float)(0 - bgBorder), 0.0f, 1.0f, 0.0f);
+	t.vertexUV((float)(0 - bgBorder), (float)(0 - bgBorder), 0.0f, 0.0f, 0.0f);
+	t.end();
+
+	// Render map data
+	ItemInstance item = selectedItem;
+	if (!item.isEmpty() && Items::map != nullptr && item.itemID == Items::map->getShiftedIndex())
+	{
+		MapData *data = ItemMap::getMapData(static_cast<short_t>(item.itemDamage), *mc.level);
+		if (data != nullptr)
+			mapItemRenderer->render(*data, mc.textures);
+	}
 }
 
 namespace HeldItemRenderer
@@ -168,24 +255,31 @@ void ItemInHandRenderer::render(float a)
 	if (!item.isEmpty())
 	{
 		glPushMatrix();
-		float d = 0.8f;
-		float swing = localPlayer.getAttackAnim(a);
-		float swing1 = Mth::sin(swing * Mth::PI);
-		float swing2 = Mth::sin(Mth::sqrt(swing) * Mth::PI);
-		glTranslatef(-swing2 * 0.4f, Mth::sin(Mth::sqrt(swing) * Mth::PI * 2.0f) * 0.2f, -swing1 * 0.2f);
-		glTranslatef(0.7f * d, -0.65f * d - (1.0f - h) * 0.6f, -0.9f * d);
-		glRotatef(45.0f, 0.0f, 1.0f, 0.0f);
-		glEnable(GL_RESCALE_NORMAL);
-		swing = localPlayer.getAttackAnim(a);
-		swing1 = Mth::sin(swing * swing * Mth::PI);
-		swing2 = Mth::sin(Mth::sqrt(swing) * Mth::PI);
-		glRotatef(-swing1 * 20.0f, 0.0f, 1.0f, 0.0f);
-		glRotatef(-swing2 * 20.0f, 0.0f, 0.0f, 1.0f);
-		glRotatef(-swing2 * 80.0f, 1.0f, 0.0f, 0.0f);
-		float scale = 0.4f;
-		glScalef(scale, scale, scale);
-		renderItem(item);
-		glDisable(GL_RESCALE_NORMAL);
+		if (Items::map != nullptr && item.itemID == Items::map->getShiftedIndex())
+		{
+			renderMapFirstPerson(a, h);
+		}
+		else
+		{
+			float d = 0.8f;
+			float swing = localPlayer.getAttackAnim(a);
+			float swing1 = Mth::sin(swing * Mth::PI);
+			float swing2 = Mth::sin(Mth::sqrt(swing) * Mth::PI);
+			glTranslatef(-swing2 * 0.4f, Mth::sin(Mth::sqrt(swing) * Mth::PI * 2.0f) * 0.2f, -swing1 * 0.2f);
+			glTranslatef(0.7f * d, -0.65f * d - (1.0f - h) * 0.6f, -0.9f * d);
+			glRotatef(45.0f, 0.0f, 1.0f, 0.0f);
+			glEnable(GL_RESCALE_NORMAL);
+			swing = localPlayer.getAttackAnim(a);
+			swing1 = Mth::sin(swing * swing * Mth::PI);
+			swing2 = Mth::sin(Mth::sqrt(swing) * Mth::PI);
+			glRotatef(-swing1 * 20.0f, 0.0f, 1.0f, 0.0f);
+			glRotatef(-swing2 * 20.0f, 0.0f, 0.0f, 1.0f);
+			glRotatef(-swing2 * 80.0f, 1.0f, 0.0f, 0.0f);
+			float scale = 0.4f;
+			glScalef(scale, scale, scale);
+			renderItem(item);
+			glDisable(GL_RESCALE_NORMAL);
+		}
 		glPopMatrix();
 	}
 	else

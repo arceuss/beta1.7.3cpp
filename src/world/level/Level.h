@@ -2,6 +2,7 @@
 
 #include "world/level/LevelSource.h"
 
+#include <functional>
 #include <memory>
 #include <set>
 #include <unordered_set>
@@ -22,6 +23,7 @@
 #include "world/level/LevelListener.h"
 #include "world/level/LightUpdate.h"
 
+#include "world/level/MapDataBase.h"
 #include "world/level/chunk/LevelChunk.h"
 #include "world/level/chunk/ChunkSource.h"
 #include "world/level/biome/BiomeSource.h"
@@ -155,6 +157,9 @@ private:
 	int_t maxRecurse = 0;
 	bool spawnEnemies = true;
 	bool spawnFriendlies = true;
+
+	std::unordered_map<jstring, std::unique_ptr<MapDataBase>> loadedItemData;
+	std::unordered_map<jstring, short_t> idCounts;
 
 public:
 	struct Summary
@@ -379,4 +384,14 @@ public:
 
 	bool isRaining();
 	bool canBlockBeRainedOn(int_t x, int_t y, int_t z);
+
+	MapDataBase *loadItemData(const jstring &id, const std::function<std::unique_ptr<MapDataBase>(const jstring&)> &factory);
+	void setItemData(const jstring &id, MapDataBase *data);
+	int_t getUniqueDataId(const jstring &key);
+	void saveAllItemData();
+
+	bool allPlayersSleeping = false;
+	void updateAllPlayersSleepingFlag();
+	void wakeUpAllPlayers();
+	bool isAllPlayersFullyAsleep();
 };

@@ -3,6 +3,7 @@
 #include "world/item/Item.h"
 #include "world/item/ItemAxe.h"
 #include "world/item/ItemHoe.h"
+#include "world/item/ItemMap.h"
 #include "world/item/ItemPickaxe.h"
 #include "world/item/ItemSeeds.h"
 #include "world/item/ItemSpade.h"
@@ -19,11 +20,18 @@
 #include "world/item/ItemRepeater.h"
 #include "world/item/ItemMinecart.h"
 #include "world/item/ItemShears.h"
+#include "world/item/ItemBed.h"
+#include "world/item/ItemBoat.h"
+#include "world/item/ItemSoup.h"
+#include "world/item/ItemBucket.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/LiquidTile.h"
 
 namespace Items
 {
 	Item *flintAndSteel = nullptr;
+	Item *apple = nullptr;
+	Item *arrow = nullptr;
 	Item *ingotIron = nullptr;
 	Item *ingotGold = nullptr;
 	Item *swordWood = nullptr;
@@ -41,12 +49,18 @@ namespace Items
 	Item *wheat = nullptr;
 	Item *bread = nullptr;
 	Item *cookie = nullptr;
+	Item *porkchopRaw = nullptr;
+	Item *porkchopCooked = nullptr;
+	Item *appleGold = nullptr;
 	Item *reed = nullptr;
 	Item *doorWood = nullptr;
 	Item *doorIron = nullptr;
 	Item *minecart = nullptr;
 	Item *minecartPowered = nullptr;
 	Item *minecartChest = nullptr;
+	Item *boat = nullptr;
+	Item *bed = nullptr;
+	Item *map = nullptr;
 	Item *compass = nullptr;
 	Item *clock = nullptr;
 	Item *record13 = nullptr;
@@ -61,12 +75,20 @@ namespace Items
 	Item *feather = nullptr;
 	Item *gunpowder = nullptr;
 	Item *bowlEmpty = nullptr;
+	Item *bowlSoup = nullptr;
+	Item *bucketEmpty = nullptr;
+	Item *bucketWater = nullptr;
+	Item *bucketLava = nullptr;
+	Item *bucketMilk = nullptr;
 	Item *brick = nullptr;
 	Item *clayItem = nullptr;
 	Item *paper = nullptr;
 	Item *book = nullptr;
 	Item *sugar = nullptr;
 	Item *glowstoneDust = nullptr;
+	Item *fishRaw = nullptr;
+	Item *fishCooked = nullptr;
+	Item *bone = nullptr;
 	Item *sign = nullptr;
 	Item *redstoneRepeater = nullptr;
 	Item *snowball = nullptr;
@@ -98,6 +120,12 @@ namespace Items
 		initialized = true;
 
 		flintAndSteel = new ItemFlintAndSteel(3);
+
+		apple = new ItemFood(4, 4, false);
+		apple->setIconIndex(10).setDescriptionId(u"item.apple");
+
+		arrow = new Item(6);
+		arrow->setIconIndex(37).setDescriptionId(u"item.arrow");
 
 		ingotIron = new Item(9);
 		ingotIron->setIconIndex(23).setDescriptionId(u"item.ingotIron");
@@ -195,6 +223,15 @@ namespace Items
 		bread = new ItemFood(41, 5, false);
 		bread->setIconIndex(41).setDescriptionId(u"item.bread");
 
+		porkchopRaw = new ItemFood(63, 3, true);
+		porkchopRaw->setIconIndex(87).setDescriptionId(u"item.porkchopRaw");
+
+		porkchopCooked = new ItemFood(64, 8, true);
+		porkchopCooked->setIconIndex(88).setDescriptionId(u"item.porkchopCooked");
+
+		appleGold = new ItemFood(66, 42, false);
+		appleGold->setIconIndex(11).setDescriptionId(u"item.appleGold");
+
 		flint = new Item(62);
 		flint->setIconIndex(6).setDescriptionId(u"item.flint");
 
@@ -215,6 +252,9 @@ namespace Items
 
 		minecartChest = new ItemMinecart(86, 1);
 		minecartChest->setIconIndex(151).setDescriptionId(u"item.minecartChest");
+
+		boat = new ItemBoat(77);
+		boat->setIconIndex(136).setDescriptionId(u"item.boat");
 
 		compass = new Item(89);
 		compass->setIconIndex(54).setDescriptionId(u"item.compass");
@@ -255,6 +295,21 @@ namespace Items
 		bowlEmpty = new Item(25);
 		bowlEmpty->setIconIndex(71).setDescriptionId(u"item.bowl");
 
+		bowlSoup = new ItemSoup(26, 10);
+		bowlSoup->setIconIndex(77).setDescriptionId(u"item.mushroomStew");
+
+		bucketEmpty = new ItemBucket(69, 0);
+		bucketEmpty->setIconIndex(74).setDescriptionId(u"item.bucket");
+
+		bucketWater = new ItemBucket(70, Tile::water.id);
+		bucketWater->setIconIndex(75).setDescriptionId(u"item.bucketWater");
+
+		bucketLava = new ItemBucket(71, Tile::lava.id);
+		bucketLava->setIconIndex(76).setDescriptionId(u"item.bucketLava");
+
+		bucketMilk = new ItemBucket(79, -1);
+		bucketMilk->setIconIndex(77).setDescriptionId(u"item.milk");
+
 		brick = new Item(80);
 		brick->setIconIndex(22).setDescriptionId(u"item.brick");
 
@@ -273,6 +328,15 @@ namespace Items
 		glowstoneDust = new Item(92);
 		glowstoneDust->setIconIndex(73).setDescriptionId(u"item.yellowDust");
 
+		fishRaw = new ItemFood(93, 2, false);
+		fishRaw->setIconIndex(89).setDescriptionId(u"item.fishRaw");
+
+		fishCooked = new ItemFood(94, 5, false);
+		fishCooked->setIconIndex(90).setDescriptionId(u"item.fishCooked");
+
+		bone = new Item(96);
+		bone->setIconIndex(28).setDescriptionId(u"item.bone");
+
 		redstoneRepeater = new ItemRepeater(100);
 		redstoneRepeater->setIconIndex(86).setDescriptionId(u"item.diode");
 
@@ -287,6 +351,12 @@ namespace Items
 
 		shears = new ItemShears(103);
 		shears->setIconIndex(93).setDescriptionId(u"item.shears");
+
+		bed = new ItemBed(99);
+		bed->setIconIndex(45).setDescriptionId(u"item.bed");
+
+		map = new ItemMap(102);
+		map->setIconIndex(60).setDescriptionId(u"item.map");
 
 		sign = new ItemSign(67);
 		sign->setIconIndex(42).setDescriptionId(u"item.sign");

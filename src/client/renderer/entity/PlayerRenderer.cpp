@@ -32,10 +32,32 @@ void PlayerRenderer::render(Entity &entity, double x, double y, double z, float 
 	if (mob.isSneaking())
 		yp -= 0.125;
 
-	MobRenderer::render(mob, x, yp, z, rot, a);
+	if (mob.isAlive() && mob.sleeping)
+	{
+		MobRenderer::render(mob, x + mob.bedViewX, yp, z + mob.bedViewZ, rot, a);
+	}
+	else
+	{
+		MobRenderer::render(mob, x, yp, z, rot, a);
+	}
 
 	humanoidModel->holdingRightHand = false;
 	humanoidModel->sneaking = false;
+}
+
+void PlayerRenderer::setupRotations(Mob &mobBase, float bob, float bodyRot, float a)
+{
+	Player &mob = static_cast<Player &>(mobBase);
+	if (mob.isAlive() && mob.sleeping)
+	{
+		glRotatef(mob.getBedOrientationInDegrees(), 0.0f, 1.0f, 0.0f);
+		glRotatef(getFlipDegrees(mob), 0.0f, 0.0f, 1.0f);
+		glRotatef(270.0f, 0.0f, 1.0f, 0.0f);
+	}
+	else
+	{
+		MobRenderer::setupRotations(mob, bob, bodyRot, a);
+	}
 }
 
 void PlayerRenderer::scale(Mob &mob, float a)

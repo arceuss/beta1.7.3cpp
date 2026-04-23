@@ -11,7 +11,7 @@
 #include "world/entity/player/Player.h"
 #include "world/entity/item/EntityItem.h"
 
-LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::wood, false)
+LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::leaves, false)
 {
 	oTex = tex;
 	setTicking(true);

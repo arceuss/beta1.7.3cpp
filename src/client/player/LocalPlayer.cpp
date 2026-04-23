@@ -6,6 +6,8 @@
 #include "client/gui/FurnaceScreen.h"
 #include "client/gui/WorkbenchScreen.h"
 #include "client/particle/TakeAnimationParticle.h"
+#include "client/spc/SPCCommand.h"
+#include "client/locale/Language.h"
 #include "world/entity/item/EntityMinecart.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
@@ -26,7 +28,7 @@ LocalPlayer::LocalPlayer(Minecraft &minecraft, Level &level, User *user, int_t d
 void LocalPlayer::updateAi()
 {
 	Player::updateAi();
-	if (minecraft.screen != nullptr)
+	if (minecraft.screen != nullptr || sleeping)
 	{
 		xxa = 0.0f;
 		yya = 0.0f;
@@ -208,4 +210,14 @@ void LocalPlayer::prepareForTick()
 bool LocalPlayer::isSneaking()
 {
 	return input->sneaking;
+}
+
+void LocalPlayer::displayClientMessage(const jstring &message)
+{
+	Language &language = Language::getInstance();
+	jstring translated = language.getElement(message);
+	if (!translated.empty())
+		SPCCommand::addMessage(translated);
+	else
+		SPCCommand::addMessage(message);
 }

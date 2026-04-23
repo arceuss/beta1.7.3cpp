@@ -173,7 +173,18 @@ void GameRenderer::moveCameraToPlayer(float a)
 	double yOff = player.yOld + (player.y - player.yOld) * a;
 	double zOff = player.zOld + (player.z - player.zOld) * a;
 
-	if (mc.options.thirdPersonView)
+	if (player.sleeping)
+	{
+		int_t bedDir = 0;
+		if (mc.level->hasChunkAt(player.bedX, player.bedY, player.bedZ))
+		{
+			int_t data = mc.level->getData(player.bedX, player.bedY, player.bedZ);
+			bedDir = data & 3;
+		}
+		glRotatef(bedDir * 90.0f, 0.0f, 1.0f, 0.0f);
+		glTranslatef(0.0f, player.heightOffset - 1.62f + 1.0f + 0.3f, 0.0f);
+	}
+	else if (mc.options.thirdPersonView)
 	{
 		double distance = 4.0;
 		float yRot = player.yRot;
@@ -212,16 +223,18 @@ void GameRenderer::moveCameraToPlayer(float a)
 		glTranslatef(0.0f, 0.0f, -distance);
 		glRotatef(yRot - player.yRot, 0.0f, 1.0f, 0.0f);
 		glRotatef(xRot - player.xRot, 1.0f, 0.0f, 0.0f);
+
+		glRotatef(player.xRotO + (player.xRot - player.xRotO) * a, 1.0f, 0.0f, 0.0f);
+		glRotatef(player.yRotO + (player.yRot - player.yRotO) * a + 180.0f, 0.0f, 1.0f, 0.0f);
+		glTranslatef(0.0f, player.heightOffset - 1.62f, 0.0f);
 	}
 	else
 	{
 		glTranslatef(0.0f, 0.0f, -0.1f);
+		glRotatef(player.xRotO + (player.xRot - player.xRotO) * a, 1.0f, 0.0f, 0.0f);
+		glRotatef(player.yRotO + (player.yRot - player.yRotO) * a + 180.0f, 0.0f, 1.0f, 0.0f);
+		glTranslatef(0.0f, player.heightOffset - 1.62f, 0.0f);
 	}
-
-	glRotatef(player.xRotO + (player.xRot - player.xRotO) * a, 1.0f, 0.0f, 0.0f);
-	glRotatef(player.yRotO + (player.yRot - player.yRotO) * a + 180.0f, 0.0f, 1.0f, 0.0f);
-
-	glTranslatef(0.0f, player.heightOffset - 1.62f, 0.0f);
 }
 
 void GameRenderer::setupCamera(float a, int_t eye)
@@ -271,12 +284,12 @@ void GameRenderer::renderItemInHand(float a, int_t eye)
 	bobHurt(a);
 	if (mc.options.bobView)
 		bobView(a);
-	if (!mc.options.thirdPersonView && !lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F1))
+	if (!mc.options.thirdPersonView && !lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F1) && !mc.player->sleeping)
 		itemInHandRenderer.render(a);
 
 	glPopMatrix();
 
-	if (!mc.options.thirdPersonView)
+	if (!mc.options.thirdPersonView && !mc.player->sleeping)
 	{
 		itemInHandRenderer.renderScreenEffect(a);
 		bobHurt(a);
@@ -301,12 +314,15 @@ void GameRenderer::render(float a)
 	if (mc.mouseGrabbed)
 	{
 		mc.mouseHandler.poll();
-		float sens = mc.options.mouseSensitivity * 0.6f + 0.2f;
-		float sens2 = sens * sens * sens * 8.0f;
-		float dx = mc.mouseHandler.xd * sens2;
-		float dy = mc.mouseHandler.yd * sens2;
+		if (!mc.player->sleeping)
+		{
+			float sens = mc.options.mouseSensitivity * 0.6f + 0.2f;
+			float sens2 = sens * sens * sens * 8.0f;
+			float dx = mc.mouseHandler.xd * sens2;
+			float dy = mc.mouseHandler.yd * sens2;
 
-		mc.player->turn(dx, dy * (mc.options.invertYMouse ? -1 : 1));
+			mc.player->turn(dx, dy * (mc.options.invertYMouse ? -1 : 1));
+		}
 	}
 
 	if (mc.noRender)

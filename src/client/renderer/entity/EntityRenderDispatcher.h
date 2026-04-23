@@ -9,6 +9,7 @@
 class PlayerRenderer;
 class FallingTileRenderer;
 class MinecartRenderer;
+class BoatRenderer;
 class ItemRenderer;
 class TNTPrimedRenderer;
 
@@ -23,6 +24,7 @@ private:
 	static FallingTileRenderer &getFallingTileRenderer();
 	static ItemRenderer &getItemRenderer();
 	static MinecartRenderer &getMinecartRenderer();
+	static BoatRenderer &getBoatRenderer();
 	static TNTPrimedRenderer &getTNTPrimedRenderer();
 	Font *font = nullptr;
 public:

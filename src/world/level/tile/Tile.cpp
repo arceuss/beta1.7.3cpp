@@ -55,6 +55,7 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/PumpkinTile.h"
 #include "world/level/tile/SnowTile.h"
 #include "world/level/tile/IceTile.h"
+#include "world/level/tile/BedTile.h"
 #include "world/level/tile/WorkbenchTile.h"
 #include "world/level/tile/TransparentTile.h"
 #include "world/level/tile/LiquidTile.h"
@@ -130,6 +131,7 @@ static SandStoneTile sandstoneTile(24, 192);
 Tile &Tile::sandstone = sandstoneTile;
 DispenserTile Tile::dispenser = DispenserTile(23, 45, Material::stone);
 NoteTile Tile::noteBlock = NoteTile(25, 74, Material::wood);
+BedTile Tile::bed = BedTile(26, 134);
 RailTile Tile::railPowered = RailTile(27, 179, true);
 DetectorRailTile Tile::railDetector = DetectorRailTile(28, 195);
 SlabTile Tile::slabDouble = SlabTile(43, true);
@@ -228,6 +230,7 @@ void Tile::initTiles()
 	cobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	sandstone.setDestroyTime(0.8f).setSoundType(soundStoneFootstep);
 	noteBlock.setDestroyTime(0.8f).setSoundType(soundWoodFootstep);
+	bed.setDestroyTime(0.2f).setSoundType(soundStoneFootstep);
 	slabDouble.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	slabSingle.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
 	mossyCobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
@@ -331,6 +334,7 @@ void Tile::initTiles()
 	leaves.setDescriptionId(u"tile.leaves");
 	lapisOre.setDescriptionId(u"tile.oreLapis");
 	noteBlock.setDescriptionId(u"tile.musicBlock");
+	bed.setDescriptionId(u"tile.bed");
 	railPowered.setDescriptionId(u"tile.goldenRail");
 	railDetector.setDescriptionId(u"tile.detectorRail");
 	rail.setDescriptionId(u"tile.rail");

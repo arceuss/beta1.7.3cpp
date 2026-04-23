@@ -9,6 +9,8 @@ TerrainParticle::TerrainParticle(Level &level, double x, double y, double z, dou
 {
 	if (tile->id == 2)
 		tex = 3;
+	else if (tile->id == 26)
+		tex = 4; // bed breaking particles use wood texture
 	else
 	{
 		tex = tile->getTexture(static_cast<Facing>(face), data);
