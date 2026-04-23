@@ -75,6 +75,8 @@ class LockedChestTile;
 class ChestTile;
 
 class TNTTile;
+class MobSpawnerTile;
+class CakeTile;
 class RailTile;
 class DetectorRailTile;
 class PortalTile;
@@ -209,6 +211,8 @@ public:
 	static PortalTile portal;
 	static PumpkinTile jackOLantern;
 	static TNTTile tnt;
+	static MobSpawnerTile mobSpawner;
+	static CakeTile cake;
 
 	// Phase 2 blocks
 	static DoorTile doorWood;

@@ -96,6 +96,8 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/PistonBaseTile.h"
 #include "world/level/tile/PistonExtensionTile.h"
 #include "world/level/tile/PistonMovingTile.h"
+#include "world/level/tile/MobSpawnerTile.h"
+#include "world/level/tile/CakeTile.h"
 StoneTile Tile::rock = StoneTile(1, 1);
 GrassTile Tile::grass = GrassTile(2);
 DirtTile Tile::dirt = DirtTile(3, 2);
@@ -177,6 +179,8 @@ GlowStoneTile Tile::glowstone = GlowStoneTile(89, 105, Material::stone);
 PortalTile Tile::portal = PortalTile(90, 14);
 PumpkinTile Tile::jackOLantern = PumpkinTile(91, 102, true);
 TNTTile Tile::tnt = TNTTile(46, 8);
+MobSpawnerTile Tile::mobSpawner = MobSpawnerTile(52, 65);
+CakeTile Tile::cake = CakeTile(92, 121);
 RepeaterTile Tile::repeaterIdle = RepeaterTile(93, false);
 RepeaterTile Tile::repeaterActive = RepeaterTile(94, true);
 LockedChestTile Tile::lockedChest = LockedChestTile(95);
@@ -276,6 +280,8 @@ void Tile::initTiles()
 	portal.setDestroyTime(-1.0f).setLightEmission(11).setSoundType(soundGlassFootstep);
 	jackOLantern.setDestroyTime(1.0f).setSoundType(soundWoodFootstep).setLightEmission(15);
 	tnt.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
+	mobSpawner.setDestroyTime(5.0f).setSoundType(soundMetalFootstep);
+	cake.setDestroyTime(0.5f).setSoundType(soundClothFootstep);
 	repeaterIdle.setDestroyTime(0.0f).setSoundType(soundWoodFootstep);
 	repeaterActive.setDestroyTime(0.0f).setLightEmission(9).setSoundType(soundWoodFootstep);
 	pistonStickyBase.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
@@ -394,6 +400,8 @@ void Tile::initTiles()
 	glowstone.setDescriptionId(u"tile.lightgem");
 	portal.setDescriptionId(u"tile.portal");
 	jackOLantern.setDescriptionId(u"tile.litpumpkin");
+	mobSpawner.setDescriptionId(u"tile.mobSpawner");
+	cake.setDescriptionId(u"tile.cake");
 	signPost.setDescriptionId(u"tile.sign");
 	signWall.setDescriptionId(u"tile.sign");
 	repeaterIdle.setDescriptionId(u"tile.diode");

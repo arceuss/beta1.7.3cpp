@@ -30,6 +30,7 @@ public:
 	static Material piston;
 	static Material leaves;
 	static Material portal;
+	static Material cakeMaterial;
 
 	static Material &plants();
 	static Material &cactus();

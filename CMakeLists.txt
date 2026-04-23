@@ -324,6 +324,8 @@ set(McBetaCpp_SOURCES
 	"src/world/item/ItemBed.h"
 	"src/world/item/ItemMap.cpp"
 	"src/world/item/ItemMap.h"
+	"src/world/item/ItemCake.cpp"
+	"src/world/item/ItemCake.h"
 	"src/world/item/ItemSeeds.cpp"
 	"src/world/item/ItemSeeds.h"
 	"src/world/item/ItemFood.cpp"
@@ -500,6 +502,8 @@ set(McBetaCpp_SOURCES
 	"src/world/level/tile/entity/DispenserTileEntity.h"
 	"src/world/level/tile/entity/SignTileEntity.cpp"
 	"src/world/level/tile/entity/SignTileEntity.h"
+	"src/world/level/tile/entity/MobSpawnerTileEntity.cpp"
+	"src/world/level/tile/entity/MobSpawnerTileEntity.h"
 	"src/world/level/tile/entity/PistonTileEntity.cpp"
 	"src/world/level/tile/entity/PistonTileEntity.h"
 	
@@ -634,6 +638,10 @@ set(McBetaCpp_SOURCES
 	"src/world/level/tile/PistonMovingTile.cpp"
 	"src/world/level/tile/PistonMovingTile.h"
 	"src/world/level/tile/PistonTextures.h"
+	"src/world/level/tile/MobSpawnerTile.cpp"
+	"src/world/level/tile/MobSpawnerTile.h"
+	"src/world/level/tile/CakeTile.cpp"
+	"src/world/level/tile/CakeTile.h"
 
 	"src/world/phys/AABB.cpp"
 	"src/world/phys/AABB.h"
