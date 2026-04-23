@@ -61,6 +61,7 @@ class SaplingTile;
 class PumpkinTile;
 class SnowTile;
 class IceTile;
+class BedTile;
 class WorkbenchTile;
 class SlabTile;
 class FurnaceTile;
@@ -105,6 +106,7 @@ public:
 		SHAPE_FENCE,
 		SHAPE_LEVER,
 		SHAPE_CACTUS,
+		SHAPE_BED = 14,
 		SHAPE_REPEATER = 15,
 		SHAPE_PISTON_BASE = 16,
 		SHAPE_PISTON_EXTENSION = 17,
@@ -165,6 +167,7 @@ public:
 	static DetectorRailTile railDetector;
 	static Tile mossyCobblestone;
 	static Tile obsidian;
+	static BedTile bed;
 	static SlabTile slabDouble;
 	static SlabTile slabSingle;
 	static WorkbenchTile workBench;

@@ -19,7 +19,7 @@ namespace
 	}
 }
 
-PortalTile::PortalTile(int_t id, int_t tex) : TransparentTile(id, tex, static_cast<const Material &>(Material::air), false)
+PortalTile::PortalTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::portal, false)
 {
 }
 

@@ -69,6 +69,7 @@ public:
 	void renderEast(Tile &tt, double x, double y, double z, int_t tex);
 
 	void renderCube(Tile &tile, float alpha);
+	bool tesselateBedInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselatePistonBaseInWorld(Tile &tile, int_t x, int_t y, int_t z, bool forceExtended = false, int_t forceData = -1);
 	void tesselatePistonBaseForceExtended(Tile &tile, int_t x, int_t y, int_t z, int_t forceData = -1);
 	bool tesselatePistonExtensionInWorld(Tile &tile, int_t x, int_t y, int_t z, bool fullArm = true, int_t forceData = -1);

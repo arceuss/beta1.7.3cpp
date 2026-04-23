@@ -28,6 +28,10 @@ FurnaceRecipes::FurnaceRecipes()
 	recipes.emplace(Tile::cactus.id, ItemInstance(Items::dyePowder->getShiftedIndex(), 1, 2));
 	// wood/log → charcoal (coal with metadata 1)
 	recipes.emplace(Tile::treeTrunk.id, ItemInstance(Items::coal->getShiftedIndex(), 1, 1));
+	// raw porkchop → cooked porkchop
+	recipes.emplace(Items::porkchopRaw->getShiftedIndex(), ItemInstance(Items::porkchopCooked->getShiftedIndex(), 1, 0));
+	// raw fish → cooked fish
+	recipes.emplace(Items::fishRaw->getShiftedIndex(), ItemInstance(Items::fishCooked->getShiftedIndex(), 1, 0));
 }
 
 ItemInstance FurnaceRecipes::getResult(const ItemInstance &input) const

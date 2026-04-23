@@ -6,6 +6,7 @@
 
 #include "nbt/NbtIo.h"
 
+#include "world/level/MapDataBase.h"
 #include "world/level/chunk/ChunkCache.h"
 #include "world/level/material/GasMaterial.h"
 
@@ -388,6 +389,7 @@ void Level::save(bool force, std::shared_ptr<ProgressListener> progressRenderer)
 	if (progressRenderer != nullptr)
 		progressRenderer->progressStartNoAbort(u"Saving level");
 	saveLevelData();
+	saveAllItemData();
 	if (progressRenderer != nullptr)
 		progressRenderer->progressStage(u"Saving chunks");
 	chunkSource->save(force, progressRenderer);
@@ -1592,10 +1594,9 @@ bool Level::handleMaterialAcceleration(AABB &bb, const Material &material, Entit
 	if (vx * vx + vy * vy + vz * vz > 0.0)
 	{
 		double len = Mth::sqrt(vx * vx + vy * vy + vz * vz);
-		double push = 0.014;
-		entity.xd += (vx / len) * push;
-		entity.yd += (vy / len) * push;
-		entity.zd += (vz / len) * push;
+		entity.xd += (vx / len) * 0.004;
+		entity.yd += (vy / len) * 0.004;
+		entity.zd += (vz / len) * 0.004;
 	}
 
 	return found;
@@ -1808,12 +1809,59 @@ void Level::tick()
 			l->skyColorChanged();
 	}
 
+	if (allPlayersSleeping && !isOnline)
+	{
+		if (isAllPlayersFullyAsleep())
+		{
+			wakeUpAllPlayers();
+			setTime(0);
+			setSpawnSettings(true, true);
+		}
+	}
+
 	time++;
 	if (time % saveInterval == 0)
 		save(false, nullptr);
 
 	tickPendingTicks(false);
 	tickTiles();
+}
+
+void Level::updateAllPlayersSleepingFlag()
+{
+	allPlayersSleeping = !players.empty();
+	for (const auto &p : players)
+	{
+		if (!p->isPlayerSleeping())
+		{
+			allPlayersSleeping = false;
+			break;
+		}
+	}
+}
+
+void Level::wakeUpAllPlayers()
+{
+	allPlayersSleeping = false;
+	for (const auto &p : players)
+	{
+		if (p->isPlayerSleeping())
+			p->wakeUpPlayer(false, false, true);
+	}
+}
+
+bool Level::isAllPlayersFullyAsleep()
+{
+	if (allPlayersSleeping && !isOnline)
+	{
+		for (const auto &p : players)
+		{
+			if (!p->isPlayerFullyAsleep())
+				return false;
+		}
+		return true;
+	}
+	return false;
 }
 
 void Level::tickTiles()
@@ -2108,4 +2156,125 @@ bool Level::canBlockBeRainedOn(int_t x, int_t y, int_t z)
 {
 	(void)x; (void)y; (void)z;
 	return false;
+}
+
+MapDataBase *Level::loadItemData(const jstring &id, const std::function<std::unique_ptr<MapDataBase>(const jstring&)> &factory)
+{
+	auto it = loadedItemData.find(id);
+	if (it != loadedItemData.end())
+		return it->second.get();
+
+	if (dir != nullptr)
+	{
+		std::unique_ptr<File> dataDir(File::open(*dir, u"data"));
+		if (dataDir != nullptr)
+		{
+			std::unique_ptr<File> file(File::open(*dataDir, id + u".dat"));
+			if (file != nullptr && file->exists())
+			{
+				try
+				{
+					std::unique_ptr<std::istream> is(file->toStreamIn());
+					if (is)
+					{
+						std::unique_ptr<CompoundTag> root(NbtIo::readCompressed(*is));
+						if (root != nullptr && root->contains(u"data"))
+						{
+							auto dataTag = root->getCompound(u"data");
+							auto data = factory(id);
+							if (data != nullptr)
+							{
+								data->readFromNBT(*dataTag);
+								loadedItemData[id] = std::move(data);
+							}
+						}
+					}
+				}
+				catch (...) {}
+			}
+		}
+	}
+
+	auto it2 = loadedItemData.find(id);
+	if (it2 != loadedItemData.end())
+		return it2->second.get();
+	return nullptr;
+}
+
+void Level::setItemData(const jstring &id, MapDataBase *data)
+{
+	if (data == nullptr)
+		return;
+	loadedItemData[id] = std::unique_ptr<MapDataBase>(data);
+}
+
+int_t Level::getUniqueDataId(const jstring &key)
+{
+	short_t value = 0;
+	auto it = idCounts.find(key);
+	if (it != idCounts.end())
+		value = it->second + 1;
+	idCounts[key] = value;
+
+	if (dir != nullptr)
+	{
+		try
+		{
+			std::unique_ptr<File> dataDir(File::open(*dir, u"data"));
+			if (dataDir != nullptr)
+			{
+				if (!dataDir->exists())
+					dataDir->mkdirs();
+				std::unique_ptr<File> idFile(File::open(*dataDir, u"idcounts.dat"));
+				if (idFile != nullptr)
+				{
+					auto root = Util::make_shared<CompoundTag>();
+					for (const auto &entry : idCounts)
+						root->putShort(entry.first, entry.second);
+					std::unique_ptr<std::ostream> os(idFile->toStreamOut());
+					if (os)
+						NbtIo::writeCompressed(*root, *os);
+				}
+			}
+		}
+		catch (...) {}
+	}
+	return value;
+}
+
+void Level::saveAllItemData()
+{
+	if (dir == nullptr)
+		return;
+
+	std::unique_ptr<File> dataDir(File::open(*dir, u"data"));
+	if (dataDir == nullptr)
+		return;
+	if (!dataDir->exists())
+		dataDir->mkdirs();
+
+	for (auto &entry : loadedItemData)
+	{
+		MapDataBase *data = entry.second.get();
+		if (data == nullptr || !data->isDirty())
+			continue;
+
+		try
+			{
+			std::unique_ptr<File> file(File::open(*dataDir, entry.first + u".dat"));
+			if (file == nullptr)
+				continue;
+			auto root = Util::make_shared<CompoundTag>();
+			auto dataTag = Util::make_shared<CompoundTag>();
+			data->writeToNBT(*dataTag);
+			root->put(u"data", dataTag);
+			std::unique_ptr<std::ostream> os(file->toStreamOut());
+			if (os)
+			{
+				NbtIo::writeCompressed(*root, *os);
+				data->setDirty(false);
+			}
+		}
+		catch (...) {}
+	}
 }

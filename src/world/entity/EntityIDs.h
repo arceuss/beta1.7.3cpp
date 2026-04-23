@@ -1,5 +1,6 @@
 ENTITYIO_ID(EntityItem, u"Item", 1)
 ENTITYIO_ID(EntityMinecart, u"Minecart", 40)
+ENTITYIO_ID(EntityBoat, u"Boat", 41)
 ENTITYIO_ID(Mob, u"Mob", 48)
 ENTITYIO_ID(FallingTile, u"FallingTile", 21)
 ENTITYIO_ID(PrimedTNT, u"PrimedTnt", 20)

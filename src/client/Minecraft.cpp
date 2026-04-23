@@ -739,7 +739,8 @@ void Minecraft::handleMouseClick(int_t button)
 			if (gameMode->useItemOn(player, *level, selected, x, y, z, f))
 			{
 				canUseItem = false;
-				this->player->swing();
+				if (!player->sleeping)
+					this->player->swing();
 			}
 
 			if (selected == nullptr)
@@ -929,7 +930,10 @@ void Minecraft::tick()
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_S && lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
 						reloadSound();
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F5)
-						options.thirdPersonView = !options.thirdPersonView;
+					{
+						if (player == nullptr || !player->sleeping)
+							options.thirdPersonView = !options.thirdPersonView;
+					}
 					if (lwjgl::Keyboard::getEventKey() == options.keyDrop.key && player != nullptr)
 						player->drop();
 					if (lwjgl::Keyboard::getEventKey() == options.keyInventory.key && player != nullptr)

@@ -23,7 +23,7 @@ public:
 	void render(Entity &entity, double x, double y, double z, float rot, float a) override;
 
 protected:
-	void setupRotations(Mob &mob, float bob, float bodyRot, float a);
+	virtual void setupRotations(Mob &mob, float bob, float bodyRot, float a);
 	float getAttackAnim(Mob &mob, float a);
 	float getBob(Mob &mob, float a);
 

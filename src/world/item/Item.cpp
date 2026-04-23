@@ -112,3 +112,19 @@ bool Item::mineBlock(ItemInstance &stack, int_t tile, int_t x, int_t y, int_t z,
 	(void)miner;
 	return false;
 }
+
+void Item::onUpdate(ItemInstance &stack, Level &level, Entity &entity, int_t slot, bool isHeld)
+{
+	(void)stack;
+	(void)level;
+	(void)entity;
+	(void)slot;
+	(void)isHeld;
+}
+
+void Item::onCreated(ItemInstance &stack, Level &level, Player &player)
+{
+	(void)stack;
+	(void)level;
+	(void)player;
+}

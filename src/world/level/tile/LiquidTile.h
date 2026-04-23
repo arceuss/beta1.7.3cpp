@@ -35,6 +35,7 @@ public:
 	Vec3 getFlowVector(Level &level, int_t x, int_t y, int_t z);
 
 	static float getHeight(int_t data);
+	static double getSlopeAngle(LevelSource &level, int_t x, int_t y, int_t z, const Material &material);
 
 protected:
 	int_t getDepth(Level &level, int_t x, int_t y, int_t z) const;

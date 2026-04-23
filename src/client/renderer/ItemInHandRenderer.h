@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+
+#include "client/renderer/MapItemRenderer.h"
 #include "client/renderer/TileRenderer.h"
 #include "world/item/ItemInstance.h"
 
@@ -24,7 +27,10 @@ private:
 
 	int_t lastSlot = -1;
 
+	std::unique_ptr<MapItemRenderer> mapItemRenderer;
+
 	void renderItem(ItemInstance &item);
+	void renderMapFirstPerson(float a, float h);
 
 public:
 	ItemInHandRenderer(Minecraft &mc);

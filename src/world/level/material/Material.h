@@ -2,6 +2,7 @@
 
 #include "java/Type.h"
 
+class MapColor;
 class DecorationMaterial;
 class GasMaterial;
 class LiquidMaterial;
@@ -11,6 +12,7 @@ class Material
 public:
 	static GasMaterial air;
 	static Material dirt;
+	static Material grassMaterial;
 	static Material wood;
 	static Material stone;
 	static Material sand;
@@ -26,6 +28,8 @@ public:
 	static Material web;
 	static Material fire;
 	static Material piston;
+	static Material leaves;
+	static Material portal;
 
 	static Material &plants();
 	static Material &cactus();
@@ -40,6 +44,8 @@ private:
 	int_t mobilityFlag = 0;
 
 public:
+	const MapColor *mapColor = nullptr;
+
 	virtual ~Material() {}
 
 	virtual bool isLiquid() const;
@@ -58,6 +64,8 @@ private:
 
 public:
 	virtual bool isFlammable() const;
+
+	Material &setMapColor(MapColor &color);
 
 	friend class Tile;
 };

@@ -86,5 +86,31 @@ protected:
 	void reallyDrop(std::shared_ptr<EntityItem> itemEntity);
 
 public:
+	bool sleeping = false;
+	int_t sleepTimer = 0;
+	int_t bedX = 0, bedY = 0, bedZ = 0;
+
+	float bedViewX = 0.0f;
+	float bedViewZ = 0.0f;
+
+	enum class SleepStatus
+	{
+		OK,
+		NOT_POSSIBLE_HERE,
+		NOT_POSSIBLE_NOW,
+		TOO_FAR_AWAY,
+		OTHER_PROBLEM
+	};
+
+	SleepStatus sleepInBedAt(int_t x, int_t y, int_t z);
+	void wakeUpPlayer(bool immediately, bool updateSleepFlag, bool setSpawn);
+	bool isPlayerSleeping() const { return sleeping; }
+	bool isPlayerFullyAsleep() const { return sleeping && sleepTimer >= 100; }
+	bool isInBed() const;
+	float getBedOrientationInDegrees() const;
+
+	virtual void displayClientMessage(const jstring &message) {}
+
+public:
 	bool isPlayer() override { return true; }
 };

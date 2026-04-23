@@ -186,6 +186,34 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 		}
 	}
 
+	// Sleep fade overlay
+	if (minecraft.player->sleepTimer > 0)
+	{
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_ALPHA_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		int_t timer = minecraft.player->sleepTimer;
+		constexpr int_t SLEEP_DURATION = 100;
+		constexpr int_t WAKE_UP_DURATION = 10;
+		float amount = static_cast<float>(timer) / static_cast<float>(SLEEP_DURATION);
+		if (amount > 1.0f)
+		{
+			amount = 1.0f - (static_cast<float>(timer - SLEEP_DURATION) / static_cast<float>(WAKE_UP_DURATION));
+		}
+
+		int_t alpha = static_cast<int_t>(220.0f * amount);
+		if (alpha < 0) alpha = 0;
+		if (alpha > 220) alpha = 220;
+		int_t color = (alpha << 24) | 0x101020;
+		fill(0, 0, width, height, color);
+
+		glEnable(GL_ALPHA_TEST);
+		glEnable(GL_DEPTH_TEST);
+		glDisable(GL_BLEND);
+	}
+
 	// b173-style chat overlay (always renders; adapts to open/closed state)
 	{
 		bool chatOpen = dynamic_cast<ChatScreen*>(minecraft.screen.get()) != nullptr;

@@ -13,6 +13,7 @@
 #include "util/Mth.h"
 #include "world/level/tile/PistonBaseTile.h"
 #include "world/level/tile/PistonExtensionTile.h"
+#include "world/level/tile/BedTile.h"
 #include <cmath>
 
 namespace
@@ -147,6 +148,8 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselatePistonBaseInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_PISTON_EXTENSION)
 		return tesselatePistonExtensionInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_BED)
+		return tesselateBedInWorld(tt, x, y, z);
 	return false;
 }
 
@@ -1931,6 +1934,155 @@ void TileRenderer::renderTile(Tile &tile, int_t data)
 		}
 	}
 
+bool TileRenderer::tesselateBedInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	Tesselator &t = Tesselator::instance;
+
+	int_t data = level->getData(x, y, z);
+	int_t direction = BedTile::getDirectionFromMetadata(data);
+	bool isHead = !BedTile::isBlockFootOfBed(data);
+
+	float c10 = 0.5f;
+	float c11 = 1.0f;
+	float c2 = 0.8f;
+	float c3 = 0.6f;
+
+	float centerBrightness = tt.getBrightness(*level, x, y, z);
+
+	// Render wooden underside at y + 3/16
+	{
+		t.color(c10 * centerBrightness, c10 * centerBrightness, c10 * centerBrightness);
+		int_t tex = tt.getTexture(*level, x, y, z, Facing::DOWN);
+		int_t xt = (tex & 0xF) << 4;
+		int_t yt = tex & 0xF0;
+		double u0 = static_cast<double>(xt) / 256.0;
+		double u1 = static_cast<double>(xt + 16 - 0.01) / 256.0;
+		double v0 = static_cast<double>(yt) / 256.0;
+		double v1 = static_cast<double>(yt + 16 - 0.01) / 256.0;
+
+		float x0 = static_cast<float>(x + tt.xx0);
+		float x1 = static_cast<float>(x + tt.xx1);
+		float y0 = static_cast<float>(y + tt.yy0 + 3.0 / 16.0);
+		float z0 = static_cast<float>(z + tt.zz0);
+		float z1 = static_cast<float>(z + tt.zz1);
+
+		t.vertexUV(x0, y0, z1, u0, v1);
+		t.vertexUV(x0, y0, z0, u0, v0);
+		t.vertexUV(x1, y0, z0, u1, v0);
+		t.vertexUV(x1, y0, z1, u1, v1);
+	}
+
+	// Render bed top
+	{
+		float topBrightness = tt.getBrightness(*level, x, y + 1, z);
+		t.color(c11 * topBrightness, c11 * topBrightness, c11 * topBrightness);
+		int_t tex = tt.getTexture(*level, x, y, z, Facing::UP);
+		int_t xt = (tex & 0xF) << 4;
+		int_t yt = tex & 0xF0;
+		double u0 = static_cast<double>(xt) / 256.0;
+		double u1 = static_cast<double>(xt + 16 - 0.01) / 256.0;
+		double v0 = static_cast<double>(yt) / 256.0;
+		double v1 = static_cast<double>(yt + 16 - 0.01) / 256.0;
+
+		double topLeftU = u0, topRightU = u1;
+		double topLeftV = v0, topRightV = v0;
+		double bottomLeftU = u0, bottomRightU = u1;
+		double bottomLeftV = v1, bottomRightV = v1;
+
+		if (direction == 0) // SOUTH
+		{
+			topRightU = u0;
+			topLeftV = v1;
+			bottomLeftU = u1;
+			bottomRightV = v0;
+		}
+		else if (direction == 2) // NORTH
+		{
+			topLeftU = u1;
+			topRightV = v1;
+			bottomRightU = u0;
+			bottomLeftV = v0;
+		}
+		else if (direction == 3) // EAST
+		{
+			topLeftU = u1;
+			topRightV = v1;
+			bottomRightU = u0;
+			bottomLeftV = v0;
+			topRightU = u0;
+			topLeftV = v1;
+			bottomLeftU = u1;
+			bottomRightV = v0;
+		}
+
+		float x0 = static_cast<float>(x + tt.xx0);
+		float x1 = static_cast<float>(x + tt.xx1);
+		float y1 = static_cast<float>(y + tt.yy1);
+		float z0 = static_cast<float>(z + tt.zz0);
+		float z1 = static_cast<float>(z + tt.zz1);
+
+		t.vertexUV(x1, y1, z1, bottomLeftU, bottomLeftV);
+		t.vertexUV(x1, y1, z0, topLeftU, topLeftV);
+		t.vertexUV(x0, y1, z0, topRightU, topRightV);
+		t.vertexUV(x0, y1, z1, bottomRightU, bottomRightV);
+	}
+
+	// Determine which edge to skip (the one between foot and head piece)
+	// headBlockToFootBlockMap tells offset from head to foot, so foot is in the direction the bed faces.
+	// Foot piece: skip face opposite to bed direction (toward head)
+	// Head piece: skip face in bed direction (toward foot)
+	static constexpr int directionToFacing[4] = {3, 4, 2, 5};
+	static constexpr int directionOpposite[4] = {2, 3, 0, 1};
+	int_t skipEdge = directionToFacing[directionOpposite[direction]];
+	if (isHead)
+		skipEdge = directionToFacing[direction];
+
+	// Determine which edge to x-flip
+	int_t flipEdge = 4; // WEST (default for NORTH)
+	switch (direction)
+	{
+		case 0: flipEdge = 5; break; // SOUTH -> EAST
+		case 1: flipEdge = 3; break; // WEST -> SOUTH
+		case 2: flipEdge = 4; break; // NORTH -> WEST
+		case 3: flipEdge = 2; break; // EAST -> NORTH
+	}
+
+	if (skipEdge != 2 && (noCulling || tt.shouldRenderFace(*level, x, y, z - 1, Facing::NORTH)))
+	{
+		float br = tt.getBrightness(*level, x, y, z - 1);
+		t.color(c2 * br, c2 * br, c2 * br);
+		xFlipTexture = flipEdge == 2;
+		renderNorth(tt, x, y, z, tt.getTexture(*level, x, y, z, Facing::NORTH));
+	}
+
+	if (skipEdge != 3 && (noCulling || tt.shouldRenderFace(*level, x, y, z + 1, Facing::SOUTH)))
+	{
+		float br = tt.getBrightness(*level, x, y, z + 1);
+		t.color(c2 * br, c2 * br, c2 * br);
+		xFlipTexture = flipEdge == 3;
+		renderSouth(tt, x, y, z, tt.getTexture(*level, x, y, z, Facing::SOUTH));
+	}
+
+	if (skipEdge != 4 && (noCulling || tt.shouldRenderFace(*level, x - 1, y, z, Facing::WEST)))
+	{
+		float br = tt.getBrightness(*level, x - 1, y, z);
+		t.color(c3 * br, c3 * br, c3 * br);
+		xFlipTexture = flipEdge == 4;
+		renderWest(tt, x, y, z, tt.getTexture(*level, x, y, z, Facing::WEST));
+	}
+
+	if (skipEdge != 5 && (noCulling || tt.shouldRenderFace(*level, x + 1, y, z, Facing::EAST)))
+	{
+		float br = tt.getBrightness(*level, x + 1, y, z);
+		t.color(c3 * br, c3 * br, c3 * br);
+		xFlipTexture = flipEdge == 5;
+		renderEast(tt, x, y, z, tt.getTexture(*level, x, y, z, Facing::EAST));
+	}
+
+	xFlipTexture = false;
+	return true;
+}
+
 void TileRenderer::renderGuiTile(Tile &tile, int_t data)
 {
 	if (tile.id == 23 || tile.id == 61 || tile.id == 62)
@@ -1940,7 +2092,7 @@ void TileRenderer::renderGuiTile(Tile &tile, int_t data)
 
 bool TileRenderer::canRender(int_t renderShape)
 	{
-		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS || renderShape == Tile::SHAPE_STAIRS || renderShape == Tile::SHAPE_PISTON_BASE || renderShape == Tile::SHAPE_PISTON_EXTENSION;
+		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS || renderShape == Tile::SHAPE_STAIRS || renderShape == Tile::SHAPE_PISTON_BASE || renderShape == Tile::SHAPE_PISTON_EXTENSION || renderShape == Tile::SHAPE_BED;
 	}
 
 
@@ -1985,18 +2137,14 @@ float TileRenderer::getLiquidHeight(int_t x, int_t y, int_t z, const Material &m
 bool TileRenderer::tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z)
 {
 	Tesselator &t = Tesselator::instance;
-	int_t col = tt.getColor(*level, x, y, z);
-	float cr = static_cast<float>((col >> 16) & 0xFF) / 255.0f;
-	float cg = static_cast<float>((col >> 8) & 0xFF) / 255.0f;
-	float cb = static_cast<float>(col & 0xFF) / 255.0f;
 
-	bool renderTop = tt.shouldRenderFace(*level, x, y + 1, z, Facing::UP);
-	bool renderBot = tt.shouldRenderFace(*level, x, y - 1, z, Facing::DOWN);
+	bool renderTop = noCulling || tt.shouldRenderFace(*level, x, y + 1, z, Facing::UP);
+	bool renderBot = noCulling || tt.shouldRenderFace(*level, x, y - 1, z, Facing::DOWN);
 	bool renderSides[4] = {
-		tt.shouldRenderFace(*level, x, y, z - 1, Facing::NORTH),
-		tt.shouldRenderFace(*level, x, y, z + 1, Facing::SOUTH),
-		tt.shouldRenderFace(*level, x - 1, y, z, Facing::WEST),
-		tt.shouldRenderFace(*level, x + 1, y, z, Facing::EAST)
+		noCulling || tt.shouldRenderFace(*level, x, y, z - 1, Facing::NORTH),
+		noCulling || tt.shouldRenderFace(*level, x, y, z + 1, Facing::SOUTH),
+		noCulling || tt.shouldRenderFace(*level, x - 1, y, z, Facing::WEST),
+		noCulling || tt.shouldRenderFace(*level, x + 1, y, z, Facing::EAST)
 	};
 
 	if (!renderTop && !renderBot && !renderSides[0] && !renderSides[1] && !renderSides[2] && !renderSides[3])
@@ -2004,6 +2152,7 @@ bool TileRenderer::tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z)
 
 	bool changed = false;
 	const Material &material = tt.material;
+	int_t data = level->getData(x, y, z);
 
 	float h00 = getLiquidHeight(x, y, z, material);
 	float h01 = getLiquidHeight(x, y, z + 1, material);
@@ -2013,34 +2162,33 @@ bool TileRenderer::tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	if (renderTop)
 	{
 		changed = true;
-		double flowAngle = getLiquidFlowAngle(*level, x, y, z, material);
-		bool hasFlow = flowAngle > FLOW_TEXTURE_NONE;
 		int_t texTop = tt.getTexture(Facing::UP);
-		if (hasFlow)
+		float angle = static_cast<float>(LiquidTile::getSlopeAngle(*level, x, y, z, material));
+		if (angle > -999.0f)
 			texTop = tt.getTexture(Facing::NORTH);
 		int_t xt = (texTop & 0xF) << 4;
 		int_t yt = texTop & 0xF0;
 		double u = (static_cast<double>(xt) + 8.0) / 256.0;
 		double v = (static_cast<double>(yt) + 8.0) / 256.0;
-		if (!hasFlow)
+		if (angle < -999.0f)
 		{
-			flowAngle = 0.0;
+			angle = 0.0f;
 		}
 		else
 		{
 			u = (static_cast<double>(xt) + 16.0) / 256.0;
 			v = (static_cast<double>(yt) + 16.0) / 256.0;
 		}
-		double uo = std::sin(flowAngle) * 8.0 / 256.0;
-		double vo = std::cos(flowAngle) * 8.0 / 256.0;
+		float s = Mth::sin(angle) * 8.0f / 256.0f;
+		float c = Mth::cos(angle) * 8.0f / 256.0f;
 
 		float bright = tt.getBrightness(*level, x, y, z);
-		t.color(bright * cr, bright * cg, bright * cb);
+		t.color(bright, bright, bright);
 
-		t.vertexUV(x + 0.0, y + h00, z + 0.0, u - vo - uo, v - vo + uo);
-		t.vertexUV(x + 0.0, y + h01, z + 1.0, u - vo + uo, v + vo + uo);
-		t.vertexUV(x + 1.0, y + h11, z + 1.0, u + vo + uo, v + vo - uo);
-		t.vertexUV(x + 1.0, y + h10, z + 0.0, u + vo - uo, v - vo - uo);
+		t.vertexUV(x + 0.0, y + h00, z + 0.0, u - c - s, v - c + s);
+		t.vertexUV(x + 0.0, y + h01, z + 1.0, u - c + s, v + c + s);
+		t.vertexUV(x + 1.0, y + h11, z + 1.0, u + c + s, v + c - s);
+		t.vertexUV(x + 1.0, y + h10, z + 0.0, u + c - s, v - c - s);
 	}
 
 	if (renderBot)
@@ -2048,7 +2196,7 @@ bool TileRenderer::tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		changed = true;
 		float bright = tt.getBrightness(*level, x, y - 1, z);
 		t.color(0.5f * bright, 0.5f * bright, 0.5f * bright);
-		renderFaceDown(tt, static_cast<double>(x), static_cast<double>(y), static_cast<double>(z), tt.getTexture(Facing::DOWN));
+		renderFaceUp(tt, static_cast<double>(x), static_cast<double>(y), static_cast<double>(z), tt.getTexture(Facing::DOWN));
 	}
 
 	for (int_t side = 0; side < 4; ++side)
@@ -2102,7 +2250,7 @@ bool TileRenderer::tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z)
 
 		float bright = tt.getBrightness(*level, sx, y, sz);
 		float shade = side < 2 ? 0.8f : 0.6f;
-		t.color(shade * bright * cr, shade * bright * cg, shade * bright * cb);
+		t.color(shade * bright, shade * bright, shade * bright);
 
 		t.vertexUV(sx0, y + sH0, sz0, u0, v0);
 		t.vertexUV(sx1, y + sH1, sz1, u1, v1);

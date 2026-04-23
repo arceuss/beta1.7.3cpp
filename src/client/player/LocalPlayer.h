@@ -60,4 +60,5 @@ public:
 	
 	void prepareForTick();
 	bool isSneaking() override;
+	void displayClientMessage(const jstring &message) override;
 };

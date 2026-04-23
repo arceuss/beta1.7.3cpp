@@ -25,6 +25,8 @@
 #include "world/level/tile/PressurePlateTile.h"
 #include "world/level/tile/NotGateTile.h"
 #include "world/level/tile/PistonBaseTile.h"
+#include "world/level/tile/MushroomTile.h"
+#include "world/level/tile/ClothTile.h"
 
 namespace
 {
@@ -117,6 +119,12 @@ Recipes::Recipes()
 	addToolRecipes(ItemInstance(Tile::wood.id, 1, -1), *Items::swordWood, *Items::shovelWood, *Items::pickaxeWood, *Items::axeWood, *Items::hoeWood);
 	addToolRecipes(ItemInstance(Tile::cobblestone.id, 1, -1), *Items::swordStone, *Items::shovelStone, *Items::pickaxeStone, *Items::axeStone, *Items::hoeStone);
 
+	addShapedRecipe(ItemInstance(Items::bowlSoup->getShiftedIndex(), 1, 0), {"#", "X", "B"}, {
+		{'#', ItemInstance(Tile::brownMushroom.id, 1, 0)},
+		{'X', ItemInstance(Tile::redMushroom.id, 1, 0)},
+		{'B', ItemInstance(Items::bowlEmpty->getShiftedIndex(), 1, 0)}
+	});
+
 	addShapedRecipe(ItemInstance(Items::bread->getShiftedIndex(), 1, 0), {"###"}, {
 		{'#', ItemInstance(Items::wheat->getShiftedIndex(), 1, 0)}
 	});
@@ -124,6 +132,15 @@ Recipes::Recipes()
 		{'#', ItemInstance(Items::wheat->getShiftedIndex(), 1, 0)},
 		{'X', ItemInstance(Items::dyePowder->getShiftedIndex(), 1, 3)}
 	});
+	addShapedRecipe(ItemInstance(Items::appleGold->getShiftedIndex(), 1, 0), {"###", "#X#", "###"}, {
+		{'#', ItemInstance(Tile::goldBlock.id, 1, -1)},
+		{'X', ItemInstance(Items::apple->getShiftedIndex(), 1, 0)}
+	});
+
+	addShapedRecipe(ItemInstance(Items::bucketEmpty->getShiftedIndex(), 1, 0), {"# #", " # "}, {
+		{'#', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)}
+	});
+
 	addShapedRecipe(ItemInstance(Items::flintAndSteel->getShiftedIndex(), 1, 0), {"A ", " B"}, {
 		{'A', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)},
 		{'B', ItemInstance(Items::flint->getShiftedIndex(), 1, 0)}
@@ -163,6 +180,10 @@ Recipes::Recipes()
 		{'B', ItemInstance(Items::minecart->getShiftedIndex(), 1, 0)}
 	});
 
+	addShapedRecipe(ItemInstance(Items::boat->getShiftedIndex(), 1, 0), {"# #", "###"}, {
+		{'#', ItemInstance(Tile::wood.id, 1, -1)}
+	});
+
 	addShapedRecipe(ItemInstance(Tile::torchRedstoneActive.id, 1, 0), {"X", "#"}, {
 		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
 		{'X', ItemInstance(Items::redstone->getShiftedIndex(), 1, 0)}
@@ -185,6 +206,11 @@ Recipes::Recipes()
 
 	addShapedRecipe(ItemInstance(Items::shears->getShiftedIndex(), 1, 0), {" #", "# "}, {
 		{'#', ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0)}
+	});
+
+	addShapedRecipe(ItemInstance(Items::bed->getShiftedIndex(), 1, 0), {"###", "XXX"}, {
+		{'#', ItemInstance(Tile::wool.id, 1, -1)},
+		{'X', ItemInstance(Tile::wood.id, 1, -1)}
 	});
 
 	addShapedRecipe(ItemInstance(Tile::pistonBase.id, 1, 0), {"TTT", "#X#", "#R#"}, {
@@ -219,6 +245,12 @@ Recipes::Recipes()
 		{'X', ItemInstance(Items::gunpowder->getShiftedIndex(), 1, 0)},
 		{'#', ItemInstance(Tile::sand.id, 1, 0)}
 	});
+
+	addShapedRecipe(ItemInstance(Items::map->getShiftedIndex(), 1, 0), {"###", "#X#", "###"}, {
+		{'#', ItemInstance(Items::paper->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::compass->getShiftedIndex(), 1, 0)}
+	});
+
 	std::sort(shapedRecipes.begin(), shapedRecipes.end(), [](const ShapedRecipe &a, const ShapedRecipe &b) {
 		return a.size() > b.size();
 	});

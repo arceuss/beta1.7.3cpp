@@ -6,7 +6,9 @@
 #include "nbt/ListTag.h"
 #include "world/entity/Entity.h"
 #include "world/entity/player/Player.h"
+#include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
+#include "world/item/Item.h"
 #include "world/item/ItemArmor.h"
 
 InventoryPlayer::InventoryPlayer(Player *player) : player(player)
@@ -99,6 +101,21 @@ void InventoryPlayer::tick()
 	for (ItemInstance &item : mainInventory)
 		if (!item.isEmpty() && item.popTime > 0)
 			item.popTime--;
+
+	if (player != nullptr)
+	{
+		Level &level = player->level;
+		for (int_t i = 0; i < static_cast<int_t>(mainInventory.size()); ++i)
+		{
+			ItemInstance &item = mainInventory[i];
+			if (item.isEmpty())
+				continue;
+			Item *itemObj = item.getItem();
+			if (itemObj == nullptr)
+				continue;
+			itemObj->onUpdate(item, level, *player, i, i == currentItem);
+		}
+	}
 }
 
 int_t InventoryPlayer::getFreeSlot() const

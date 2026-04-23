@@ -7,6 +7,7 @@
 #include "world/level/material/Material.h"
 #include "world/level/material/LiquidMaterial.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/BedTile.h"
 
 Player::Player(Level &level) : Mob(level)
 {
@@ -21,6 +22,27 @@ Player::Player(Level &level) : Mob(level)
 
 void Player::tick()
 {
+	if (sleeping)
+	{
+		sleepTimer++;
+		if (sleepTimer > 100)
+			sleepTimer = 100;
+
+		if (!level.isOnline)
+		{
+			if (!isInBed())
+				wakeUpPlayer(true, true, false);
+			else if (level.isDay())
+				wakeUpPlayer(false, true, true);
+		}
+	}
+	else if (sleepTimer > 0)
+	{
+		sleepTimer++;
+		if (sleepTimer >= 110)
+			sleepTimer = 0;
+	}
+
 	Mob::tick();
 
 	xCloakO = xCloak;
@@ -42,6 +64,151 @@ void Player::tick()
 	xCloak += dx * 0.25;
 	yCloak += dy * 0.25;
 	zCloak += dz * 0.25;
+}
+
+Player::SleepStatus Player::sleepInBedAt(int_t bx, int_t by, int_t bz)
+{
+	if (!level.isOnline)
+	{
+		if (sleeping || !isAlive())
+			return SleepStatus::OTHER_PROBLEM;
+
+		if (!level.dimension->mayRespawn())
+			return SleepStatus::NOT_POSSIBLE_HERE;
+
+		if (level.isDay())
+			return SleepStatus::NOT_POSSIBLE_NOW;
+
+		if (Mth::abs(static_cast<float>(x - bx)) > 3.0f || Mth::abs(static_cast<float>(y - by)) > 2.0f || Mth::abs(static_cast<float>(z - bz)) > 3.0f)
+			return SleepStatus::TOO_FAR_AWAY;
+	}
+
+	setSize(0.2f, 0.2f);
+	heightOffset = 0.2f;
+
+	if (level.hasChunkAt(bx, by, bz))
+	{
+		int_t data = level.getData(bx, by, bz);
+		int_t dir = data & 3;
+		float offX = 0.5f;
+		float offZ = 0.5f;
+		switch (dir)
+		{
+			case 0: offZ = 0.9f; break;
+			case 1: offX = 0.1f; break;
+			case 2: offZ = 0.1f; break;
+			case 3: offX = 0.9f; break;
+		}
+
+		bedViewX = 0.0f;
+		bedViewZ = 0.0f;
+		switch (dir)
+		{
+			case 0: bedViewZ = -1.8f; break;
+			case 1: bedViewX = 1.8f; break;
+			case 2: bedViewZ = 1.8f; break;
+			case 3: bedViewX = -1.8f; break;
+		}
+
+		setPos(bx + offX, by + 15.0f / 16.0f, bz + offZ);
+	}
+	else
+	{
+		setPos(bx + 0.5f, by + 15.0f / 16.0f, bz + 0.5f);
+	}
+
+	sleeping = true;
+	sleepTimer = 0;
+	bedX = bx;
+	bedY = by;
+	bedZ = bz;
+	xd = yd = zd = 0.0;
+
+	if (!level.isOnline)
+		level.updateAllPlayersSleepingFlag();
+
+	return SleepStatus::OK;
+}
+
+void Player::wakeUpPlayer(bool immediately, bool updateSleepFlag, bool setSpawn)
+{
+	setSize(0.6f, 1.8f);
+	heightOffset = 1.62f;
+
+	int_t wx = bedX, wy = bedY, wz = bedZ;
+	if (wy != 0 && level.getTile(wx, wy, wz) == Tile::bed.id)
+	{
+		BedTile::setBedOccupied(level, wx, wy, wz, false);
+	}
+
+	if (wy != 0)
+	{
+		int_t data = level.getData(wx, wy, wz);
+		int_t dir = data & 3;
+		int_t foundX = wx, foundY = wy, foundZ = wz;
+		bool found = false;
+		for (int_t step = 0; step <= 1; step++)
+		{
+			int_t sx = wx - BedTile::headBlockToFootBlockMap[dir][0] * step - 1;
+			int_t sz = wz - BedTile::headBlockToFootBlockMap[dir][1] * step - 1;
+			for (int_t dx = 0; dx <= 2; dx++)
+			{
+				for (int_t dz = 0; dz <= 2; dz++)
+				{
+					int_t cx = sx + dx;
+					int_t cz = sz + dz;
+					if (level.isBlockNormalCube(cx, wy - 1, cz) && level.isEmptyTile(cx, wy, cz) && level.isEmptyTile(cx, wy + 1, cz))
+					{
+						foundX = cx;
+						foundY = wy;
+						foundZ = cz;
+						found = true;
+						break;
+					}
+				}
+				if (found) break;
+			}
+			if (found) break;
+		}
+		if (!found)
+		{
+			foundX = wx;
+			foundY = wy + 1;
+			foundZ = wz;
+		}
+		setPos(foundX + 0.5f, foundY + heightOffset + 0.1f, foundZ + 0.5f);
+	}
+
+	sleeping = false;
+	if (!level.isOnline && updateSleepFlag)
+		level.updateAllPlayersSleepingFlag();
+
+	if (immediately)
+		sleepTimer = 0;
+	else
+		sleepTimer = 100;
+}
+
+bool Player::isInBed() const
+{
+	return level.getTile(bedX, bedY, bedZ) == Tile::bed.id;
+}
+
+float Player::getBedOrientationInDegrees() const
+{
+	if (bedY != 0)
+	{
+		int_t data = level.getData(bedX, bedY, bedZ);
+		int_t dir = data & 3;
+		switch (dir)
+		{
+			case 0: return 90.0f;
+			case 1: return 0.0f;
+			case 2: return 270.0f;
+			case 3: return 180.0f;
+		}
+	}
+	return 0.0f;
 }
 
 void Player::closeContainer()
@@ -170,6 +337,15 @@ void Player::readAdditionalSaveData(CompoundTag &tag)
 	auto inventoryTag = tag.getList(u"Inventory");
 	if (inventoryTag != nullptr)
 		inventory.load(*inventoryTag);
+
+	sleeping = tag.getBoolean(u"Sleeping");
+	sleepTimer = tag.getShort(u"SleepTimer");
+	if (sleeping)
+	{
+		bedX = Mth::floor(x);
+		bedY = Mth::floor(y);
+		bedZ = Mth::floor(z);
+	}
 }
 
 void Player::addAdditionalSaveData(CompoundTag &tag)
@@ -179,6 +355,9 @@ void Player::addAdditionalSaveData(CompoundTag &tag)
 	auto inventoryTag = std::make_shared<ListTag>();
 	inventory.save(*inventoryTag);
 	tag.put(u"Inventory", inventoryTag);
+
+	tag.putBoolean(u"Sleeping", sleeping);
+	tag.putShort(u"SleepTimer", static_cast<short_t>(sleepTimer));
 }
 
 float Player::getHeadHeight()

@@ -55,4 +55,6 @@ public:
 	virtual bool mineBlock(ItemInstance &stack, int_t tile, int_t x, int_t y, int_t z, Entity &miner) const;
 	virtual bool isFull3D() const { return false; }
 	virtual bool shouldRotateAroundWhenRendering() const { return false; }
+	virtual void onUpdate(ItemInstance &stack, Level &level, Entity &entity, int_t slot, bool isHeld);
+	virtual void onCreated(ItemInstance &stack, Level &level, Player &player);
 };

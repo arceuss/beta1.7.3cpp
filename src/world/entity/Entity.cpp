@@ -1,5 +1,6 @@
 #include "world/entity/Entity.h"
 
+#include "world/entity/item/EntityItem.h"
 #include "world/level/Level.h"
 #include "world/level/material/LiquidMaterial.h"
 #include "world/level/tile/LiquidTile.h"
@@ -765,10 +766,14 @@ float Entity::getShadowHeightOffs()
 	return bbHeight / 2.0f;
 }
 
-// TODO
-// spawnAtLocation
-// spawnAtLocation
-// spawnAtLocation
+void Entity::spawnAtLocation(const ItemInstance &stack, float offset)
+{
+	if (stack.isEmpty())
+		return;
+	auto entity = std::make_shared<EntityItem>(level, x, y + offset, z, stack);
+	entity->throwTime = 10;
+	level.addEntity(entity);
+}
 
 bool Entity::isAlive()
 {
