@@ -24,8 +24,10 @@
 #include "world/item/ItemBoat.h"
 #include "world/item/ItemSoup.h"
 #include "world/item/ItemBucket.h"
+#include "world/item/ItemCake.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
+#include "world/level/tile/CakeTile.h"
 
 namespace Items
 {
@@ -61,6 +63,8 @@ namespace Items
 	Item *boat = nullptr;
 	Item *bed = nullptr;
 	Item *map = nullptr;
+	Item *cake = nullptr;
+	Item *egg = nullptr;
 	Item *compass = nullptr;
 	Item *clock = nullptr;
 	Item *record13 = nullptr;
@@ -357,6 +361,12 @@ namespace Items
 
 		map = new ItemMap(102);
 		map->setIconIndex(60).setDescriptionId(u"item.map");
+
+		cake = new ItemCake(98, Tile::cake);
+		cake->setIconIndex(29).setDescriptionId(u"item.cake");
+
+		egg = new Item(344);
+		egg->setIconIndex(12).setDescriptionId(u"item.egg");
 
 		sign = new ItemSign(67);
 		sign->setIconIndex(42).setDescriptionId(u"item.sign");

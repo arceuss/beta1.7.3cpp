@@ -28,6 +28,7 @@ Material Material::fire = Material().setNoPushMobility().setMapColor(MapColor::a
 Material Material::piston = Material().setImmovableMobility().setMapColor(MapColor::stoneColor);
 Material Material::leaves = Material().flammable().setNoPushMobility().setMapColor(MapColor::foliageColor);
 Material Material::portal = Material().setImmovableMobility().setMapColor(MapColor::airColor);
+Material Material::cakeMaterial = Material().setNoPushMobility().setMapColor(MapColor::airColor);
 Material &Material::plants()
 {
 	static DecorationMaterial material(false, false, false, true);

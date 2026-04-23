@@ -89,6 +89,8 @@ namespace Items
 	extern Item *shears;
 	extern Item *bed;
 	extern Item *map;
+	extern Item *cake;
+	extern Item *egg;
 	extern ItemArmor *helmetLeather;
 	extern ItemArmor *plateLeather;
 	extern ItemArmor *legsLeather;

@@ -251,6 +251,13 @@ Recipes::Recipes()
 		{'X', ItemInstance(Items::compass->getShiftedIndex(), 1, 0)}
 	});
 
+	addShapedRecipe(ItemInstance(Items::cake->getShiftedIndex(), 1, 0), {"AAA", "BEB", "CCC"}, {
+		{'A', ItemInstance(Items::bucketMilk->getShiftedIndex(), 1, 0)},
+		{'B', ItemInstance(Items::sugar->getShiftedIndex(), 1, 0)},
+		{'C', ItemInstance(Items::wheat->getShiftedIndex(), 1, 0)},
+		{'E', ItemInstance(Items::egg->getShiftedIndex(), 1, 0)}
+	});
+
 	std::sort(shapedRecipes.begin(), shapedRecipes.end(), [](const ShapedRecipe &a, const ShapedRecipe &b) {
 		return a.size() > b.size();
 	});

@@ -9,6 +9,7 @@
 #include "world/level/tile/entity/ChestTileEntity.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "world/level/tile/entity/PistonTileEntity.h"
+#include "world/level/tile/entity/MobSpawnerTileEntity.h"
 
 void TileEntity::load(CompoundTag &tag)
 {
@@ -52,6 +53,8 @@ TileEntity *TileEntity::loadStatic(CompoundTag &tag)
 		tileEntity = new ChestTileEntity();
 	if (id == u"Piston")
 		tileEntity = new PistonTileEntity();
+	if (id == u"MobSpawner")
+		tileEntity = new MobSpawnerTileEntity();
 	if (tileEntity != nullptr)
 		tileEntity->load(tag);
 	return tileEntity;
