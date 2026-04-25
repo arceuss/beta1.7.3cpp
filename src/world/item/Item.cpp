@@ -102,6 +102,12 @@ bool Item::hurtEnemy(ItemInstance &stack, Entity &target, Entity &attacker) cons
 	return false;
 }
 
+void Item::saddleEntity(ItemInstance &stack, Mob &target) const
+{
+	(void)stack;
+	(void)target;
+}
+
 bool Item::mineBlock(ItemInstance &stack, int_t tile, int_t x, int_t y, int_t z, Entity &miner) const
 {
 	(void)stack;

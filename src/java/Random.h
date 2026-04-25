@@ -6,7 +6,8 @@ class Random
 {
 private:
 	long_t seed;
-
+	bool haveNextNextGaussian = false;
+	double nextNextGaussian = 0.0;
 public:
 	Random();
 	Random(long_t set_seed);
@@ -24,4 +25,5 @@ public:
 
 	float nextFloat();
 	double nextDouble();
+	double nextGaussian();
 };

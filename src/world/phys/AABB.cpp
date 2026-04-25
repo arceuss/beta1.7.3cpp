@@ -184,7 +184,7 @@ double AABB::getSize() const
 	double dx = x1 - x0;
 	double dy = y1 - y0;
 	double dz = z1 - z0;
-	return (dx * dy * dz) / 3.0;
+	return (dx + dy + dz) / 3.0;
 }
 
 AABB *AABB::shrink(double x, double y, double z) const

@@ -19,6 +19,7 @@ public:
 	bool holdingLeftHand = false;
 	bool holdingRightHand = false;
 	bool sneaking = false;
+	bool zombieArms = false;
 
 	HumanoidModel();
 	HumanoidModel(float g);

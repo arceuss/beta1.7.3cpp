@@ -136,6 +136,20 @@ void HumanoidModel::setupAnim(float time, float r, float bob, float yRot, float 
 		head.y = 0.0f;
 	}
 
+	if (zombieArms)
+	{
+		float swing = Mth::sin(attackTime * Mth::PI);
+		float swingEase = Mth::sin((1.0f - (1.0f - attackTime) * (1.0f - attackTime)) * Mth::PI);
+		arm0.zRot = 0.0f;
+		arm1.zRot = 0.0f;
+		arm0.yRot = -(0.1f - swing * 0.6f);
+		arm1.yRot = 0.1f - swing * 0.6f;
+		arm0.xRot = -Mth::PI * 0.5f;
+		arm1.xRot = -Mth::PI * 0.5f;
+		arm0.xRot -= swing * 1.2f - swingEase * 0.4f;
+		arm1.xRot -= swing * 1.2f - swingEase * 0.4f;
+	}
+
 	arm0.zRot += Mth::cos(bob * 0.09f) * 0.05f + 0.05f;
 	arm1.zRot -= Mth::cos(bob * 0.09f) * 0.05f + 0.05f;
 	arm0.xRot += Mth::sin(bob * 0.067f) * 0.05f;

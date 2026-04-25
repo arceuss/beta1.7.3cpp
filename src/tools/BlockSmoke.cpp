@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 #include "client/particle/TerrainParticle.h"
 #include "client/particle/NoteParticle.h"
@@ -16,10 +17,26 @@
 #include "world/item/Item.h"
 #include "world/item/ItemPickaxe.h"
 #include "world/item/ItemInstance.h"
+#include "world/item/ItemArmor.h"
 #include "world/item/crafting/CraftingContainer.h"
 #include "world/item/crafting/Recipes.h"
 #include "world/entity/player/Player.h"
+#include "world/entity/Mob.h"
+#include "world/entity/animal/Cow.h"
+#include "world/entity/animal/Pig.h"
+#include "world/entity/animal/Sheep.h"
+#include "world/entity/animal/Chicken.h"
+#include "world/entity/monster/Zombie.h"
+#include "world/entity/monster/Skeleton.h"
+#include "world/entity/monster/PigZombie.h"
+#include "world/entity/monster/Spider.h"
+#include "world/entity/monster/Creeper.h"
+#include "world/entity/projectile/EntityArrow.h"
+#include "world/entity/EntityLightningBolt.h"
+#include "world/level/pathfinder/PathEntity.h"
+#include "world/level/pathfinder/Pathfinder.h"
 #include "world/level/Level.h"
+#include "world/level/material/GasMaterial.h"
 #include "world/phys/Vec3.h"
 #include "util/Mth.h"
 #include "world/level/LevelListener.h"
@@ -101,6 +118,50 @@ struct InspectableNoteParticle : public NoteParticle
 		float currentSize() const { return size; }
 	};
 
+	struct TestLevelSource : public LevelSource
+	{
+		Level &level;
+		std::unordered_map<long_t, int_t> tiles;
+
+		explicit TestLevelSource(Level &level) : level(level) {}
+
+		static long_t key(int_t x, int_t y, int_t z)
+		{
+			return (static_cast<long_t>(x) << 32) ^ (static_cast<long_t>(z) << 16) ^ static_cast<long_t>(y);
+		}
+
+		void setTile(int_t x, int_t y, int_t z, int_t tile)
+		{
+			tiles[key(x, y, z)] = tile;
+		}
+
+		int_t getTile(int_t x, int_t y, int_t z) override
+		{
+			auto it = tiles.find(key(x, y, z));
+			return it == tiles.end() ? 0 : it->second;
+		}
+
+		std::shared_ptr<TileEntity> getTileEntity(int_t, int_t, int_t) override { return nullptr; }
+		float getBrightness(int_t, int_t, int_t) override { return 1.0f; }
+		int_t getData(int_t, int_t, int_t) override { return 0; }
+		const Material &getMaterial(int_t x, int_t y, int_t z) override
+		{
+			int_t tile = getTile(x, y, z);
+			return tile == 0 ? static_cast<const Material &>(Material::air) : Tile::tiles[tile]->material;
+		}
+		bool isSolidTile(int_t x, int_t y, int_t z) override
+		{
+			Tile *tile = Tile::tiles[getTile(x, y, z)];
+			return tile != nullptr && tile->isSolidRender();
+		}
+		bool isBlockNormalCube(int_t x, int_t y, int_t z) override
+		{
+			Tile *tile = Tile::tiles[getTile(x, y, z)];
+			return tile != nullptr && tile->isCubeShaped();
+		}
+		BiomeSource &getBiomeSource() override { return level.getBiomeSource(); }
+	};
+	
 	struct GridCraftingContainer : public CraftingContainer
 	{
 		std::array<ItemInstance, 9> slots;
@@ -111,6 +172,74 @@ struct InspectableNoteParticle : public NoteParticle
 		}
 	};
 
+	struct InspectablePlayer : public Player
+	{
+		using Player::Player;
+		void applyArmorDamage(int_t damage) { actuallyHurt(damage); }
+	};
+
+	struct InspectableCow : public Cow
+	{
+		using Cow::Cow;
+		using Cow::getDeathLoot;
+	};
+
+	struct InspectableZombie : public Zombie
+	{
+		using Zombie::Zombie;
+		using Monster::checkHurtTarget;
+		using Monster::findAttackTarget;
+	};
+
+	struct InspectablePig : public Pig
+	{
+		using Pig::Pig;
+	};
+
+	struct InspectableSheep : public Sheep
+	{
+		using Sheep::Sheep;
+	};
+
+	struct InspectableChicken : public Chicken
+	{
+		using Chicken::Chicken;
+		using Chicken::getDeathLoot;
+	};
+
+	struct InspectableSpider : public Spider
+	{
+		using Spider::Spider;
+		using Spider::getDeathLoot;
+		using Spider::findAttackTarget;
+	};
+
+	struct InspectableCreeper : public Creeper
+	{
+		using Creeper::Creeper;
+		using Creeper::checkHurtTarget;
+		using Creeper::getDeathLoot;
+	};
+
+	struct InspectableSkeleton : public Skeleton
+	{
+		using Skeleton::Skeleton;
+		using Skeleton::checkHurtTarget;
+		using Skeleton::getDeathLoot;
+	};
+
+	struct InspectablePigZombie : public PigZombie
+	{
+		using PigZombie::PigZombie;
+		using PigZombie::findAttackTarget;
+	};
+
+	struct InspectableArrow : public EntityArrow
+	{
+		using EntityArrow::EntityArrow;
+		void plantForPickup() { inGround = true; doesArrowBelongToPlayer = true; arrowShake = 0; }
+	};
+	
 	bool expect(bool condition, const char *message)
 	{
 		if (!condition)
@@ -404,6 +533,217 @@ int runBlockSmoke()
 					level.tickPendingTicks(false);
 			}
 		};
+
+		std::cerr << "block-smoke: mob base" << std::endl;
+		Mob viewer(level);
+		Mob target(level);
+		viewer.setPos(240.5, baseY + 2.0, 20.5);
+		target.setPos(244.5, baseY + 2.0, 20.5);
+		ok &= expect(viewer.isPickable(), "mob should be pickable before removal");
+		ok &= expect(viewer.isPushable(), "mob should be pushable before removal");
+		ok &= expect(viewer.isShootable(), "mob should be shootable like beta living entities");
+		ok &= expectNear(viewer.getHeadHeight(), viewer.bbHeight * 0.85, 1.0e-6, "mob eye height should be 85 percent of height");
+		ok &= expect(viewer.canSee(target), "mob line of sight should pass through air");
+		level.setTile(242, baseY + 3, 20, Tile::rock.id);
+		ok &= expect(!viewer.canSee(target), "mob line of sight should be blocked by solid tiles");
+		level.setTile(242, baseY + 3, 20, 0);
+		Mob dying(level);
+		dying.setPos(250.5, baseY + 2.0, 20.5);
+		dying.health = 1;
+		listener.clear();
+		ok &= expect(dying.hurt(nullptr, 1), "mob lethal damage should be accepted");
+		for (int_t i = 0; i < 21; ++i)
+			dying.baseTick();
+		ok &= expect(dying.removed, "dead mob should be removed after beta corpse timer");
+		ok &= expect(listener.particles.size() == 20 && containsPrefix(listener.particles, u"explode"), "dead mob should spawn 20 explode particles");
+
+		std::cerr << "block-smoke: armor" << std::endl;
+		ok &= expect(Items::helmetLeather != nullptr && Items::helmetLeather->getShiftedIndex() == 298, "leather helmet should use the beta item id");
+		ok &= expect(Items::bootsGold != nullptr && Items::bootsGold->getShiftedIndex() == 317, "gold boots should use the beta item id");
+		GridCraftingContainer leatherHelmetRecipe{};
+		leatherHelmetRecipe.slots[0] = ItemInstance(Items::leather->getShiftedIndex(), 1, 0);
+		leatherHelmetRecipe.slots[1] = ItemInstance(Items::leather->getShiftedIndex(), 1, 0);
+		leatherHelmetRecipe.slots[2] = ItemInstance(Items::leather->getShiftedIndex(), 1, 0);
+		leatherHelmetRecipe.slots[3] = ItemInstance(Items::leather->getShiftedIndex(), 1, 0);
+		leatherHelmetRecipe.slots[5] = ItemInstance(Items::leather->getShiftedIndex(), 1, 0);
+		ItemInstance leatherHelmetOut = Recipes::getInstance().getItemFor(leatherHelmetRecipe);
+		ok &= expect(leatherHelmetOut.itemID == Items::helmetLeather->getShiftedIndex(), "leather helmet recipe should match beta");
+		GridCraftingContainer chainHelmetRecipe{};
+		chainHelmetRecipe.slots[0] = ItemInstance(Tile::fire.id, 1, 0);
+		chainHelmetRecipe.slots[1] = ItemInstance(Tile::fire.id, 1, 0);
+		chainHelmetRecipe.slots[2] = ItemInstance(Tile::fire.id, 1, 0);
+		chainHelmetRecipe.slots[3] = ItemInstance(Tile::fire.id, 1, 0);
+		chainHelmetRecipe.slots[5] = ItemInstance(Tile::fire.id, 1, 0);
+		ItemInstance chainHelmetOut = Recipes::getInstance().getItemFor(chainHelmetRecipe);
+		ok &= expect(chainHelmetOut.itemID == Items::helmetChain->getShiftedIndex(), "chain helmet recipe should use fire like beta");
+		Player armorPlayer(level);
+		armorPlayer.inventory.armorInventory[0] = ItemInstance(Items::bootsIron->getShiftedIndex(), 1, 0);
+		armorPlayer.inventory.armorInventory[1] = ItemInstance(Items::legsIron->getShiftedIndex(), 1, 0);
+		armorPlayer.inventory.armorInventory[2] = ItemInstance(Items::plateIron->getShiftedIndex(), 1, 0);
+		armorPlayer.inventory.armorInventory[3] = ItemInstance(Items::helmetIron->getShiftedIndex(), 1, 0);
+		ok &= expect(armorPlayer.inventory.getArmorValue() == 20, "full iron armor should report 20 beta armor points");
+		ItemInstance &nearBreakBoots = armorPlayer.inventory.armorInventory[0];
+		nearBreakBoots.itemDamage = nearBreakBoots.getMaxDamage() - 1;
+		armorPlayer.inventory.hurtArmor(1);
+		ok &= expect(!armorPlayer.inventory.armorInventory[0].isEmpty(), "armor should survive when damage reaches max exactly");
+		ok &= expect(armorPlayer.inventory.armorInventory[0].itemDamage == armorPlayer.inventory.armorInventory[0].getMaxDamage(), "armor damage should stop at max before breaking");
+		armorPlayer.inventory.hurtArmor(1);
+		ok &= expect(armorPlayer.inventory.armorInventory[0].isEmpty(), "armor should only break after exceeding max damage");
+		InspectablePlayer spillPlayer(level);
+		spillPlayer.health = 20;
+		spillPlayer.dmgSpill = 0;
+		spillPlayer.inventory.armorInventory[0] = ItemInstance(Items::bootsDiamond->getShiftedIndex(), 1, 0);
+		spillPlayer.inventory.armorInventory[1] = ItemInstance(Items::legsDiamond->getShiftedIndex(), 1, 0);
+		spillPlayer.inventory.armorInventory[2] = ItemInstance(Items::plateDiamond->getShiftedIndex(), 1, 0);
+		spillPlayer.inventory.armorInventory[3] = ItemInstance(Items::helmetDiamond->getShiftedIndex(), 1, 0);
+		spillPlayer.applyArmorDamage(1);
+		ok &= expect(spillPlayer.health == 20, "full armor should absorb the first point of damage into spill");
+		ok &= expect(spillPlayer.dmgSpill == 5, "armor spill remainder should match beta formula");
+		ok &= expect(spillPlayer.inventory.armorInventory[0].itemDamage == 1, "armor durability should consume the raw incoming damage");
+
+		std::cerr << "block-smoke: pathfinding" << std::endl;
+		TestLevelSource pathSource(level);
+		for (int_t x = 259; x <= 266; ++x)
+			pathSource.setTile(x, baseY + 1, 20, Tile::rock.id);
+		Mob pathStart(level);
+		Mob pathTarget(level);
+		pathStart.setPos(260.5, baseY + 2.0, 20.5);
+		pathTarget.setPos(265.5, baseY + 2.0, 20.5);
+		auto openPath = Pathfinder(pathSource).createEntityPathTo(pathStart, pathTarget, 10.0f);
+		ok &= expect(openPath != nullptr && openPath->pathLength > 1, "pathfinding should build a path across open ground");
+
+		std::cerr << "block-smoke: projectiles" << std::endl;
+		GridCraftingContainer bowRecipe{};
+		bowRecipe.slots[1] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		bowRecipe.slots[2] = ItemInstance(Items::silk->getShiftedIndex(), 1, 0);
+		bowRecipe.slots[3] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		bowRecipe.slots[5] = ItemInstance(Items::silk->getShiftedIndex(), 1, 0);
+		bowRecipe.slots[7] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		bowRecipe.slots[8] = ItemInstance(Items::silk->getShiftedIndex(), 1, 0);
+		ItemInstance bowOut = Recipes::getInstance().getItemFor(bowRecipe);
+		ok &= expect(bowOut.itemID == Items::bow->getShiftedIndex(), "bow recipe should match beta");
+		GridCraftingContainer arrowRecipe{};
+		arrowRecipe.slots[0] = ItemInstance(Items::flint->getShiftedIndex(), 1, 0);
+		arrowRecipe.slots[3] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		arrowRecipe.slots[6] = ItemInstance(Items::feather->getShiftedIndex(), 1, 0);
+		ItemInstance arrowOut = Recipes::getInstance().getItemFor(arrowRecipe);
+		ok &= expect(arrowOut.itemID == Items::arrow->getShiftedIndex() && arrowOut.stackSize == 4, "arrow recipe should match beta");
+		auto bowPlayer = std::make_shared<Player>(level);
+		bowPlayer->setPos(222.5, baseY + 2.0, 20.5);
+		ok &= expect(level.addEntity(bowPlayer), "bow player should join the level");
+		bowPlayer->inventory.setItem(0, ItemInstance(Items::bow->getShiftedIndex(), 1, 0));
+		bowPlayer->inventory.setItem(1, ItemInstance(Items::arrow->getShiftedIndex(), 2, 0));
+		size_t entityCountBeforeShot = level.getAllEntities().size();
+		bowPlayer->inventory.mainInventory[0].use(level, *bowPlayer);
+		ok &= expect(bowPlayer->inventory.mainInventory[1].stackSize == 1, "bow use should consume one arrow");
+		ok &= expect(level.getAllEntities().size() == entityCountBeforeShot + 1, "bow use should spawn an arrow entity");
+		InspectableArrow pickupArrow(level, *bowPlayer);
+		pickupArrow.plantForPickup();
+		bowPlayer->inventory.setItem(1, ItemInstance());
+		pickupArrow.playerTouch(*bowPlayer);
+		ok &= expect(!bowPlayer->inventory.mainInventory[1].isEmpty() && bowPlayer->inventory.mainInventory[1].itemID == Items::arrow->getShiftedIndex(), "grounded player arrow should be picked back up");
+		ok &= expect(pickupArrow.removed, "picked up arrow should remove itself");
+		
+		std::cerr << "block-smoke: validation mobs" << std::endl;
+		InspectableCow cow(level);
+		Player bucketPlayer(level);
+		bucketPlayer.inventory.setItem(bucketPlayer.inventory.currentItem, ItemInstance(Items::bucketEmpty->getShiftedIndex(), 1, 0));
+		ok &= expect(cow.interact(bucketPlayer), "cow should accept an empty bucket");
+		ok &= expect(bucketPlayer.inventory.mainInventory[0].itemID == Items::bucketMilk->getShiftedIndex(), "cow should return a milk bucket");
+		ok &= expect(cow.getDeathLoot() == Items::leather->getShiftedIndex(), "cow should drop leather");
+		int_t oldDifficulty = level.difficulty;
+		level.difficulty = 2;
+		auto zombieTarget = std::make_shared<Player>(level);
+		zombieTarget->setPos(272.5, baseY + 2.0, 20.5);
+		zombieTarget->health = 20;
+		ok &= expect(level.addEntity(zombieTarget), "zombie target player should join the level");
+		InspectableZombie zombie(level);
+		zombie.setPos(271.5, baseY + 2.0, 20.5);
+		auto acquiredTarget = zombie.findAttackTarget();
+		ok &= expect(acquiredTarget.get() == zombieTarget.get(), "zombie should acquire a nearby visible player target");
+		zombie.checkHurtTarget(*zombieTarget, 1.5f);
+		ok &= expect(zombie.attackTime == 20, "zombie melee should set a 20 tick cooldown");
+		ok &= expect(zombieTarget->health == 15, "zombie melee should deal five damage at normal difficulty");
+		level.difficulty = 0;
+		zombie.tick();
+		ok &= expect(zombie.removed, "zombie should despawn immediately on peaceful difficulty");
+		level.difficulty = oldDifficulty;
+
+		auto saddledPig = std::make_shared<InspectablePig>(level);
+		saddledPig->setPos(224.5, baseY + 2.0, 20.5);
+		ok &= expect(level.addEntity(saddledPig), "pig should join the level for riding tests");
+		auto pigPlayer = std::make_shared<Player>(level);
+		pigPlayer->setPos(224.5, baseY + 2.0, 21.5);
+		pigPlayer->inventory.setItem(pigPlayer->inventory.currentItem, ItemInstance(Items::saddle->getShiftedIndex(), 1, 0));
+		ok &= expect(level.addEntity(pigPlayer), "pig rider player should join the level");
+		pigPlayer->interact(std::static_pointer_cast<Entity>(saddledPig));
+		ok &= expect(saddledPig->isSaddled(), "pig should become saddled from the beta saddle item interaction");
+		ok &= expect(pigPlayer->inventory.mainInventory[0].isEmpty(), "saddle item should be consumed when pig becomes saddled");
+		pigPlayer->interact(std::static_pointer_cast<Entity>(saddledPig));
+		ok &= expect(pigPlayer->riding.get() == saddledPig.get(), "saddled pig should mount the player on interact");
+		pigPlayer->ride(nullptr);
+
+		InspectableSheep sheep(level);
+		sheep.setPos(226.5, baseY + 2.0, 20.5);
+		pigPlayer->inventory.setItem(pigPlayer->inventory.currentItem, ItemInstance(Items::shears->getShiftedIndex(), 1, 0));
+		size_t entityCountBeforeShear = level.getAllEntities().size();
+		sheep.interact(*pigPlayer);
+		ok &= expect(sheep.isSheared(), "sheep should become sheared after using shears");
+		ok &= expect(pigPlayer->inventory.mainInventory[0].itemDamage == 1, "shears should lose one durability when shearing a sheep");
+		ok &= expect(level.getAllEntities().size() >= entityCountBeforeShear + 2, "shearing should spawn multiple wool item entities");
+
+		InspectableChicken chicken(level);
+		chicken.setPos(228.5, baseY + 2.0, 20.5);
+		chicken.eggTime = 1;
+		size_t entityCountBeforeEgg = level.getAllEntities().size();
+		chicken.aiStep();
+		ok &= expect(chicken.eggTime > 1, "chicken should reset its egg timer after laying an egg");
+		ok &= expect(level.getAllEntities().size() == entityCountBeforeEgg + 1, "chicken egg timer should spawn an egg item entity");
+
+		std::cerr << "block-smoke: lightning and spawn commands" << std::endl;
+		InspectablePig lightningPig(level);
+		lightningPig.setPos(232.5, baseY + 2.0, 20.5);
+		size_t entitiesBeforeLightningPig = level.getAllEntities().size();
+		EntityLightningBolt lightning(level, lightningPig.x, lightningPig.y, lightningPig.z);
+		lightningPig.onStruckByLightning(lightning);
+		ok &= expect(lightningPig.removed, "pig struck by lightning should be removed");
+		ok &= expect(level.getAllEntities().size() == entitiesBeforeLightningPig + 1, "pig lightning should spawn a pig zombie");
+		bool sawPigZombie = false;
+		for (const auto &entity : level.getAllEntities())
+			if (dynamic_cast<PigZombie *>(entity.get()) != nullptr)
+				sawPigZombie = true;
+		ok &= expect(sawPigZombie, "pig lightning should create a pig zombie entity");
+		InspectableCreeper poweredCreeper(level);
+		poweredCreeper.onStruckByLightning(lightning);
+		ok &= expect(poweredCreeper.isPowered(), "creeper struck by lightning should become powered");
+		auto skeletonTarget = std::make_shared<Player>(level);
+		skeletonTarget->setPos(236.5, baseY + 2.0, 20.5);
+		ok &= expect(level.addEntity(skeletonTarget), "skeleton target should join the level");
+		InspectableSkeleton skeleton(level);
+		skeleton.setPos(233.5, baseY + 2.0, 20.5);
+		size_t entitiesBeforeSkeletonShot = level.getAllEntities().size();
+		skeleton.checkHurtTarget(*skeletonTarget, skeleton.distanceTo(*skeletonTarget));
+		ok &= expect(level.getAllEntities().size() == entitiesBeforeSkeletonShot + 1, "skeleton should fire an arrow at range");
+		ok &= expect(skeleton.getDeathLoot() == Items::arrow->getShiftedIndex(), "skeleton should drop arrows as its base loot");
+		ok &= expect(chicken.getDeathLoot() == Items::feather->getShiftedIndex(), "chicken should drop feathers");
+
+		InspectableSpider spider(level);
+		spider.setPos(230.5, baseY + 2.0, 20.5);
+		spider.horizontalCollision = true;
+		ok &= expect(spider.onLadder(), "spider should treat horizontal collision as climbable like beta");
+		ok &= expectNear(spider.getRideHeight(), 0.175, 1.0e-6, "spider rider offset should match beta");
+		ok &= expect(spider.getDeathLoot() == Items::silk->getShiftedIndex(), "spider should drop string");
+
+		InspectableCreeper creeper(level);
+		creeper.setPos(282.5, baseY + 2.0, 20.5);
+		Player creeperTarget(level);
+		creeperTarget.setPos(283.5, baseY + 2.0, 20.5);
+		for (int_t i = 0; i < 30 && !creeper.removed; ++i)
+			creeper.checkHurtTarget(creeperTarget, 2.5f);
+		ok &= expect(creeper.removed, "creeper should explode and remove itself after a full fuse near a target");
+		ok &= expect(creeper.getDeathLoot() == Items::gunpowder->getShiftedIndex(), "creeper should drop gunpowder");
+		
+
 
 		std::cerr << "block-smoke: food items" << std::endl;
 		player.health = 10;

@@ -1,6 +1,7 @@
 #include "java/Random.h"
 
 #include <chrono>
+#include <cmath>
 #include <stdexcept>
 
 static constexpr long_t RANDOM_MUL = 0x5DEECE66DLL;
@@ -22,6 +23,7 @@ Random::Random(long_t set_seed)
 void Random::setSeed(long_t set_seed)
 {
 	seed = (set_seed ^ RANDOM_MUL) & RANDOM_AND;
+	haveNextNextGaussian = false;
 }
 
 int_t Random::next(int_t bits)
@@ -73,4 +75,29 @@ float Random::nextFloat()
 double Random::nextDouble()
 {
 	return ((static_cast<long_t>(next(27)) << 27) + next(27)) / static_cast<double>(1LL << 54);
+}
+
+
+double Random::nextGaussian()
+{
+	if (haveNextNextGaussian)
+	{
+		haveNextNextGaussian = false;
+		return nextNextGaussian;
+	}
+
+	double v1;
+	double v2;
+	double s;
+	do
+	{
+		v1 = 2.0 * nextDouble() - 1.0;
+		v2 = 2.0 * nextDouble() - 1.0;
+		s = v1 * v1 + v2 * v2;
+	} while (s >= 1.0 || s == 0.0);
+
+	double multiplier = std::sqrt(-2.0 * std::log(s) / s);
+	nextNextGaussian = v2 * multiplier;
+	haveNextNextGaussian = true;
+	return v1 * multiplier;
 }

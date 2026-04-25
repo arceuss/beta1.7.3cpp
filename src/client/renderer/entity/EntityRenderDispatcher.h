@@ -6,12 +6,21 @@
 #include "client/renderer/Textures.h"
 #include "client/gui/Font.h"
 
+class HumanoidMobRenderer;
 class PlayerRenderer;
+class ArrowRenderer;
+class EntityRenderer;
+class ChickenRenderer;
+class PigRenderer;
+class SheepRenderer;
+class SpiderRenderer;
+class CreeperRenderer;
 class FallingTileRenderer;
 class MinecartRenderer;
 class BoatRenderer;
 class ItemRenderer;
 class TNTPrimedRenderer;
+class MobRenderer;
 
 class EntityRenderDispatcher
 {
@@ -26,6 +35,19 @@ private:
 	static MinecartRenderer &getMinecartRenderer();
 	static BoatRenderer &getBoatRenderer();
 	static TNTPrimedRenderer &getTNTPrimedRenderer();
+	static ArrowRenderer &getArrowRenderer();
+	static EntityRenderer &getSnowballRenderer();
+	static EntityRenderer &getThrownEggRenderer();
+	static ChickenRenderer &getChickenRenderer();
+	static PigRenderer &getPigRenderer();
+	static SheepRenderer &getSheepRenderer();
+	static SpiderRenderer &getSpiderRenderer();
+	static CreeperRenderer &getCreeperRenderer();
+	static MobRenderer &getCowRenderer();
+	static HumanoidMobRenderer &getZombieRenderer();
+	static HumanoidMobRenderer &getSkeletonRenderer();
+	static HumanoidMobRenderer &getPigZombieRenderer();
+	static HumanoidMobRenderer &getMonsterRenderer();
 	Font *font = nullptr;
 public:
 	static double xOff;

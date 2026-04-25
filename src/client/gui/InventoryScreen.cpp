@@ -15,6 +15,7 @@
 #include "world/item/crafting/CraftingContainer.h"
 #include "world/item/crafting/Recipes.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/PumpkinTile.h"
 
 #include "OpenGL.h"
 #include "lwjgl/Keyboard.h"
@@ -626,19 +627,45 @@ void InventoryScreen::handleSlotClick(int_t slot, int_t buttonNum)
 		int_t armorDisplaySlot = slot - SLOT_ARMOR_BASE;
 		int_t armorIdx = 3 - armorDisplaySlot; // display 0=helmet → armorInventory[3]
 		ItemInstance &armorSlot = minecraft.player->inventory.armorInventory[armorIdx];
-
 		ItemInstance *carried = inventory.getCarried();
 
-		// Check if carried item is valid for this armor slot
-		if (carried != nullptr && !carried->isEmpty())
+		auto isValidArmorItem = [&](const ItemInstance &stack) {
+			if (stack.isEmpty())
+				return false;
+			Item *stackItem = stack.getItem();
+			auto *carriedArmor = dynamic_cast<ItemArmor *>(stackItem);
+			if (carriedArmor != nullptr)
+				return carriedArmor->armorType == armorDisplaySlot;
+			return armorDisplaySlot == 0 && stack.itemID == Tile::pumpkin.id;
+		};
+
+		if (carried != nullptr && !carried->isEmpty() && !isValidArmorItem(*carried))
+			return;
+
+		if (armorSlot.isEmpty())
 		{
-			Item *carriedItem = carried->getItem();
-			auto *carriedArmor = dynamic_cast<ItemArmor*>(carriedItem);
-			if (carriedArmor == nullptr || carriedArmor->armorType != armorDisplaySlot)
-				return; // wrong armor type for this slot
+			if (carried == nullptr || carried->isEmpty())
+				return;
+			armorSlot = ItemInstance(carried->itemID, 1, carried->itemDamage);
+			carried->stackSize--;
+			if (carried->isEmpty())
+				inventory.setCarriedNull();
+			return;
 		}
 
-		handleRegularSlotClick(armorSlot, buttonNum);
+		if (carried == nullptr || carried->isEmpty())
+		{
+			inventory.setCarried(armorSlot);
+			armorSlot = ItemInstance();
+			return;
+		}
+
+		if (carried->stackSize > 1)
+			return;
+
+		ItemInstance swapped = armorSlot;
+		armorSlot = *carried;
+		inventory.setCarried(swapped);
 		return;
 	}
 }

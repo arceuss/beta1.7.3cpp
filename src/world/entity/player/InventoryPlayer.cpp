@@ -173,6 +173,19 @@ bool InventoryPlayer::add(ItemInstance &item)
 	return true;
 }
 
+bool InventoryPlayer::consumeItem(int_t itemId)
+{
+	for (ItemInstance &item : mainInventory)
+	{
+		if (item.isEmpty() || item.itemID != itemId)
+			continue;
+		if (--item.stackSize <= 0)
+			item = ItemInstance();
+		return true;
+	}
+	return false;
+}
+
 void InventoryPlayer::dropAll()
 {
 	if (player == nullptr)
@@ -269,8 +282,8 @@ void InventoryPlayer::hurtArmor(int_t damage)
 		if (armorItem == nullptr)
 			continue;
 
-		armor.itemDamage += damage;
-		if (armor.itemDamage >= armor.getMaxDamage())
+		armor.damageItem(damage);
+		if (armor.stackSize == 0)
 			armorInventory[i] = ItemInstance();
 	}
 }

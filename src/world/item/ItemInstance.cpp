@@ -3,6 +3,7 @@
 #include "Facing.h"
 #include "nbt/CompoundTag.h"
 #include "world/entity/Entity.h"
+#include "world/entity/Mob.h"
 #include "world/item/Item.h"
 #include "world/level/tile/Tile.h"
 
@@ -130,6 +131,14 @@ bool ItemInstance::hurtEnemy(Entity &target, Entity &attacker)
 	if (item == nullptr)
 		return false;
 	return item->hurtEnemy(*this, target, attacker);
+}
+
+void ItemInstance::saddleEntity(Mob &target)
+{
+	Item *item = getItem();
+	if (item == nullptr)
+		return;
+	item->saddleEntity(*this, target);
 }
 
 bool ItemInstance::mineBlock(int_t tile, int_t x, int_t y, int_t z, Entity &miner)

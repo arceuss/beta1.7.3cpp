@@ -8,6 +8,7 @@ namespace Items
 {
 	extern Item *flintAndSteel;
 	extern Item *apple;
+	extern Item *bow;
 	extern Item *arrow;
 	extern Item *ingotIron;
 	extern Item *ingotGold;
@@ -91,6 +92,7 @@ namespace Items
 	extern Item *map;
 	extern Item *cake;
 	extern Item *egg;
+	extern Item *saddle;
 	extern ItemArmor *helmetLeather;
 	extern ItemArmor *plateLeather;
 	extern ItemArmor *legsLeather;

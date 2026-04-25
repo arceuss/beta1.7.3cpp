@@ -27,6 +27,8 @@
 #include "world/level/tile/PistonBaseTile.h"
 #include "world/level/tile/MushroomTile.h"
 #include "world/level/tile/ClothTile.h"
+#include "world/item/ItemArmor.h"
+#include "world/level/tile/FireTile.h"
 
 namespace
 {
@@ -106,6 +108,13 @@ Recipes::Recipes()
 		});
 	};
 
+	auto addArmorRecipes = [&](const ItemInstance &material, Item &helmet, Item &chestplate, Item &leggings, Item &boots) {
+		addShapedRecipe(ItemInstance(helmet.getShiftedIndex(), 1, 0), {"###", "# #"}, {{'#', material}});
+		addShapedRecipe(ItemInstance(chestplate.getShiftedIndex(), 1, 0), {"# #", "###", "###"}, {{'#', material}});
+		addShapedRecipe(ItemInstance(leggings.getShiftedIndex(), 1, 0), {"###", "# #", "# #"}, {{'#', material}});
+		addShapedRecipe(ItemInstance(boots.getShiftedIndex(), 1, 0), {"# #", "# #"}, {{'#', material}});
+	};
+
 	addShapedRecipe(ItemInstance(Tile::wood.id, 4, 0), {"#"}, {{'#', ItemInstance(Tile::treeTrunk.id, 1, -1)}});
 	addShapedRecipe(ItemInstance(Items::stick->getShiftedIndex(), 4, 0), {"#", "#"}, {{'#', ItemInstance(Tile::wood.id, 1, -1)}});
 	addShapedRecipe(ItemInstance(Tile::workBench.id, 1, 0), {"##", "##"}, {{'#', ItemInstance(Tile::wood.id, 1, -1)}});
@@ -118,6 +127,20 @@ Recipes::Recipes()
 
 	addToolRecipes(ItemInstance(Tile::wood.id, 1, -1), *Items::swordWood, *Items::shovelWood, *Items::pickaxeWood, *Items::axeWood, *Items::hoeWood);
 	addToolRecipes(ItemInstance(Tile::cobblestone.id, 1, -1), *Items::swordStone, *Items::shovelStone, *Items::pickaxeStone, *Items::axeStone, *Items::hoeStone);
+	addArmorRecipes(ItemInstance(Items::leather->getShiftedIndex(), 1, 0), *Items::helmetLeather, *Items::plateLeather, *Items::legsLeather, *Items::bootsLeather);
+	addArmorRecipes(ItemInstance(Tile::fire.id, 1, 0), *Items::helmetChain, *Items::plateChain, *Items::legsChain, *Items::bootsChain);
+	addArmorRecipes(ItemInstance(Items::ingotIron->getShiftedIndex(), 1, 0), *Items::helmetIron, *Items::plateIron, *Items::legsIron, *Items::bootsIron);
+	addArmorRecipes(ItemInstance(Items::diamond->getShiftedIndex(), 1, 0), *Items::helmetDiamond, *Items::plateDiamond, *Items::legsDiamond, *Items::bootsDiamond);
+	addArmorRecipes(ItemInstance(Items::ingotGold->getShiftedIndex(), 1, 0), *Items::helmetGold, *Items::plateGold, *Items::legsGold, *Items::bootsGold);
+	addShapedRecipe(ItemInstance(Items::bow->getShiftedIndex(), 1, 0), {" #X", "# X", " #X"}, {
+		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::silk->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Items::arrow->getShiftedIndex(), 4, 0), {"X", "#", "Y"}, {
+		{'Y', ItemInstance(Items::feather->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::flint->getShiftedIndex(), 1, 0)},
+		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)}
+	});
 
 	addShapedRecipe(ItemInstance(Items::bowlSoup->getShiftedIndex(), 1, 0), {"#", "X", "B"}, {
 		{'#', ItemInstance(Tile::brownMushroom.id, 1, 0)},
