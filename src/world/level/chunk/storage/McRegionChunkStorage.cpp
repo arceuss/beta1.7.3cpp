@@ -96,7 +96,7 @@ void McRegionChunkStorage::save(Level &level, LevelChunk &chunk)
 	level.checkSession();
 
 	// Serialize chunk to NBT
-	std::unique_ptr<CompoundTag> rootTag = Util::make_unique<CompoundTag>();
+	std::unique_ptr<CompoundTag> rootTag = std::make_unique<CompoundTag>();
 	std::shared_ptr<CompoundTag> levelTag = Util::make_shared<CompoundTag>();
 	rootTag->put(u"Level", levelTag);
 

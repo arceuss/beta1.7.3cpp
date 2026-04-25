@@ -200,7 +200,7 @@ void LocalPlayer::take(Entity &entity, int_t count)
 	}
 
 	if (playerPtr != nullptr)
-		minecraft.particleEngine.add(Util::make_unique<TakeAnimationParticle>(*minecraft.level, itemEntityPtr, playerPtr, -0.5f));
+		minecraft.particleEngine.add(std::make_unique<TakeAnimationParticle>(*minecraft.level, itemEntityPtr, playerPtr, -0.5f));
 }
 
 void LocalPlayer::prepareForTick()

@@ -12,7 +12,7 @@
 
 Dimension::Dimension(Level &level) : level(level)
 {
-	biomeSource = Util::make_unique<BiomeSource>(level);
+	biomeSource = std::make_unique<BiomeSource>(level);
 
 	updateLightRamp();
 }

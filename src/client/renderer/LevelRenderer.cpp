@@ -86,7 +86,7 @@ LevelRenderer::LevelRenderer(Minecraft &mc, Textures &textures) : mc(mc), textur
 
 	glEndList();
 
-	pistonRenderer = Util::make_unique<PistonTileEntityRenderer>(&textures);
+	pistonRenderer = std::make_unique<PistonTileEntityRenderer>(&textures);
 }
 
 void LevelRenderer::renderStars()
@@ -154,7 +154,7 @@ void LevelRenderer::setLevel(std::shared_ptr<Level> level)
 	EntityRenderDispatcher::instance.setLevel(level);
 
 	this->level = level;
-	this->tileRenderer = Util::make_unique<TileRenderer>(this->level.get(), false);
+	this->tileRenderer = std::make_unique<TileRenderer>(this->level.get(), false);
 	if (pistonRenderer != nullptr)
 		pistonRenderer->setLevel(this->level.get());
 	if (level != nullptr)
@@ -1282,25 +1282,25 @@ void LevelRenderer::addParticle(const jstring &name, double x, double y, double 
 		return;
 	
 	if (name == u"bubble")
-		mc.particleEngine.add(Util::make_unique<BubbleParticle>(*level, x, y, z, xa, ya, za));
+		mc.particleEngine.add(std::make_unique<BubbleParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"splash")
-		mc.particleEngine.add(Util::make_unique<SplashParticle>(*level, x, y, z, xa, ya, za));
+		mc.particleEngine.add(std::make_unique<SplashParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"reddust")
-		mc.particleEngine.add(Util::make_unique<RedDustParticle>(*level, x, y, z));
+		mc.particleEngine.add(std::make_unique<RedDustParticle>(*level, x, y, z));
 	else if (name == u"portal")
-		mc.particleEngine.add(Util::make_unique<PortalParticle>(*level, x, y, z, xa, ya, za));
+		mc.particleEngine.add(std::make_unique<PortalParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"note")
-		mc.particleEngine.add(Util::make_unique<NoteParticle>(*level, x, y, z, xa, 2.0f));
+		mc.particleEngine.add(std::make_unique<NoteParticle>(*level, x, y, z, xa, 2.0f));
 	else if (name == u"smoke")
-		mc.particleEngine.add(Util::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za));
+		mc.particleEngine.add(std::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"largesmoke")
-		mc.particleEngine.add(Util::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za, 2.5f));
+		mc.particleEngine.add(std::make_unique<SmokeParticle>(*level, x, y, z, xa, ya, za, 2.5f));
 	else if (name == u"flame")
-		mc.particleEngine.add(Util::make_unique<FlameParticle>(*level, x, y, z, xa, ya, za));
+		mc.particleEngine.add(std::make_unique<FlameParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"lava")
-		mc.particleEngine.add(Util::make_unique<LavaParticle>(*level, x, y, z));
+		mc.particleEngine.add(std::make_unique<LavaParticle>(*level, x, y, z));
 	else if (name == u"explode")
-		mc.particleEngine.add(Util::make_unique<ExplodeParticle>(*level, x, y, z, xa, ya, za));
+		mc.particleEngine.add(std::make_unique<ExplodeParticle>(*level, x, y, z, xa, ya, za));
 }
 
 void LevelRenderer::playMusic(const jstring &name, double x, double y, double z, float songOffset)

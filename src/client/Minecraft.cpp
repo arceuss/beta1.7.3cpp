@@ -100,7 +100,7 @@ void Minecraft::init()
 	options.open(workingDirectory.get());
 	texturePackRepository.updateListAndSelect();
 
-	font = Util::make_unique<Font>(options, u"/font/default.png", textures);
+	font = std::make_unique<Font>(options, u"/font/default.png", textures);
 
 	// renderLoadingScreen();
 
@@ -126,15 +126,15 @@ void Minecraft::init()
 	if (resourceDir && resourceDir->exists() && resourceDir->isDirectory())
 		loadAllSounds(resourceDir.get(), u"");
 	// Dynamic textures
-	textures.registerTextureFX(Util::make_unique<TextureLavaFX>());
-	textures.registerTextureFX(Util::make_unique<TextureWaterFX>());
-	textures.registerTextureFX(Util::make_unique<TexturePortalFX>(14));
-	textures.registerTextureFX(Util::make_unique<TextureCompassFX>(*this));
-	textures.registerTextureFX(Util::make_unique<TextureWatchFX>(*this));
-	textures.registerTextureFX(Util::make_unique<TextureWaterFlowFX>());
-	textures.registerTextureFX(Util::make_unique<TextureLavaFlowFX>());
-	textures.registerTextureFX(Util::make_unique<TextureFlamesFX>(0));
-	textures.registerTextureFX(Util::make_unique<TextureFlamesFX>(1));
+	textures.registerTextureFX(std::make_unique<TextureLavaFX>());
+	textures.registerTextureFX(std::make_unique<TextureWaterFX>());
+	textures.registerTextureFX(std::make_unique<TexturePortalFX>(14));
+	textures.registerTextureFX(std::make_unique<TextureCompassFX>(*this));
+	textures.registerTextureFX(std::make_unique<TextureWatchFX>(*this));
+	textures.registerTextureFX(std::make_unique<TextureWaterFlowFX>());
+	textures.registerTextureFX(std::make_unique<TextureLavaFlowFX>());
+	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(0));
+	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(1));
 
 	setScreen(Util::make_shared<TitleScreen>(*this));
 }
@@ -1140,7 +1140,7 @@ void Minecraft::setLevel(std::shared_ptr<Level> level, const jstring &title, std
 			this->player->resetPos();
 			gameMode->initPlayer(this->player);
 		}
-		this->player->input = Util::make_unique<KeyboardInput>(options);
+		this->player->input = std::make_unique<KeyboardInput>(options);
 
 		levelRenderer.setLevel(level);
 
@@ -1243,7 +1243,7 @@ void Minecraft::respawnPlayer()
 	this->player->resetPos();
 	gameMode->initPlayer(this->player);
 	level->loadPlayer(this->player);
-	this->player->input = Util::make_unique<KeyboardInput>(options);
+	this->player->input = std::make_unique<KeyboardInput>(options);
 	this->player->entityId = entityId;
 	gameMode->adjustPlayer(this->player);
 	prepareLevel(u"Respawning");
@@ -1259,13 +1259,13 @@ void Minecraft::start(const jstring *name, const jstring *sessionId)
 
 void Minecraft::startAndConnectTo(const jstring *name, const jstring *sessionId, const jstring *ip)
 {
-	std::unique_ptr<Minecraft> minecraft = Util::make_unique<Minecraft>(854, 480, false);
+	std::unique_ptr<Minecraft> minecraft = std::make_unique<Minecraft>(854, 480, false);
 
 	minecraft->serverDomain = u"www.minecraft.net";
 	if (name != nullptr && sessionId != nullptr)
-		minecraft->user = Util::make_unique<User>(*name, *sessionId);
+		minecraft->user = std::make_unique<User>(*name, *sessionId);
 	else
-		minecraft->user = Util::make_unique<User>(u"Player" + String::fromUTF8(std::to_string(System::currentTimeMillis() % 1000)), u"");
+		minecraft->user = std::make_unique<User>(u"Player" + String::fromUTF8(std::to_string(System::currentTimeMillis() % 1000)), u"");
 	
 	if (ip != nullptr)
 	{

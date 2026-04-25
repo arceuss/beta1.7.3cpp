@@ -725,9 +725,9 @@ elseif(UNIX)
 	target_compile_definitions(McBetaCpp PRIVATE MC_LINUX)
 endif()
 
-# Use C++11
+# Use C++14
 set_target_properties(McBetaCpp PROPERTIES
-	CXX_STANDARD 11
+	CXX_STANDARD 14
 	CXX_STANDARD_REQUIRED YES
 	CXX_EXTENSIONS NO
 )

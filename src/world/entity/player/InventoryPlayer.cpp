@@ -10,7 +10,6 @@
 #include "world/level/tile/Tile.h"
 #include "world/item/Item.h"
 #include "world/item/ItemArmor.h"
-#include "util/Memory.h"
 
 InventoryPlayer::InventoryPlayer(Player *player) : player(player)
 {
@@ -51,7 +50,7 @@ std::unique_ptr<ItemInstance> InventoryPlayer::removeItem(int_t slot, int_t coun
 	ItemInstance removed = mainInventory[slot].remove(count);
 	if (mainInventory[slot].stackSize <= 0)
 		mainInventory[slot] = ItemInstance();
-	return Util::make_unique<ItemInstance>(removed);
+	return std::make_unique<ItemInstance>(removed);
 }
 
 ItemInstance *InventoryPlayer::getCarried()

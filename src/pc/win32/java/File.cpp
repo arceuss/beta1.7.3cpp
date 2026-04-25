@@ -12,7 +12,6 @@
 #include <memory>
 #include <stdexcept>
 
-#include "util/Memory.h"
 
 static jstring FromWPath(const std::wstring &wstr)
 {
@@ -177,7 +176,7 @@ public:
 				continue;
 
 			std::wstring child_path = wpath + L'\\' + find_data.cFileName;
-			files.push_back(Util::make_unique<File_Impl>(FromWPath(child_path)));
+			files.push_back(std::make_unique<File_Impl>(FromWPath(child_path)));
 		} while (FindNextFileW(hfind, &find_data) != 0);
 
 		FindClose(hfind);
@@ -199,7 +198,7 @@ public:
 
 	std::istream *toStreamIn() const override
 	{
-		auto is = Util::make_unique<std::ifstream>(wpath, std::ios::binary);
+		auto is = std::make_unique<std::ifstream>(wpath, std::ios::binary);
 		if (!is->is_open() || !is->good())
 			return nullptr;
 		return is.release();
@@ -207,7 +206,7 @@ public:
 
 	std::ostream *toStreamOut() const override
 	{
-		auto os = Util::make_unique<std::ofstream>(wpath, std::ios::binary);
+		auto os = std::make_unique<std::ofstream>(wpath, std::ios::binary);
 		if (!os->is_open() || !os->good())
 			return nullptr;
 		return os.release();
