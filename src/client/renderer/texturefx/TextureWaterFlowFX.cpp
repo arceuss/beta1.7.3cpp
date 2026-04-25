@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
