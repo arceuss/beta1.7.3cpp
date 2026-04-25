@@ -21,7 +21,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-#include "util/Memory.h"
 
 static std::string ToPath(const jstring &path)
 {
@@ -147,7 +146,7 @@ public:
 				continue;
 
 			std::string child_path = u8path + "/" + entry->d_name;
-			files.push_back(Util::make_unique<File_Impl>(FromPath(child_path)));
+			files.push_back(std::make_unique<File_Impl>(FromPath(child_path)));
 		}
 
 		::closedir(dir);
@@ -169,7 +168,7 @@ public:
 
 	std::istream *toStreamIn() const override
 	{
-		auto is = Util::make_unique<std::ifstream>(u8path, std::ios::binary);
+		auto is = std::make_unique<std::ifstream>(u8path, std::ios::binary);
 		if (!is->is_open() || !is->good())
 			return nullptr;
 		return is.release();
@@ -177,7 +176,7 @@ public:
 
 	std::ostream *toStreamOut() const override
 	{
-		auto os = Util::make_unique<std::ofstream>(u8path, std::ios::binary);
+		auto os = std::make_unique<std::ofstream>(u8path, std::ios::binary);
 		if (!os->is_open() || !os->good())
 			return nullptr;
 		return os.release();

@@ -10,7 +10,6 @@
 
 #include "util/Mth.h"
 #include "java/String.h"
-#include "util/Memory.h"
 
 #include "OpenGL.h"
 
@@ -148,8 +147,7 @@ void ParticleEngine::destroy(int_t x, int_t y, int_t z)
 					double zp = z + (zz + 0.5) / SD;
 					int_t face = random.nextInt(6);
 
-					auto particle = Util::make_unique<TerrainParticle>(
-						*level, xp, yp, zp, xp - x - 0.5, yp - y - 0.5, zp - z - 0.5, tile, face, data);
+					auto particle = std::make_unique<TerrainParticle>(*level, xp, yp, zp, xp - x - 0.5, yp - y - 0.5, zp - z - 0.5, tile, face, data);
 					particle->init(x, y, z);
 					add(std::move(particle));
 				}
@@ -200,7 +198,7 @@ void ParticleEngine::crack(int_t x, int_t y, int_t z, int_t face)
 			xp = x + tile->xx1 + r;
 		}
 
-		auto particle = Util::make_unique<TerrainParticle>(*level, xp, yp, zp, 0.0, 0.0, 0.0, tile, face, data);
+		auto particle = std::make_unique<TerrainParticle>(*level, xp, yp, zp, 0.0, 0.0, 0.0, tile, face, data);
 		particle->init(x, y, z);
 		particle->setPower(0.2f);
 		particle->scale(0.6f);

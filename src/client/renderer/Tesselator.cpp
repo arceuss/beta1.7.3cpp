@@ -16,7 +16,7 @@ Tesselator::Tesselator(int_t size)
 	// Initialize buffer
 	this->size = size;
 
-	buffer = Util::make_unique<char[]>(size * 4);
+	buffer = std::make_unique<char[]>(size * 4);
 	buffer_p = buffer.get();
 	buffer_e = buffer.get() + (size * 4);
 
@@ -24,7 +24,7 @@ Tesselator::Tesselator(int_t size)
 	vboMode = USE_VBO && lwjgl::GLContext::getCapabilities()["GL_ARB_vertex_buffer_object"];
 	if (vboMode)
 	{
-		vboIds = Util::make_unique<GLuint[]>(vboCounts);
+		vboIds = std::make_unique<GLuint[]>(vboCounts);
 		glGenBuffers(vboCounts, vboIds.get());
 	}
 }

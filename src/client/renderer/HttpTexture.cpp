@@ -4,7 +4,6 @@
 #include "java/BufferedImage.h"
 #include "java/String.h"
 #include "java/File.h"
-#include "util/Memory.h"
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -29,7 +28,7 @@ BufferedImage readImageFromMemory(const unsigned char *data, int_t size)
 		return BufferedImage();
 	}
 
-	std::unique_ptr<unsigned char[]> pixels = Util::make_unique<unsigned char[]>(w * h * 4);
+	std::unique_ptr<unsigned char[]> pixels = std::make_unique<unsigned char[]>(w * h * 4);
 
 	if (comp == 1)
 	{

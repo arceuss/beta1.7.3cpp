@@ -15,7 +15,7 @@ BufferedImage::BufferedImage(int_t width, int_t height)
 {
 	this->width = width;
 	this->height = height;
-	this->raw_pixels = Util::make_unique<unsigned char[]>(width * height * 4);
+	this->raw_pixels = std::make_unique<unsigned char[]>(width * height * 4);
 }
 
 int_t BufferedImage::getWidth() const
@@ -94,7 +94,7 @@ BufferedImage BufferedImage::ImageIO_read(std::istream &in)
 	assert(raw_data != nullptr);
 
 	// Convert to RGBA
-	std::unique_ptr<unsigned char[]> data = Util::make_unique<unsigned char[]>(w * h * 4);
+	std::unique_ptr<unsigned char[]> data = std::make_unique<unsigned char[]>(w * h * 4);
 
 	if (comp == 1)
 	{

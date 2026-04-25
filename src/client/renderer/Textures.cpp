@@ -184,7 +184,7 @@ BufferedImage readImageFromMemory(const std::string &data)
 		return {};
 	}
 
-	std::unique_ptr<unsigned char[]> pixels = Util::make_unique<unsigned char[]>(w * h * 4);
+	std::unique_ptr<unsigned char[]> pixels = std::make_unique<unsigned char[]>(w * h * 4);
 
 	if (comp == 1)
 	{
