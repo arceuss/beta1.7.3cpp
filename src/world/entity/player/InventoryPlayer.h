@@ -29,6 +29,7 @@ public:
 	void changeCurrentItem(int_t direction);
 	void tick();
 	bool add(ItemInstance &item);
+	bool consumeItem(int_t itemId);
 	void dropAll();
 	float getDestroySpeed(Tile &tile);
 	bool canDestroySpecial(Tile &tile);

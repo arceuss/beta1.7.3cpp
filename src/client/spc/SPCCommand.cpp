@@ -10,6 +10,17 @@
 #include "java/String.h"
 #include "java/System.h"
 #include "util/Mth.h"
+#include "world/entity/EntityIO.h"
+#include "world/entity/animal/Chicken.h"
+#include "world/entity/animal/Cow.h"
+#include "world/entity/animal/Pig.h"
+#include "world/entity/animal/Sheep.h"
+#include "world/entity/monster/Creeper.h"
+#include "world/entity/monster/Spider.h"
+#include "world/entity/monster/PigZombie.h"
+#include "world/entity/monster/Skeleton.h"
+#include "world/entity/monster/Monster.h"
+#include "world/entity/monster/Zombie.h"
 #include "world/entity/Mob.h"
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/player/InventoryPlayer.h"
@@ -47,6 +58,8 @@ double SPCCommand::gravity = 1.0;
 double SPCCommand::reachDistance = 4.0;
 double SPCCommand::superPunch = 1.0;
 float SPCCommand::flySpeed = 1.0f;
+bool SPCCommand::monstersSpawn = true;
+bool SPCCommand::animalSpawn = true;
 
 std::map<jstring, SPCCommand::Waypoint> SPCCommand::waypoints;
 
@@ -360,6 +373,30 @@ bool matches(const jstring &cmd, std::initializer_list<const char16_t *> names)
 	}
 	return false;
 }
+
+std::shared_ptr<Entity> createSpawnEntity(Level &level, const jstring &name)
+{
+	jstring key = normalizeName(name);
+	if (key == u"random" || key == u"r")
+	{
+		static const std::vector<const char16_t *> randomNames = {
+			u"pig", u"sheep", u"cow", u"chicken", u"zombie", u"skeleton", u"spider", u"creeper", u"pigzombie"
+		};
+		key = jstring(randomNames[static_cast<size_t>(level.random.nextInt(static_cast<int_t>(randomNames.size())))]);
+	}
+	if (key == u"pig") return std::make_shared<Pig>(level);
+	if (key == u"sheep") return std::make_shared<Sheep>(level);
+	if (key == u"cow") return std::make_shared<Cow>(level);
+	if (key == u"chicken") return std::make_shared<Chicken>(level);
+	if (key == u"zombie") return std::make_shared<Zombie>(level);
+	if (key == u"monster") return std::make_shared<Monster>(level);
+	if (key == u"skeleton") return std::make_shared<Skeleton>(level);
+	if (key == u"spider") return std::make_shared<Spider>(level);
+	if (key == u"creeper") return std::make_shared<Creeper>(level);
+	if (key == u"pigzombie" || key == u"zombiepigman") return std::make_shared<PigZombie>(level);
+	return nullptr;
+}
+
 
 void announceToggle(const jstring &label, bool enabled)
 {
@@ -787,6 +824,76 @@ void SPCCommand::execute(Minecraft &mc, const jstring &input)
 		sendError(u"Usage: time [day|night|set|add|get|speed]");
 		return;
 	}
+
+	if (cmd == u"spawn")
+	{
+		if (!requirePlayer(mc) || !requireLevel(mc))
+			return;
+		if (parts.size() < 2)
+		{
+			sendError(u"Usage: spawn <creature> [count]");
+			return;
+		}
+		long_t count = 1;
+		if (parts.size() >= 3 && (!parseLong(parts[2], count) || count <= 0))
+		{
+			sendError(u"Invalid count: " + parts[2]);
+			return;
+		}
+		int_t spawned = 0;
+		for (long_t i = 0; i < count; ++i)
+		{
+			std::shared_ptr<Entity> entity = createSpawnEntity(*mc.level, parts[1]);
+			if (entity == nullptr)
+			{
+				sendError(u"Invalid mob: " + parts[1]);
+				return;
+			}
+			double spawnX = mc.player->x + static_cast<double>(mc.level->random.nextInt(5));
+			double spawnY = mc.player->y;
+			double spawnZ = mc.player->z + static_cast<double>(mc.level->random.nextInt(5));
+			entity->moveTo(spawnX, spawnY, spawnZ, mc.player->yRot, 0.0f);
+			if (mc.level->addEntity(entity))
+				++spawned;
+		}
+		addMessage(u"\u00a77Spawned " + String::toString(spawned) + u" " + lowerAscii(parts[1]) + u"(s)");
+		return;
+	}
+	
+
+	if (cmd == u"spawncontrol")
+	{
+		if (!requireLevel(mc))
+			return;
+		if (parts.size() < 2)
+		{
+			sendError(u"Usage: spawncontrol <all|animals|monsters>");
+			return;
+		}
+		jstring mode = lowerAscii(parts[1]);
+		if (mode == u"all")
+		{
+			animalSpawn = !animalSpawn;
+			monstersSpawn = animalSpawn;
+		}
+		else if (mode == u"animal" || mode == u"animals" || mode == u"friendly")
+		{
+			animalSpawn = !animalSpawn;
+		}
+		else if (mode == u"monster" || mode == u"monsters" || mode == u"agressive" || mode == u"aggressive")
+		{
+			monstersSpawn = !monstersSpawn;
+		}
+		else
+		{
+			sendError(u"Usage: spawncontrol <all|animals|monsters>");
+			return;
+		}
+		mc.level->setSpawnSettings(monstersSpawn, animalSpawn);
+		addMessage(u"\u00a77Friendly mobs will " + jstring(animalSpawn ? u"now spawn" : u"not spawn") + u". Aggressive mobs will " + jstring(monstersSpawn ? u"now spawn" : u"not spawn") + u".");
+		return;
+	}
+	
 
 	if (matches(cmd, {u"setspawn", u"spawnpoint"}))
 	{
@@ -1283,7 +1390,7 @@ void SPCCommand::execute(Minecraft &mc, const jstring &input)
 		u"defuse", u"effect", u"enchant", u"ender", u"entity", u"excavate", u"explode", u"falldistance",
 		u"fog", u"global", u"grow", u"instantplant", u"instantgrow", u"killnpc", u"kit", u"leash",
 		u"light", u"macro", u"maxstack", u"move", u"music", u"nozzle", u"path", u"portal", u"redstone",
-		u"refkill", u"remote", u"ride", u"shrink", u"sl", u"spawn", u"sprint", u"stacksize", u"startup",
+		u"refkill", u"remote", u"ride", u"shrink", u"sl", u"sprint", u"stacksize", u"startup",
 		u"superheat", u"superpunch", u"temp", u"timeschedule", u"toggleedit", u"toggledropgive",
 		u"togglepickaxe", u"weather", u"world"}))
 	{

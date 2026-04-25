@@ -416,7 +416,16 @@ void Player::interact(const std::shared_ptr<Entity> &entity)
 	if (entity->interact(*this))
 		return;
 
-	// TODO: selected-item interaction with entities
+	ItemInstance *selected = getSelectedItem();
+	if (selected != nullptr)
+	{
+		if (Mob *mob = dynamic_cast<Mob *>(entity.get()))
+		{
+			selected->saddleEntity(*mob);
+			if (selected->isEmpty())
+				removeSelectedItem();
+		}
+	}
 }
 
 void Player::take(Entity &entity, int_t count)

@@ -5,6 +5,7 @@
 class Entity;
 class Tile;
 class Item;
+class Mob;
 class Player;
 class Level;
 class CompoundTag;
@@ -39,6 +40,7 @@ public:
 	bool useOn(Player &player, Level &level, int_t x, int_t y, int_t z, Facing face);
 	void damageItem(int_t amount);
 	bool hurtEnemy(Entity &target, Entity &attacker);
+	void saddleEntity(Mob &target);
 	bool mineBlock(int_t tile, int_t x, int_t y, int_t z, Entity &miner);
 	void save(CompoundTag &tag) const;
 	void load(CompoundTag &tag);

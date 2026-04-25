@@ -19,13 +19,14 @@ public:
 	MobRenderer(EntityRenderDispatcher &entityRenderDispatcher, const std::shared_ptr<Model> &model, float shadow);
 
 	void setArmor(const std::shared_ptr<Model> &armor);
+	void setModel(const std::shared_ptr<Model> &model);
 
 	void render(Entity &entity, double x, double y, double z, float rot, float a) override;
 
 protected:
 	virtual void setupRotations(Mob &mob, float bob, float bodyRot, float a);
 	float getAttackAnim(Mob &mob, float a);
-	float getBob(Mob &mob, float a);
+	virtual float getBob(Mob &mob, float a);
 
 	virtual void additionalRendering(Mob &mob, float a);
 

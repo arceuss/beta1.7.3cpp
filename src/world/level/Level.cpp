@@ -8,6 +8,16 @@
 
 #include "world/level/MapDataBase.h"
 #include "world/level/chunk/ChunkCache.h"
+#include "world/level/Region.h"
+#include "world/level/pathfinder/Pathfinder.h"
+#include "world/entity/animal/Animal.h"
+#include "world/entity/animal/Chicken.h"
+#include "world/entity/animal/Cow.h"
+#include "world/entity/animal/Pig.h"
+#include "world/entity/animal/Sheep.h"
+#include "world/entity/monster/Monster.h"
+#include "world/level/material/Material.h"
+#include "world/level/pathfinder/PathEntity.h"
 #include "world/level/material/GasMaterial.h"
 
 #include "java/File.h"
@@ -998,19 +1008,76 @@ HitResult Level::clip(Vec3 &from, Vec3 &to, bool canPickLiquid)
 		}
 
 		int_t tile = getTile(x1, y1, z1);
-		int_t data = getData(x1, y1, z1);
-		Tile &tt = *Tile::tiles[tile];
-		if (tile > 0 && tt.mayPick(data, canPickLiquid))
+		if (tile > 0)
 		{
-			HitResult hitResult = tt.clip(*this, x1, y1, z1, from, to);
-			if (hitResult.type != HitResult::Type::NONE)
-				return hitResult;
+			Tile *tt = Tile::tiles[tile];
+			int_t data = getData(x1, y1, z1);
+			if (tt != nullptr && tt->mayPick(data, canPickLiquid))
+			{
+				HitResult hitResult = tt->clip(*this, x1, y1, z1, from, to);
+				if (hitResult.type != HitResult::Type::NONE)
+					return hitResult;
+			}
 		}
 	}
 
 	return HitResult();
 }
 
+
+std::shared_ptr<Player> Level::getNearestPlayer(Entity &entity, double radius)
+{
+	double bestDistance = -1.0;
+	std::shared_ptr<Player> nearest;
+	for (const auto &player : players)
+	{
+		if (player == nullptr)
+			continue;
+		double distance = player->distanceToSqr(entity);
+		if ((radius < 0.0 || distance < radius * radius) && (bestDistance == -1.0 || distance < bestDistance))
+		{
+			bestDistance = distance;
+			nearest = player;
+		}
+	}
+
+	return nearest;
+}
+
+std::unique_ptr<PathEntity> Level::getPathToEntity(Entity &entity, Entity &target, float distance)
+{
+	int_t x = Mth::floor(entity.x);
+	int_t y = Mth::floor(entity.y);
+	int_t z = Mth::floor(entity.z);
+	int_t radius = static_cast<int_t>(distance + 16.0f);
+	Region region(*this, x - radius, y - radius, z - radius, x + radius, y + radius, z + radius);
+	return Pathfinder(region).createEntityPathTo(entity, target, distance);
+}
+
+std::unique_ptr<PathEntity> Level::getEntityPathToXYZ(Entity &entity, int_t x, int_t y, int_t z, float distance)
+{
+	int_t entityX = Mth::floor(entity.x);
+	int_t entityY = Mth::floor(entity.y);
+	int_t entityZ = Mth::floor(entity.z);
+	int_t radius = static_cast<int_t>(distance + 8.0f);
+	Region region(*this, entityX - radius, entityY - radius, entityZ - radius, entityX + radius, entityY + radius, entityZ + radius);
+	return Pathfinder(region).createEntityPathTo(entity, x, y, z, distance);
+}
+
+std::shared_ptr<Entity> Level::getEntityRef(Entity &entity)
+{
+	for (const auto &candidate : entities)
+	{
+		if (candidate.get() == &entity)
+			return candidate;
+	}
+	for (const auto &player : players)
+	{
+		if (player.get() == &entity)
+			return std::static_pointer_cast<Entity>(player);
+	}
+	return nullptr;
+}
 
 bool Level::addEntity(std::shared_ptr<Entity> entity)
 {
@@ -1789,6 +1856,90 @@ void Level::updateSkyBrightness()
 		skyDarken = newDarken;
 }
 
+namespace
+{
+	bool isAnimalEntity(Entity &entity)
+	{
+		return dynamic_cast<Animal *>(&entity) != nullptr;
+	}
+
+	std::shared_ptr<Entity> createRandomAnimal(Level &level)
+	{
+		switch (level.random.nextInt(4))
+		{
+		case 0: return std::make_shared<Sheep>(level);
+		case 1: return std::make_shared<Pig>(level);
+		case 2: return std::make_shared<Chicken>(level);
+		default: return std::make_shared<Cow>(level);
+		}
+	}
+
+	void spawnNaturalAnimals(Level &level)
+	{
+		if (level.players.empty())
+			return;
+		if (!level.isDay())
+			return;
+		int_t eligibleChunks = static_cast<int_t>(level.players.size()) * 289;
+		if (level.countConditionOf(isAnimalEntity) > 15 * eligibleChunks / 256)
+			return;
+		for (const auto &player : level.players)
+		{
+			if (player == nullptr || player->removed)
+				continue;
+			int_t chunkX = Mth::floor(player->x / 16.0);
+			int_t chunkZ = Mth::floor(player->z / 16.0);
+			int_t baseX = (chunkX + level.random.nextInt(17) - 8) * 16 + level.random.nextInt(16);
+			int_t baseZ = (chunkZ + level.random.nextInt(17) - 8) * 16 + level.random.nextInt(16);
+			int_t baseY = level.random.nextInt(Level::DEPTH);
+			if (level.isSolidTile(baseX, baseY, baseZ) || level.getMaterial(baseX, baseY, baseZ).isLiquid())
+				continue;
+			int_t packSize = 0;
+			for (int_t outer = 0; outer < 3; ++outer)
+			{
+				int_t x = baseX;
+				int_t y = baseY;
+				int_t z = baseZ;
+				for (int_t inner = 0; inner < 4; ++inner)
+				{
+					x += level.random.nextInt(6) - level.random.nextInt(6);
+					y += level.random.nextInt(1) - level.random.nextInt(1);
+					z += level.random.nextInt(6) - level.random.nextInt(6);
+					if (!level.hasChunksAt(x, y, z, 8))
+						continue;
+					if (!level.isSolidTile(x, y - 1, z) || level.isSolidTile(x, y, z) || level.getMaterial(x, y, z).isLiquid() || level.isSolidTile(x, y + 1, z))
+						continue;
+					Entity playerProbe(level);
+					playerProbe.moveTo(player->x, player->y, player->z, 0.0f, 0.0f);
+					double spawnX = x + 0.5;
+					double spawnY = y;
+					double spawnZ = z + 0.5;
+					if (level.getNearestPlayer(playerProbe, 24.0) != nullptr)
+						continue;
+					double dx = spawnX - (level.xSpawn + 0.5);
+					double dy = spawnY - level.ySpawn;
+					double dz = spawnZ - (level.zSpawn + 0.5);
+					if (dx * dx + dy * dy + dz * dz < 576.0)
+						continue;
+					auto animal = std::dynamic_pointer_cast<Animal>(createRandomAnimal(level));
+					if (animal == nullptr)
+						continue;
+					animal->moveTo(spawnX, spawnY, spawnZ, level.random.nextFloat() * 360.0f, 0.0f);
+					if (!animal->canSpawn())
+						continue;
+					if (auto sheep = std::dynamic_pointer_cast<Sheep>(animal))
+						sheep->setFleeceColor(Sheep::getRandomFleeceColor(level.random));
+					if (!level.addEntity(animal))
+						continue;
+					++packSize;
+					if (packSize >= animal->getMaxSpawnClusterSize())
+						return;
+				}
+			}
+		}
+	}
+}
+
 void Level::setSpawnSettings(bool spawnEnemies, bool spawnFriendlies)
 {
 	this->spawnEnemies = spawnEnemies;
@@ -1797,8 +1948,8 @@ void Level::setSpawnSettings(bool spawnEnemies, bool spawnFriendlies)
 
 void Level::tick()
 {
-	// TODO MobSpawner
-
+	if (!isOnline && time % 20 == 0)
+		spawnNaturalAnimals(*this);
 	chunkSource->tick();
 
 	int_t newDarken = getSkyDarken(1.0f);

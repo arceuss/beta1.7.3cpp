@@ -13,6 +13,11 @@ void MobRenderer::setArmor(const std::shared_ptr<Model> &armor)
 	this->armor = armor;
 }
 
+void MobRenderer::setModel(const std::shared_ptr<Model> &model)
+{
+	this->model = model;
+}
+
 void MobRenderer::render(Entity &entity, double x, double y, double z, float rot, float a)
 {
 	Mob &mob = static_cast<Mob &>(entity);
@@ -45,7 +50,9 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 
 	if (ws > 1.0f) ws = 1.0f;
 
+	float br = mob.getBrightness(a);
 	bindTexture(mob.customTextureUrl, mob.getTexture());
+	glColor3f(br, br, br);
 	glEnable(GL_ALPHA_TEST);
 
 	model->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
@@ -56,11 +63,12 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 			armor->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
 			glDisable(GL_BLEND);
 			glEnable(GL_ALPHA_TEST);
+			glColor3f(br, br, br);
 		}
 	}
 
+	glColor3f(br, br, br);
 	additionalRendering(mob, a);
-	float br = mob.getBrightness(a);
 	int_t overlayColor = getOverlayColor(mob, br, a);
 
 	if (((overlayColor >> 24) & 0xFF) > 0 || mob.hurtTime > 0 || mob.deathTime > 0)

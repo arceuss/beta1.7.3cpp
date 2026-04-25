@@ -112,7 +112,7 @@ protected:
 	virtual void defineSynchedData();
 
 public:
-	bool canSee(const Entity &entity);
+	bool canSee(Entity &entity);
 
 	jstring getTexture() override;
 
@@ -183,6 +183,7 @@ protected:
 
 	virtual void updateAi();
 
+	virtual bool canDespawn();
 public:
 	void lookAt(Entity &entity, float speed);
 
@@ -207,8 +208,6 @@ public:
 
 	virtual int_t getMaxSpawnClusterSize();
 
-	// TODO
-	// ItemInstance getCarriedItem
-
+	virtual ItemInstance *getCarriedItem();
 	virtual void handleEntityEvent(byte_t event) override;
 };

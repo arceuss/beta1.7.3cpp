@@ -48,6 +48,8 @@ public:
 	static double reachDistance;
 	static double superPunch;
 	static float flySpeed;
+	static bool monstersSpawn;
+	static bool animalSpawn;
 
 	// Waypoints
 	struct Waypoint { double x, y, z; };

@@ -6,12 +6,18 @@
 #include "java/String.h"
 #include "world/entity/player/Player.h"
 #include "world/item/Item.h"
+#include "world/item/ItemArmor.h"
 #include "util/Mth.h"
 
 #include <cmath>
 #include <iostream>
 
 #include "OpenGL.h"
+
+namespace
+{
+	const jstring armorFilenamePrefix[] = {u"cloth", u"chain", u"iron", u"diamond", u"gold"};
+}
 
 PlayerRenderer::PlayerRenderer(EntityRenderDispatcher &entityRenderDispatcher) : MobRenderer(entityRenderDispatcher, Util::make_shared<HumanoidModel>(0.0f), 0.5f)
 {
@@ -27,6 +33,10 @@ void PlayerRenderer::render(Entity &entity, double x, double y, double z, float 
 
 	humanoidModel->holdingRightHand = mob.inventory.getSelected() != nullptr;
 	humanoidModel->sneaking = mob.isSneaking();
+	armorParts1->holdingRightHand = humanoidModel->holdingRightHand;
+	armorParts2->holdingRightHand = humanoidModel->holdingRightHand;
+	armorParts1->sneaking = humanoidModel->sneaking;
+	armorParts2->sneaking = humanoidModel->sneaking;
 
 	double yp = y - mob.heightOffset;
 	if (mob.isSneaking())
@@ -43,6 +53,10 @@ void PlayerRenderer::render(Entity &entity, double x, double y, double z, float 
 
 	humanoidModel->holdingRightHand = false;
 	humanoidModel->sneaking = false;
+	armorParts1->holdingRightHand = false;
+	armorParts2->holdingRightHand = false;
+	armorParts1->sneaking = false;
+	armorParts2->sneaking = false;
 }
 
 void PlayerRenderer::setupRotations(Mob &mobBase, float bob, float bodyRot, float a)
@@ -58,6 +72,38 @@ void PlayerRenderer::setupRotations(Mob &mobBase, float bob, float bodyRot, floa
 	{
 		MobRenderer::setupRotations(mob, bob, bodyRot, a);
 	}
+}
+
+bool PlayerRenderer::prepareArmor(Mob &mobBase, int_t layer, float a)
+{
+	(void)a;
+	Player &mob = static_cast<Player &>(mobBase);
+	ItemInstance &stack = mob.inventory.armorInventory[3 - layer];
+	if (stack.isEmpty())
+		return false;
+
+	Item *item = stack.getItem();
+	auto *armorItem = dynamic_cast<ItemArmor *>(item);
+	if (armorItem == nullptr || entityRenderDispatcher.textures == nullptr)
+		return false;
+
+	auto parts = layer == 2 ? armorParts2 : armorParts1;
+	armor = parts;
+	parts->holdingRightHand = humanoidModel->holdingRightHand;
+	parts->holdingLeftHand = humanoidModel->holdingLeftHand;
+	parts->sneaking = humanoidModel->sneaking;
+	parts->attackTime = humanoidModel->attackTime;
+	parts->riding = humanoidModel->riding;
+	parts->head.visible = layer == 0;
+	parts->hair.visible = layer == 0;
+	parts->body.visible = layer == 1 || layer == 2;
+	parts->arm0.visible = layer == 1;
+	parts->arm1.visible = layer == 1;
+	parts->leg0.visible = layer == 2 || layer == 3;
+	parts->leg1.visible = layer == 2 || layer == 3;
+	entityRenderDispatcher.textures->bind(entityRenderDispatcher.textures->loadTexture(
+		u"/armor/" + armorFilenamePrefix[armorItem->renderIndex] + u"_" + (layer == 2 ? u"2" : u"1") + u".png"));
+	return true;
 }
 
 void PlayerRenderer::scale(Mob &mob, float a)

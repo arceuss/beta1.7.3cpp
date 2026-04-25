@@ -17,6 +17,10 @@
 #include "client/particle/RedDustParticle.h"
 #include "client/particle/PortalParticle.h"
 #include "client/particle/NoteParticle.h"
+#include "client/particle/ItemParticle.h"
+#include "world/item/Item.h"
+#include "world/item/ItemInstance.h"
+#include "world/item/Items.h"
 #include "client/renderer/SignRenderer.h"
 #include "client/renderer/entity/PistonTileEntityRenderer.h"
 #include "world/level/tile/entity/SignTileEntity.h"
@@ -1301,6 +1305,8 @@ void LevelRenderer::addParticle(const jstring &name, double x, double y, double 
 		mc.particleEngine.add(std::make_unique<LavaParticle>(*level, x, y, z));
 	else if (name == u"explode")
 		mc.particleEngine.add(std::make_unique<ExplodeParticle>(*level, x, y, z, xa, ya, za));
+	else if (name == u"snowballpoof")
+		mc.particleEngine.add(std::make_unique<ItemParticle>(*level, x, y, z, *Items::snowball));
 }
 
 void LevelRenderer::playMusic(const jstring &name, double x, double y, double z, float songOffset)

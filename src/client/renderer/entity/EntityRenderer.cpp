@@ -3,6 +3,9 @@
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 
 #include "client/renderer/Tesselator.h"
+#include <algorithm>
+#include "world/level/tile/Tile.h"
+#include "world/level/tile/FireTile.h"
 
 EntityRenderer::EntityRenderer(EntityRenderDispatcher &entityRenderDispatcher) : entityRenderDispatcher(entityRenderDispatcher)
 {
@@ -33,7 +36,52 @@ void EntityRenderer::bindTexture(const jstring &urlTexture, const jstring &backu
 
 void EntityRenderer::renderFlame(Entity &e, double x, double y, double z, float a)
 {
-	// TODO
+	(void)a;
+	glDisable(GL_LIGHTING);
+	int_t fireTexture = Tile::fire.tex;
+	int_t uIndex = (fireTexture & 15) << 4;
+	int_t vIndex = fireTexture & 240;
+	float u0 = uIndex / 256.0f;
+	float u1 = (uIndex + 15.99f) / 256.0f;
+	float v0 = vIndex / 256.0f;
+	float v1 = (vIndex + 15.99f) / 256.0f;
+	glPushMatrix();
+	glTranslatef(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
+	float scale = e.bbWidth * 1.4f;
+	glScalef(scale, scale, scale);
+	bindTexture(u"/terrain.png");
+	Tesselator &t = Tesselator::instance;
+	float halfWidth = 0.5f;
+	float offsetX = 0.0f;
+	float height = e.bbHeight / scale;
+	float yOffset = static_cast<float>(e.y - e.bb.y0);
+	glRotatef(-entityRenderDispatcher.playerRotY, 0.0f, 1.0f, 0.0f);
+	glTranslatef(0.0f, 0.0f, -0.3f + static_cast<int_t>(height) * 0.02f);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	float depth = 0.0f;
+	int_t layer = 0;
+	t.begin();
+	while (height > 0.0f)
+	{
+		float layerU0 = u0;
+		float layerU1 = u1;
+		float layerV0 = (layer % 2 == 0) ? v0 : (vIndex + 16) / 256.0f;
+		float layerV1 = (layer % 2 == 0) ? v1 : (vIndex + 31.99f) / 256.0f;
+		if ((layer / 2) % 2 == 0)
+			std::swap(layerU0, layerU1);
+		t.vertexUV(halfWidth - offsetX, 0.0f - yOffset, depth, layerU1, layerV1);
+		t.vertexUV(-halfWidth - offsetX, 0.0f - yOffset, depth, layerU0, layerV1);
+		t.vertexUV(-halfWidth - offsetX, 1.4f - yOffset, depth, layerU0, layerV0);
+		t.vertexUV(halfWidth - offsetX, 1.4f - yOffset, depth, layerU1, layerV0);
+		height -= 0.45f;
+		yOffset -= 0.45f;
+		halfWidth *= 0.9f;
+		depth += 0.03f;
+		layer++;
+	}
+	t.end();
+	glPopMatrix();
+	glEnable(GL_LIGHTING);
 }
 
 void EntityRenderer::renderShadow(Entity &e, double x, double y, double z, float pow, float a)

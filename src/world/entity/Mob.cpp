@@ -2,6 +2,9 @@
 
 #include "world/level/Level.h"
 #include "world/level/tile/LadderTile.h"
+#include "world/level/material/Material.h"
+#include "world/level/material/LiquidMaterial.h"
+#include "world/item/ItemInstance.h"
 
 #include "util/Mth.h"
 
@@ -16,19 +19,21 @@ void Mob::defineSynchedData()
 
 }
 
-bool Mob::canSee(const Entity &entity)
+bool Mob::canSee(Entity &entity)
 {
-	return false;
+	Vec3 *from = Vec3::newTemp(x, y + getHeadHeight(), z);
+	Vec3 *to = Vec3::newTemp(entity.x, entity.y + entity.getHeadHeight(), entity.z);
+	return level.clip(*from, *to).type == HitResult::Type::NONE;
 }
 
 jstring Mob::getTexture()
 {
-	return u"/mob/char.png";
+	return textureName;
 }
 
 bool Mob::isPickable()
 {
-	return false;
+	return !removed;
 }
 
 bool Mob::isPushable()
@@ -38,7 +43,7 @@ bool Mob::isPushable()
 
 float Mob::getHeadHeight()
 {
-	return 0.0f;
+	return bbHeight * 0.85f;
 }
 
 int_t Mob::getAmbientSoundInterval()
@@ -51,29 +56,51 @@ void Mob::baseTick()
 	oAttackAnim = attackAnim;
 
 	Entity::baseTick();
-	
-	if (isAlive() && isInWall())
-		hurt(nullptr, 1);
 
-	if (fireImmune || level.isOnline)
-		onFire = 0;
-
-	// TODO water material
-
-	oTilt = tilt;
-	if (attackTime > 0) attackTime--;
-	if (hurtTime > 0) hurtTime--;
-	if (invulnerableTime > 0) invulnerableTime--;
-	if (isAlive() && level.random.nextInt(1000) < ambientSoundTime++)
+	if (random.nextInt(1000) < ambientSoundTime++)
 	{
 		const jstring &ambientSound = getAmbientSound();
 		ambientSoundTime = -getAmbientSoundInterval();
 		if (!ambientSound.empty())
 		{
 			level.playSoundAtEntity(*this, ambientSound, getSoundVolume(),
-				(level.random.nextFloat() - level.random.nextFloat()) * 0.2f + 1.0f);
+				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
 		}
 	}
+
+	if (isAlive() && isInWall())
+		hurt(nullptr, 1);
+
+	if (fireImmune || level.isOnline)
+		onFire = 0;
+
+	if (isAlive() && isUnderLiquid(static_cast<const Material &>(Material::water)) && !isWaterMob())
+	{
+		airSupply--;
+		if (airSupply == -20)
+		{
+			airSupply = 0;
+			for (int_t i = 0; i < 8; ++i)
+			{
+				float xo = random.nextFloat() - random.nextFloat();
+				float yo = random.nextFloat() - random.nextFloat();
+				float zo = random.nextFloat() - random.nextFloat();
+				level.addParticle(u"bubble", x + xo, y + yo, z + zo, xd, yd, zd);
+			}
+			hurt(nullptr, 2);
+		}
+
+		onFire = 0;
+	}
+	else
+	{
+		airSupply = airCapacity;
+	}
+
+	oTilt = tilt;
+	if (attackTime > 0) attackTime--;
+	if (hurtTime > 0) hurtTime--;
+	if (invulnerableTime > 0) invulnerableTime--;
 
 	if (health <= 0)
 	{
@@ -82,7 +109,18 @@ void Mob::baseTick()
 		{
 			beforeRemove();
 			remove();
-			// TODO
+			for (int_t i = 0; i < 20; ++i)
+			{
+				double xa = random.nextGaussian() * 0.02;
+				double ya = random.nextGaussian() * 0.02;
+				double za = random.nextGaussian() * 0.02;
+				level.addParticle(
+					u"explode",
+					x + random.nextFloat() * bbWidth * 2.0f - bbWidth,
+					y + random.nextFloat() * bbHeight,
+					z + random.nextFloat() * bbWidth * 2.0f - bbWidth,
+					xa, ya, za);
+			}
 		}
 	}
 
@@ -94,7 +132,19 @@ void Mob::baseTick()
 
 void Mob::spawnAnim()
 {
-
+	for (int_t i = 0; i < 20; ++i)
+	{
+		double xa = random.nextGaussian() * 0.02;
+		double ya = random.nextGaussian() * 0.02;
+		double za = random.nextGaussian() * 0.02;
+		double scale = 10.0;
+		level.addParticle(
+			u"explode",
+			x + random.nextFloat() * bbWidth * 2.0f - bbWidth - xa * scale,
+			y + random.nextFloat() * bbHeight - ya * scale,
+			z + random.nextFloat() * bbWidth * 2.0f - bbWidth - za * scale,
+			xa, ya, za);
+	}
 }
 
 void Mob::rideTick()
@@ -106,7 +156,13 @@ void Mob::rideTick()
 
 void Mob::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
 {
-
+	heightOffset = 0.0f;
+	lx = x;
+	ly = y;
+	lz = z;
+	lyr = yRot;
+	lxr = xRot;
+	lSteps = steps;
 }
 
 void Mob::superTick()
@@ -180,7 +236,7 @@ void Mob::tick()
 
 void Mob::setSize(float width, float height)
 {
-
+	Entity::setSize(width, height);
 }
 
 void Mob::heal(int_t heal)
@@ -316,7 +372,7 @@ void Mob::knockback(Entity &source, int_t unknown, double x, double z)
 
 void Mob::die(Entity *source)
 {
-	if (deathScore > 0 && source != nullptr)
+	if (deathScore >= 0 && source != nullptr)
 		source->awardKillScore(*this, deathScore);
 	dead = true;
 	if (!level.isOnline)
@@ -325,7 +381,13 @@ void Mob::die(Entity *source)
 
 void Mob::dropDeathLoot()
 {
+	int_t loot = getDeathLoot();
+	if (loot <= 0)
+		return;
 
+	int_t count = random.nextInt(3);
+	for (int_t i = 0; i < count; ++i)
+		spawnAtLocation(ItemInstance(loot, 1, 0), 0.0f);
 }
 
 int_t Mob::getDeathLoot()
@@ -447,17 +509,25 @@ bool Mob::onLadder()
 
 bool Mob::isShootable()
 {
-	return false;
+	return true;
 }
 
 void Mob::addAdditionalSaveData(CompoundTag &tag)
 {
-
+	tag.putShort(u"Health", static_cast<short_t>(health));
+	tag.putShort(u"HurtTime", static_cast<short_t>(hurtTime));
+	tag.putShort(u"DeathTime", static_cast<short_t>(deathTime));
+	tag.putShort(u"AttackTime", static_cast<short_t>(attackTime));
 }
 
 void Mob::readAdditionalSaveData(CompoundTag &tag)
 {
-
+	health = tag.getShort(u"Health");
+	if (!tag.contains(u"Health"))
+		health = 10;
+	hurtTime = tag.getShort(u"HurtTime");
+	deathTime = tag.getShort(u"DeathTime");
+	attackTime = tag.getShort(u"AttackTime");
 }
 
 bool Mob::isAlive()
@@ -520,7 +590,7 @@ void Mob::aiStep()
 	// Movement
 	xxa *= 0.98f;
 	yya *= 0.98f;
-	yRotA *= 0.98f;
+	yRotA *= 0.9f;
 	travel(xxa, yya);
 
 	const auto &entities = level.getEntities(this, *bb.grow(0.2, 0.0f, 0.2));
@@ -541,17 +611,95 @@ void Mob::jumpFromGround()
 
 void Mob::updateAi()
 {
+	noActionTime++;
+	std::shared_ptr<Player> nearestPlayer = level.getNearestPlayer(*this, -1.0);
+	if (canDespawn() && nearestPlayer != nullptr)
+	{
+		double dx = nearestPlayer->x - x;
+		double dy = nearestPlayer->y - y;
+		double dz = nearestPlayer->z - z;
+		double distanceSqr = dx * dx + dy * dy + dz * dz;
+		if (distanceSqr > 16384.0)
+			remove();
 
+		if (noActionTime > 600 && random.nextInt(800) == 0)
+		{
+			if (distanceSqr < 1024.0)
+				noActionTime = 0;
+			else
+				remove();
+		}
+	}
+
+	xxa = 0.0f;
+	yya = 0.0f;
+	float lookRange = 8.0f;
+	if (random.nextFloat() < 0.02f)
+	{
+		nearestPlayer = level.getNearestPlayer(*this, lookRange);
+		if (nearestPlayer != nullptr)
+		{
+			lookingAt = nearestPlayer;
+			lookTime = 10 + random.nextInt(20);
+		}
+		else
+		{
+			yRotA = (random.nextFloat() - 0.5f) * 20.0f;
+		}
+	}
+
+	if (lookingAt != nullptr)
+	{
+		lookAt(*lookingAt, 10.0f);
+		if (lookTime-- <= 0 || lookingAt->removed || lookingAt->distanceToSqr(*this) > lookRange * lookRange)
+			lookingAt = nullptr;
+	}
+	else
+	{
+		if (random.nextFloat() < 0.05f)
+			yRotA = (random.nextFloat() - 0.5f) * 20.0f;
+
+		yRot += yRotA;
+		xRot = defaultLookAngle;
+	}
+
+	bool inWater = isInWater();
+	bool inLava = isInLava();
+	if (inWater || inLava)
+		jumping = random.nextFloat() < 0.8f;
+}
+
+bool Mob::canDespawn()
+{
+	return true;
 }
 
 void Mob::lookAt(Entity &entity, float speed)
 {
+	double dx = entity.x - x;
+	double dz = entity.z - z;
+	double dy;
+	if (Mob *mob = dynamic_cast<Mob *>(&entity))
+		dy = mob->y + mob->getHeadHeight() - (y + getHeadHeight());
+	else
+		dy = (entity.bb.y0 + entity.bb.y1) / 2.0 - (y + getHeadHeight());
 
+	double flatDistance = Mth::sqrt(dx * dx + dz * dz);
+	float targetYRot = static_cast<float>(std::atan2(dz, dx) * 180.0 / Mth::PI) - 90.0f;
+	float targetXRot = static_cast<float>(std::atan2(dy, flatDistance) * 180.0 / Mth::PI);
+	xRot = -rotlerp(xRot, targetXRot, speed);
+	yRot = rotlerp(yRot, targetYRot, speed);
 }
 
 float Mob::rotlerp(float from, float to, float speed)
 {
-	return 0.0f;
+	float delta = to - from;
+	while (delta < -180.0f) delta += 360.0f;
+	while (delta >= 180.0f) delta -= 360.0f;
+
+	if (delta > speed) delta = speed;
+	if (delta < -speed) delta = -speed;
+	return from + delta;
 }
 
 void Mob::beforeRemove()
@@ -561,7 +709,7 @@ void Mob::beforeRemove()
 
 bool Mob::canSpawn()
 {
-	return false;
+	return level.isUnobstructed(bb) && level.getCubes(*this, bb).empty() && !level.containsAnyLiquid(bb);
 }
 
 void Mob::outOfWorld()
@@ -624,11 +772,13 @@ HitResult Mob::pick(float length, float a)
 
 int_t Mob::getMaxSpawnClusterSize()
 {
-	return 0;
+	return 4;
 }
 
-// TODO
-// ItemInstance getCarriedItem
+ItemInstance *Mob::getCarriedItem()
+{
+	return nullptr;
+}
 
 void Mob::handleEntityEvent(byte_t event)
 {

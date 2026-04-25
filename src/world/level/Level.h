@@ -35,6 +35,7 @@
 #include "util/Memory.h"
 
 class Explosion;
+class PathEntity;
 
 class Level : public LevelSource
 {
@@ -272,6 +273,10 @@ public:
 
 	HitResult clip(Vec3 &from, Vec3 &to);
 	HitResult clip(Vec3 &from, Vec3 &to, bool canPickLiquid);
+	std::shared_ptr<Player> getNearestPlayer(Entity &entity, double radius);
+	std::unique_ptr<PathEntity> getPathToEntity(Entity &entity, Entity &target, float distance);
+	std::unique_ptr<PathEntity> getEntityPathToXYZ(Entity &entity, int_t x, int_t y, int_t z, float distance);
+	std::shared_ptr<Entity> getEntityRef(Entity &entity);
 
 	bool addEntity(std::shared_ptr<Entity> entity);
 

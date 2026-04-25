@@ -18,6 +18,7 @@ protected:
 	void scale(Mob &mob, float a) override;
 	void additionalRendering(Mob &mob, float a) override;
 	void setupRotations(Mob &mob, float bob, float bodyRot, float a) override;
+	bool prepareArmor(Mob &mob, int_t layer, float a) override;
 public:
 	void renderHand();
 };

@@ -202,6 +202,15 @@ void Entity::lavaHurt()
 	}
 }
 
+void Entity::onStruckByLightning(Entity &lightning)
+{
+	(void)lightning;
+	hurt(nullptr, 5);
+	++onFire;
+	if (onFire == 0)
+		onFire = 300;
+}
+
 void Entity::outOfWorld()
 {
 	remove();
@@ -782,6 +791,18 @@ bool Entity::isAlive()
 
 bool Entity::isInWall()
 {
+	for (int_t i = 0; i < 8; ++i)
+	{
+		float xo = ((i >> 0) % 2 - 0.5f) * bbWidth * 0.9f;
+		float yo = ((i >> 1) % 2 - 0.5f) * 0.1f;
+		float zo = ((i >> 2) % 2 - 0.5f) * bbWidth * 0.9f;
+		int_t tx = Mth::floor(x + xo);
+		int_t ty = Mth::floor(y + getHeadHeight() + yo);
+		int_t tz = Mth::floor(z + zo);
+		if (level.isBlockNormalCube(tx, ty, tz))
+			return true;
+	}
+
 	return false;
 }
 

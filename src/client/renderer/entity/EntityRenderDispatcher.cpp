@@ -1,15 +1,41 @@
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 
+#include "client/renderer/entity/ArrowRenderer.h"
+#include "client/renderer/entity/ThrownItemRenderer.h"
 #include "client/renderer/entity/BoatRenderer.h"
+#include "client/renderer/entity/ChickenRenderer.h"
+#include "client/renderer/entity/CreeperRenderer.h"
 #include "client/renderer/entity/FallingTileRenderer.h"
 #include "client/renderer/entity/ItemRenderer.h"
 #include "client/renderer/entity/MinecartRenderer.h"
+#include "client/renderer/entity/PigRenderer.h"
 #include "client/renderer/entity/PlayerRenderer.h"
+#include "client/renderer/entity/SheepRenderer.h"
+#include "client/renderer/entity/SpiderRenderer.h"
 #include "client/renderer/entity/TNTPrimedRenderer.h"
+#include "client/renderer/entity/MobRenderer.h"
+#include "client/renderer/entity/HumanoidMobRenderer.h"
+#include "client/model/ChickenModel.h"
+#include "client/model/CowModel.h"
+#include "client/model/HumanoidModel.h"
+#include "client/model/SkeletonModel.h"
+#include "world/entity/animal/Chicken.h"
+#include "world/entity/animal/Cow.h"
+#include "world/entity/animal/Pig.h"
+#include "world/entity/animal/Sheep.h"
 #include "world/entity/item/EntityBoat.h"
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/FallingTile.h"
 #include "world/entity/item/EntityMinecart.h"
+#include "world/entity/monster/Creeper.h"
+#include "world/entity/monster/Spider.h"
+#include "world/entity/monster/Zombie.h"
+#include "world/entity/monster/Skeleton.h"
+#include "world/entity/monster/PigZombie.h"
+#include "world/entity/monster/Monster.h"
+#include "world/entity/projectile/EntityArrow.h"
+#include "world/entity/projectile/EntitySnowball.h"
+#include "world/entity/projectile/EntityThrownEgg.h"
 #include "world/entity/PrimedTNT.h"
 #include "OpenGL.h"
 
@@ -24,6 +50,24 @@ FallingTileRenderer &EntityRenderDispatcher::getFallingTileRenderer()
 ItemRenderer &EntityRenderDispatcher::getItemRenderer()
 {
 	static ItemRenderer renderer(instance);
+	return renderer;
+}
+
+ArrowRenderer &EntityRenderDispatcher::getArrowRenderer()
+{
+	static ArrowRenderer renderer(instance);
+	return renderer;
+}
+
+EntityRenderer &EntityRenderDispatcher::getSnowballRenderer()
+{
+	static ThrownItemRenderer renderer(instance, 14);
+	return renderer;
+}
+
+EntityRenderer &EntityRenderDispatcher::getThrownEggRenderer()
+{
+	static ThrownItemRenderer renderer(instance, 12);
 	return renderer;
 }
 
@@ -44,6 +88,72 @@ TNTPrimedRenderer &EntityRenderDispatcher::getTNTPrimedRenderer()
 	static TNTPrimedRenderer renderer(instance);
 	return renderer;
 }
+
+ChickenRenderer &EntityRenderDispatcher::getChickenRenderer()
+{
+	static ChickenRenderer renderer(instance);
+	return renderer;
+}
+
+PigRenderer &EntityRenderDispatcher::getPigRenderer()
+{
+	static PigRenderer renderer(instance);
+	return renderer;
+}
+
+SheepRenderer &EntityRenderDispatcher::getSheepRenderer()
+{
+	static SheepRenderer renderer(instance);
+	return renderer;
+}
+
+SpiderRenderer &EntityRenderDispatcher::getSpiderRenderer()
+{
+	static SpiderRenderer renderer(instance);
+	return renderer;
+}
+
+CreeperRenderer &EntityRenderDispatcher::getCreeperRenderer()
+{
+	static CreeperRenderer renderer(instance);
+	return renderer;
+}
+
+HumanoidMobRenderer &EntityRenderDispatcher::getMonsterRenderer()
+{
+	static HumanoidMobRenderer renderer(instance, false, false);
+	return renderer;
+}
+
+MobRenderer &EntityRenderDispatcher::getCowRenderer()
+	{
+		static MobRenderer renderer(instance, std::make_shared<CowModel>(), 0.7f);
+		return renderer;
+	}
+
+HumanoidMobRenderer &EntityRenderDispatcher::getZombieRenderer()
+{
+	static HumanoidMobRenderer renderer(instance, true, false);
+	return renderer;
+}
+
+HumanoidMobRenderer &EntityRenderDispatcher::getSkeletonRenderer()
+	{
+		static HumanoidMobRenderer renderer(instance, true, true);
+		static bool initialized = false;
+		if (!initialized)
+		{
+			renderer.setModel(std::make_shared<SkeletonModel>());
+			initialized = true;
+		}
+		return renderer;
+	}
+
+HumanoidMobRenderer &EntityRenderDispatcher::getPigZombieRenderer()
+	{
+		static HumanoidMobRenderer renderer(instance, true, true);
+		return renderer;
+	}
 
 
 EntityRenderDispatcher EntityRenderDispatcher::instance;
@@ -91,6 +201,30 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
+	if (dynamic_cast<EntityArrow *>(&entity) != nullptr)
+	{
+		ArrowRenderer &renderer = getArrowRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<EntitySnowball *>(&entity) != nullptr)
+	{
+		EntityRenderer &renderer = getSnowballRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<EntityThrownEgg *>(&entity) != nullptr)
+	{
+		EntityRenderer &renderer = getThrownEggRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
 	if (dynamic_cast<EntityItem *>(&entity) != nullptr)
 	{
 		ItemRenderer &itemRenderer = getItemRenderer();
@@ -114,6 +248,86 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
+	if (dynamic_cast<Creeper *>(&entity) != nullptr)
+	{
+		CreeperRenderer &renderer = getCreeperRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Spider *>(&entity) != nullptr)
+	{
+		SpiderRenderer &renderer = getSpiderRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<PigZombie *>(&entity) != nullptr)
+	{
+		HumanoidMobRenderer &renderer = getPigZombieRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Zombie *>(&entity) != nullptr)
+	{
+		HumanoidMobRenderer &renderer = getZombieRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Skeleton *>(&entity) != nullptr)
+	{
+		HumanoidMobRenderer &renderer = getSkeletonRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+	
+	if (dynamic_cast<Chicken *>(&entity) != nullptr)
+	{
+		ChickenRenderer &renderer = getChickenRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Sheep *>(&entity) != nullptr)
+	{
+		SheepRenderer &renderer = getSheepRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Pig *>(&entity) != nullptr)
+	{
+		PigRenderer &renderer = getPigRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Cow *>(&entity) != nullptr)
+	{
+		MobRenderer &renderer = getCowRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Monster *>(&entity) != nullptr)
+	{
+		HumanoidMobRenderer &renderer = getMonsterRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+	
 	if (dynamic_cast<PrimedTNT *>(&entity) != nullptr)
 	{
 		TNTPrimedRenderer &tntRenderer = getTNTPrimedRenderer();

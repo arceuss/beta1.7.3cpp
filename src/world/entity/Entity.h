@@ -272,5 +272,6 @@ protected:
 	void setSharedFlag(int_t flag, bool value);
 
 public:
+	virtual void onStruckByLightning(Entity &lightning);
 	virtual bool isPlayer() { return false; }
 };
