@@ -18,6 +18,10 @@
 #include "world/level/tile/Tile.h"
 #include "world/phys/Vec3.h"
 
+constexpr int_t EntityMinecart::TYPE_RIDEABLE;
+constexpr int_t EntityMinecart::TYPE_CHEST;
+constexpr int_t EntityMinecart::TYPE_FURNACE;
+
 namespace
 {
 	constexpr int_t TRACK_OFFSETS[10][2][3] = {
