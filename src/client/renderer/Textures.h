@@ -13,10 +13,10 @@
 #include "java/BufferedImage.h"
 
 #include "util/Memory.h"
+#include "client/renderer/texturefx/TextureFX.h"
 
 class TexturePackRepository;
 class Options;
-class TextureFX;
 struct HttpTexture;
 
 class Textures

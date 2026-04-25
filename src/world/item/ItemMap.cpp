@@ -2,6 +2,7 @@
 
 #include "nbt/CompoundTag.h"
 #include "util/Mth.h"
+#include "util/Memory.h"
 #include "world/entity/Entity.h"
 #include "world/entity/player/Player.h"
 #include "world/item/ItemInstance.h"
@@ -22,7 +23,7 @@ ItemMap::ItemMap(int_t baseId) : Item(baseId)
 MapData *ItemMap::getMapData(short_t mapId, Level &level)
 {
 	jstring id = u"map_" + String::toString(mapId);
-	MapData *data = dynamic_cast<MapData *>(level.loadItemData(id, [](const jstring &s) { return std::make_unique<MapData>(s); }));
+	MapData *data = dynamic_cast<MapData *>(level.loadItemData(id, [](const jstring &s) { return Util::make_unique<MapData>(s); }));
 	if (data == nullptr)
 	{
 		int_t newId = level.getUniqueDataId(u"map");
@@ -36,7 +37,7 @@ MapData *ItemMap::getMapData(short_t mapId, Level &level)
 MapData *ItemMap::getMapData(ItemInstance &item, Level &level)
 {
 	jstring id = u"map_" + String::toString(item.itemDamage);
-	MapData *data = dynamic_cast<MapData *>(level.loadItemData(id, [](const jstring &s) { return std::make_unique<MapData>(s); }));
+	MapData *data = dynamic_cast<MapData *>(level.loadItemData(id, [](const jstring &s) { return Util::make_unique<MapData>(s); }));
 	if (data == nullptr)
 	{
 		item.itemDamage = level.getUniqueDataId(u"map");
