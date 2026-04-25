@@ -9,6 +9,8 @@
 #include "world/level/tile/WoodTile.h"
 #include "world/level/Explosion.h"
 
+constexpr int_t BedTile::headBlockToFootBlockMap[4][2];
+
 BedTile::BedTile(int_t id, int_t tex) : Tile(id, tex, Material::cloth)
 {
 	updateDefaultShape();
