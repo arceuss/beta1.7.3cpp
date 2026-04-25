@@ -9,6 +9,7 @@
 #include "client/renderer/Tesselator.h"
 
 #include "util/Mth.h"
+#include "util/Memory.h"
 
 #include "world/item/ItemMap.h"
 #include "world/item/Items.h"
@@ -27,7 +28,7 @@ void ItemInHandRenderer::renderMapFirstPerson(float a, float h)
 	if (mc.font == nullptr)
 		return;
 	if (mapItemRenderer == nullptr)
-		mapItemRenderer = std::make_unique<MapItemRenderer>(*mc.font, mc.options);
+		mapItemRenderer = Util::make_unique<MapItemRenderer>(*mc.font, mc.options);
 
 	float swing = localPlayer.getAttackAnim(a);
 	float swing1 = Mth::sin(swing * Mth::PI);

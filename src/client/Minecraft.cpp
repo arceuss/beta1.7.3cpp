@@ -126,15 +126,15 @@ void Minecraft::init()
 	if (resourceDir && resourceDir->exists() && resourceDir->isDirectory())
 		loadAllSounds(resourceDir.get(), u"");
 	// Dynamic textures
-	textures.registerTextureFX(std::make_unique<TextureLavaFX>());
-	textures.registerTextureFX(std::make_unique<TextureWaterFX>());
-	textures.registerTextureFX(std::make_unique<TexturePortalFX>(14));
-	textures.registerTextureFX(std::make_unique<TextureCompassFX>(*this));
-	textures.registerTextureFX(std::make_unique<TextureWatchFX>(*this));
-	textures.registerTextureFX(std::make_unique<TextureWaterFlowFX>());
-	textures.registerTextureFX(std::make_unique<TextureLavaFlowFX>());
-	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(0));
-	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(1));
+	textures.registerTextureFX(Util::make_unique<TextureLavaFX>());
+	textures.registerTextureFX(Util::make_unique<TextureWaterFX>());
+	textures.registerTextureFX(Util::make_unique<TexturePortalFX>(14));
+	textures.registerTextureFX(Util::make_unique<TextureCompassFX>(*this));
+	textures.registerTextureFX(Util::make_unique<TextureWatchFX>(*this));
+	textures.registerTextureFX(Util::make_unique<TextureWaterFlowFX>());
+	textures.registerTextureFX(Util::make_unique<TextureLavaFlowFX>());
+	textures.registerTextureFX(Util::make_unique<TextureFlamesFX>(0));
+	textures.registerTextureFX(Util::make_unique<TextureFlamesFX>(1));
 
 	setScreen(Util::make_shared<TitleScreen>(*this));
 }

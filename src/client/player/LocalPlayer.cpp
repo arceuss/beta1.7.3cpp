@@ -13,6 +13,7 @@
 #include "world/level/tile/entity/FurnaceTileEntity.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "client/gui/EditSignScreen.h"
+#include "util/Memory.h"
 
 LocalPlayer::LocalPlayer(Minecraft &minecraft, Level &level, User *user, int_t dimension) : Player(level), minecraft(minecraft)
 {
@@ -199,7 +200,7 @@ void LocalPlayer::take(Entity &entity, int_t count)
 	}
 
 	if (playerPtr != nullptr)
-		minecraft.particleEngine.add(std::make_unique<TakeAnimationParticle>(*minecraft.level, itemEntityPtr, playerPtr, -0.5f));
+		minecraft.particleEngine.add(Util::make_unique<TakeAnimationParticle>(*minecraft.level, itemEntityPtr, playerPtr, -0.5f));
 }
 
 void LocalPlayer::prepareForTick()

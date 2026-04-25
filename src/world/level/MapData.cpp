@@ -3,6 +3,7 @@
 #include "nbt/CompoundTag.h"
 #include "world/entity/player/Player.h"
 #include "world/item/ItemInstance.h"
+#include "util/Memory.h"
 
 MapData::MapData(const jstring &id) : MapDataBase(id)
 {
@@ -61,7 +62,7 @@ void MapData::updatePlayer(Player &player, ItemInstance &item)
 	auto it = playerMapInfos.find(&player);
 	if (it == playerMapInfos.end())
 	{
-		auto info = std::make_unique<MapInfo>(*this, player);
+		auto info = Util::make_unique<MapInfo>(*this, player);
 		MapInfo *ptr = info.get();
 		mapInfos.push_back(std::move(info));
 		playerMapInfos[&player] = ptr;
@@ -87,7 +88,7 @@ void MapData::updatePlayer(Player &player, ItemInstance &item)
 					rot = static_cast<byte_t>((t * t * 34187121 + t * 121) >> 15 & 15);
 				}
 				if (info->player.dimension == dimension)
-					mapCoords.push_back(std::make_unique<MapCoord>(*this, icon, mx, mz, rot));
+					mapCoords.push_back(Util::make_unique<MapCoord>(*this, icon, mx, mz, rot));
 			}
 		}
 		else
@@ -130,7 +131,7 @@ void MapData::updateData(const std::vector<byte_t> &data)
 			byte_t x = data[i * 3 + 2];
 			byte_t z = data[i * 3 + 3];
 			byte_t rot = static_cast<byte_t>(data[i * 3 + 1] / 16);
-			mapCoords.push_back(std::make_unique<MapCoord>(*this, icon, x, z, rot));
+			mapCoords.push_back(Util::make_unique<MapCoord>(*this, icon, x, z, rot));
 		}
 	}
 }
