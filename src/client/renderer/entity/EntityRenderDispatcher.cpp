@@ -12,10 +12,15 @@
 #include "client/renderer/entity/PlayerRenderer.h"
 #include "client/renderer/entity/SheepRenderer.h"
 #include "client/renderer/entity/SpiderRenderer.h"
+#include "client/renderer/entity/SquidRenderer.h"
+#include "client/renderer/entity/SlimeRenderer.h"
+#include "client/renderer/entity/WolfRenderer.h"
+#include "client/renderer/entity/GiantRenderer.h"
+#include "client/renderer/entity/FireballRenderer.h"
+#include "client/renderer/entity/GhastRenderer.h"
 #include "client/renderer/entity/TNTPrimedRenderer.h"
 #include "client/renderer/entity/MobRenderer.h"
 #include "client/renderer/entity/HumanoidMobRenderer.h"
-#include "client/model/ChickenModel.h"
 #include "client/model/CowModel.h"
 #include "client/model/HumanoidModel.h"
 #include "client/model/SkeletonModel.h"
@@ -23,16 +28,22 @@
 #include "world/entity/animal/Cow.h"
 #include "world/entity/animal/Pig.h"
 #include "world/entity/animal/Sheep.h"
+#include "world/entity/animal/Squid.h"
+#include "world/entity/animal/Wolf.h"
 #include "world/entity/item/EntityBoat.h"
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/FallingTile.h"
 #include "world/entity/item/EntityMinecart.h"
+#include "world/entity/monster/Monster.h"
 #include "world/entity/monster/Creeper.h"
 #include "world/entity/monster/Spider.h"
 #include "world/entity/monster/Zombie.h"
 #include "world/entity/monster/Skeleton.h"
 #include "world/entity/monster/PigZombie.h"
-#include "world/entity/monster/Monster.h"
+#include "world/entity/monster/Slime.h"
+#include "world/entity/monster/Giant.h"
+#include "world/entity/monster/Ghast.h"
+#include "world/entity/projectile/EntityFireball.h"
 #include "world/entity/projectile/EntityArrow.h"
 #include "world/entity/projectile/EntitySnowball.h"
 #include "world/entity/projectile/EntityThrownEgg.h"
@@ -56,6 +67,12 @@ ItemRenderer &EntityRenderDispatcher::getItemRenderer()
 ArrowRenderer &EntityRenderDispatcher::getArrowRenderer()
 {
 	static ArrowRenderer renderer(instance);
+	return renderer;
+}
+
+FireballRenderer &EntityRenderDispatcher::getFireballRenderer()
+{
+	static FireballRenderer renderer(instance);
 	return renderer;
 }
 
@@ -116,6 +133,36 @@ SpiderRenderer &EntityRenderDispatcher::getSpiderRenderer()
 CreeperRenderer &EntityRenderDispatcher::getCreeperRenderer()
 {
 	static CreeperRenderer renderer(instance);
+	return renderer;
+}
+
+SquidRenderer &EntityRenderDispatcher::getSquidRenderer()
+{
+	static SquidRenderer renderer(instance);
+	return renderer;
+}
+
+SlimeRenderer &EntityRenderDispatcher::getSlimeRenderer()
+{
+	static SlimeRenderer renderer(instance);
+	return renderer;
+}
+
+WolfRenderer &EntityRenderDispatcher::getWolfRenderer()
+{
+	static WolfRenderer renderer(instance);
+	return renderer;
+}
+
+GiantRenderer &EntityRenderDispatcher::getGiantRenderer()
+{
+	static GiantRenderer renderer(instance);
+	return renderer;
+}
+
+GhastRenderer &EntityRenderDispatcher::getGhastRenderer()
+{
+	static GhastRenderer renderer(instance);
 	return renderer;
 }
 
@@ -209,6 +256,15 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
+	if (dynamic_cast<EntityFireball *>(&entity) != nullptr)
+	{
+		FireballRenderer &renderer = getFireballRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+
 	if (dynamic_cast<EntitySnowball *>(&entity) != nullptr)
 	{
 		EntityRenderer &renderer = getSnowballRenderer();
@@ -248,6 +304,15 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
+	if (dynamic_cast<Ghast *>(&entity) != nullptr)
+	{
+		GhastRenderer &renderer = getGhastRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+
 	if (dynamic_cast<Creeper *>(&entity) != nullptr)
 	{
 		CreeperRenderer &renderer = getCreeperRenderer();
@@ -263,6 +328,24 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		renderer.postRender(entity, x, y, z, rot, a);
 		return;
 	}
+
+	if (dynamic_cast<Slime *>(&entity) != nullptr)
+	{
+		SlimeRenderer &renderer = getSlimeRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+
+	if (dynamic_cast<Giant *>(&entity) != nullptr)
+	{
+		GiantRenderer &renderer = getGiantRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
 
 	if (dynamic_cast<PigZombie *>(&entity) != nullptr)
 	{
@@ -304,6 +387,15 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
+	if (dynamic_cast<Wolf *>(&entity) != nullptr)
+	{
+		WolfRenderer &renderer = getWolfRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+
 	if (dynamic_cast<Pig *>(&entity) != nullptr)
 	{
 		PigRenderer &renderer = getPigRenderer();
@@ -315,6 +407,14 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 	if (dynamic_cast<Cow *>(&entity) != nullptr)
 	{
 		MobRenderer &renderer = getCowRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Squid *>(&entity) != nullptr)
+	{
+		SquidRenderer &renderer = getSquidRenderer();
 		renderer.render(entity, x, y, z, rot, a);
 		renderer.postRender(entity, x, y, z, rot, a);
 		return;

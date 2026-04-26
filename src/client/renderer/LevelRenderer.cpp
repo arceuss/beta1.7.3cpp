@@ -1307,6 +1307,8 @@ void LevelRenderer::addParticle(const jstring &name, double x, double y, double 
 		mc.particleEngine.add(std::make_unique<ExplodeParticle>(*level, x, y, z, xa, ya, za));
 	else if (name == u"snowballpoof")
 		mc.particleEngine.add(std::make_unique<ItemParticle>(*level, x, y, z, *Items::snowball));
+	else if (name == u"slime")
+		mc.particleEngine.add(std::make_unique<ItemParticle>(*level, x, y, z, *Items::slimeball));
 }
 
 void LevelRenderer::playMusic(const jstring &name, double x, double y, double z, float songOffset)

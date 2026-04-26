@@ -32,6 +32,8 @@
 #include "world/entity/monster/Spider.h"
 #include "world/entity/monster/Creeper.h"
 #include "world/entity/projectile/EntityArrow.h"
+#include "world/entity/projectile/EntitySnowball.h"
+#include "world/entity/projectile/EntityThrownEgg.h"
 #include "world/entity/EntityLightningBolt.h"
 #include "world/level/pathfinder/PathEntity.h"
 #include "world/level/pathfinder/Pathfinder.h"
@@ -743,6 +745,23 @@ int runBlockSmoke()
 		ok &= expect(creeper.removed, "creeper should explode and remove itself after a full fuse near a target");
 		ok &= expect(creeper.getDeathLoot() == Items::gunpowder->getShiftedIndex(), "creeper should drop gunpowder");
 		
+
+
+		std::cerr << "block-smoke: natural spawning" << std::endl;
+		level.setSpawnSettings(true, true);
+		for (int_t i = 0; i < 200; ++i)
+			level.tick();
+		bool foundNaturalAnimal = false;
+		bool foundNaturalMonster = false;
+		for (const auto &entity : level.getAllEntities())
+		{
+			if (!foundNaturalAnimal && dynamic_cast<Animal *>(entity.get()) != nullptr)
+				foundNaturalAnimal = true;
+			if (!foundNaturalMonster && dynamic_cast<Monster *>(entity.get()) != nullptr)
+				foundNaturalMonster = true;
+		}
+		ok &= expect(foundNaturalAnimal, "natural spawning should add passive animals");
+		ok &= expect(foundNaturalMonster, "natural spawning should add hostile monsters");
 
 
 		std::cerr << "block-smoke: food items" << std::endl;

@@ -15,11 +15,16 @@
 #include "world/entity/animal/Cow.h"
 #include "world/entity/animal/Pig.h"
 #include "world/entity/animal/Sheep.h"
+#include "world/entity/animal/Squid.h"
+#include "world/entity/animal/Wolf.h"
 #include "world/entity/monster/Creeper.h"
 #include "world/entity/monster/Spider.h"
 #include "world/entity/monster/PigZombie.h"
 #include "world/entity/monster/Skeleton.h"
 #include "world/entity/monster/Monster.h"
+#include "world/entity/monster/Slime.h"
+#include "world/entity/monster/Giant.h"
+#include "world/entity/monster/Ghast.h"
 #include "world/entity/monster/Zombie.h"
 #include "world/entity/Mob.h"
 #include "world/entity/item/EntityItem.h"
@@ -380,7 +385,7 @@ std::shared_ptr<Entity> createSpawnEntity(Level &level, const jstring &name)
 	if (key == u"random" || key == u"r")
 	{
 		static const std::vector<const char16_t *> randomNames = {
-			u"pig", u"sheep", u"cow", u"chicken", u"zombie", u"skeleton", u"spider", u"creeper", u"pigzombie"
+			u"pig", u"sheep", u"cow", u"chicken", u"squid", u"wolf", u"zombie", u"skeleton", u"spider", u"creeper", u"slime", u"pigzombie"
 		};
 		key = jstring(randomNames[static_cast<size_t>(level.random.nextInt(static_cast<int_t>(randomNames.size())))]);
 	}
@@ -388,11 +393,16 @@ std::shared_ptr<Entity> createSpawnEntity(Level &level, const jstring &name)
 	if (key == u"sheep") return std::make_shared<Sheep>(level);
 	if (key == u"cow") return std::make_shared<Cow>(level);
 	if (key == u"chicken") return std::make_shared<Chicken>(level);
+	if (key == u"squid") return std::make_shared<Squid>(level);
+	if (key == u"wolf") return std::make_shared<Wolf>(level);
 	if (key == u"zombie") return std::make_shared<Zombie>(level);
 	if (key == u"monster") return std::make_shared<Monster>(level);
+	if (key == u"giant") return std::make_shared<Giant>(level);
 	if (key == u"skeleton") return std::make_shared<Skeleton>(level);
+	if (key == u"ghast") return std::make_shared<Ghast>(level);
 	if (key == u"spider") return std::make_shared<Spider>(level);
 	if (key == u"creeper") return std::make_shared<Creeper>(level);
+	if (key == u"slime") return std::make_shared<Slime>(level);
 	if (key == u"pigzombie" || key == u"zombiepigman") return std::make_shared<PigZombie>(level);
 	return nullptr;
 }
