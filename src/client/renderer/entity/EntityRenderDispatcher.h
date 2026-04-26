@@ -9,12 +9,18 @@
 class HumanoidMobRenderer;
 class PlayerRenderer;
 class ArrowRenderer;
+class FireballRenderer;
 class EntityRenderer;
 class ChickenRenderer;
 class PigRenderer;
 class SheepRenderer;
 class SpiderRenderer;
 class CreeperRenderer;
+class SquidRenderer;
+class SlimeRenderer;
+class WolfRenderer;
+class GiantRenderer;
+class GhastRenderer;
 class FallingTileRenderer;
 class MinecartRenderer;
 class BoatRenderer;
@@ -36,6 +42,7 @@ private:
 	static BoatRenderer &getBoatRenderer();
 	static TNTPrimedRenderer &getTNTPrimedRenderer();
 	static ArrowRenderer &getArrowRenderer();
+	static FireballRenderer &getFireballRenderer();
 	static EntityRenderer &getSnowballRenderer();
 	static EntityRenderer &getThrownEggRenderer();
 	static ChickenRenderer &getChickenRenderer();
@@ -43,6 +50,11 @@ private:
 	static SheepRenderer &getSheepRenderer();
 	static SpiderRenderer &getSpiderRenderer();
 	static CreeperRenderer &getCreeperRenderer();
+	static SquidRenderer &getSquidRenderer();
+	static SlimeRenderer &getSlimeRenderer();
+	static WolfRenderer &getWolfRenderer();
+	static GiantRenderer &getGiantRenderer();
+	static GhastRenderer &getGhastRenderer();
 	static MobRenderer &getCowRenderer();
 	static HumanoidMobRenderer &getZombieRenderer();
 	static HumanoidMobRenderer &getSkeletonRenderer();

@@ -173,7 +173,7 @@ protected:
 	virtual void causeFallDamage(float distance);
 
 public:
-	bool isInWater();
+	virtual bool isInWater();
 	bool isUnderLiquid(const Material &material);
 
 	virtual float getHeadHeight();

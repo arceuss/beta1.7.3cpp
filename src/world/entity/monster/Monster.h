@@ -14,10 +14,10 @@ public:
 	void aiStep() override;
 	float getHeadHeight() override;
 	bool hurt(Entity *source, int_t damage) override;
+	bool canSpawn() override;
 
 protected:
 	std::shared_ptr<Entity> findAttackTarget() override;
 	void checkHurtTarget(Entity &entity, float distance) override;
 	float getWalkTargetValue(int_t x, int_t y, int_t z) override;
-	bool canSpawn() override;
 };
