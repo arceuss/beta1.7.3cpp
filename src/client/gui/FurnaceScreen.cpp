@@ -9,10 +9,13 @@
 #include "world/entity/player/InventoryPlayer.h"
 #include "world/entity/player/Player.h"
 #include "world/item/Item.h"
+#include "world/item/Items.h"
 #include "world/item/ItemInstance.h"
 #include "world/level/tile/FurnaceTile.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/Achievement.h"
 
 #include "OpenGL.h"
 #include "lwjgl/Keyboard.h"
@@ -470,12 +473,17 @@ void FurnaceScreen::handleOutputSlotClick(int_t buttonNum)
 	ItemInstance *carried = inventory.getCarried();
 	if (carried == nullptr)
 	{
+		int_t outputId = slotStack.itemID;
 		int_t toTake = buttonNum == 0 ? slotStack.stackSize : (slotStack.stackSize + 1) / 2;
 		inventory.setCarried(ItemInstance(slotStack.itemID, toTake, slotStack.itemDamage));
 		slotStack.stackSize -= toTake;
 		if (slotStack.isEmpty())
 			slotStack = ItemInstance();
 		furnace->setChanged();
+		if (outputId == Items::ingotIron->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::acquireIron, 1);
+		else if (outputId == Items::fishCooked->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::cookFish, 1);
 		return;
 	}
 
@@ -490,9 +498,14 @@ void FurnaceScreen::handleOutputSlotClick(int_t buttonNum)
 		toMove = space;
 	if (toMove <= 0)
 		return;
+	int_t outputId = slotStack.itemID;
 	carried->stackSize += toMove;
 	slotStack.stackSize -= toMove;
 	if (slotStack.isEmpty())
 		slotStack = ItemInstance();
 	furnace->setChanged();
+	if (outputId == Items::ingotIron->getShiftedIndex())
+		minecraft.player->addStat(*AchievementList::acquireIron, 1);
+	else if (outputId == Items::fishCooked->getShiftedIndex())
+		minecraft.player->addStat(*AchievementList::cookFish, 1);
 }

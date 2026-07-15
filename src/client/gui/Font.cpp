@@ -200,6 +200,81 @@ int_t Font::width(const jstring &str)
 	return len;
 }
 
+namespace
+{
+	std::vector<jstring> splitText(const jstring &text, char_t delimiter)
+	{
+		std::vector<jstring> parts;
+		size_t start = 0;
+		while (true)
+		{
+			size_t end = text.find(delimiter, start);
+			parts.push_back(text.substr(start, end == jstring::npos ? end : end - start));
+			if (end == jstring::npos)
+				return parts;
+			start = end + 1;
+		}
+	}
+
+	jstring trim(const jstring &text)
+	{
+		size_t first = text.find_first_not_of(u" \t\r\n");
+		if (first == jstring::npos)
+			return u"";
+		size_t last = text.find_last_not_of(u" \t\r\n");
+		return text.substr(first, last - first + 1);
+	}
+
+	std::vector<jstring> wrap(Font &font, const jstring &text, int_t maxWidth)
+	{
+		std::vector<jstring> lines;
+		for (const jstring &paragraph : splitText(text, u'\n'))
+		{
+			auto words = splitText(paragraph, u' ');
+			size_t word = 0;
+			while (word < words.size())
+			{
+				jstring line = words[word++] + u" ";
+				while (word < words.size() && font.width(line + words[word]) < maxWidth)
+					line += words[word++] + u" ";
+
+				while (font.width(line) > maxWidth)
+				{
+					size_t split = 0;
+					while (split < line.size() && font.width(line.substr(0, split + 1)) <= maxWidth)
+						++split;
+					if (split == 0)
+						split = 1;
+					jstring part = line.substr(0, split);
+					if (!trim(part).empty())
+						lines.push_back(part);
+					line = line.substr(split);
+				}
+
+				if (!trim(line).empty())
+					lines.push_back(line);
+			}
+		}
+		if (lines.empty())
+			lines.push_back(u"");
+		return lines;
+	}
+}
+
+void Font::drawWordWrap(const jstring &str, int_t x, int_t y, int_t maxWidth, int_t color)
+{
+	for (const jstring &line : wrap(*this, str, maxWidth))
+	{
+		draw(line, x, y, color);
+		y += 8;
+	}
+}
+
+int_t Font::wordWrapHeight(const jstring &str, int_t maxWidth)
+{
+	return static_cast<int_t>(wrap(*this, str, maxWidth).size()) * 8;
+}
+
 jstring Font::sanitize(const jstring &str)
 {
 	jstring result;

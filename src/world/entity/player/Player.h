@@ -8,6 +8,7 @@
 #include "java/String.h"
 
 class EntityItem;
+class StatBase;
 
 class Player : public Mob
 {
@@ -34,6 +35,14 @@ public:
 	int_t dmgSpill = 0;
 	InventoryPlayer inventory = InventoryPlayer(this);
 
+private:
+	bool hasMinecartStart = false;
+	int_t minecartStartX = 0;
+	int_t minecartStartY = 0;
+	int_t minecartStartZ = 0;
+
+
+public:
 	Player(Level &level);
 
 	void tick() override;
@@ -58,6 +67,8 @@ public:
 	virtual void swing();
 	virtual void attack(const std::shared_ptr<Entity> &entity);
 	virtual void respawn();
+	void triggerAchievement(const StatBase &stat);
+	virtual void addStat(const StatBase &stat, int_t amount);
 
 	float getDestroySpeed(Tile &tile);
 	bool canDestroy(Tile &tile);
@@ -110,6 +121,7 @@ public:
 	float getBedOrientationInDegrees() const;
 
 	virtual void displayClientMessage(const jstring &message) {}
+	void awardKillScore(Entity &source, int_t score) override;
 
 public:
 	bool isPlayer() override { return true; }

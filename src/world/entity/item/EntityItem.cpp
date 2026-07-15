@@ -4,7 +4,13 @@
 #include "util/Mth.h"
 #include "world/entity/player/InventoryPlayer.h"
 #include "world/entity/player/Player.h"
+#include "world/item/Item.h"
+#include "world/item/Items.h"
 #include "world/level/Level.h"
+#include "world/level/tile/Tile.h"
+#include "world/level/tile/TreeTile.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/Achievement.h"
 
 EntityItem::EntityItem(Level &level) : Entity(level)
 {
@@ -59,8 +65,13 @@ void EntityItem::playerTouch(Player &player)
 		return;
 
 	int_t originalCount = item.stackSize;
+	int_t originalId = item.itemID;
 	if (throwTime == 0 && player.inventory.add(item))
 	{
+		if (originalId == Tile::treeTrunk.id)
+			player.triggerAchievement(*AchievementList::mineWood);
+		if (originalId == Items::leather->getShiftedIndex())
+			player.triggerAchievement(*AchievementList::killCow);
 		level.playSoundAtEntity(*this, u"random.pop", 0.2f, ((random.nextFloat() - random.nextFloat()) * 0.7f + 1.0f) * 2.0f);
 		player.take(*this, originalCount);
 		if (item.isEmpty())

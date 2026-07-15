@@ -5,6 +5,7 @@
 #include "client/gui/DispenserScreen.h"
 #include "client/gui/FurnaceScreen.h"
 #include "client/gui/WorkbenchScreen.h"
+#include "client/gui/AchievementToast.h"
 #include "client/particle/TakeAnimationParticle.h"
 #include "client/spc/SPCCommand.h"
 #include "client/locale/Language.h"
@@ -14,6 +15,10 @@
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "client/gui/EditSignScreen.h"
 #include "util/Memory.h"
+#include "world/stats/Achievement.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/StatBase.h"
+#include "world/stats/StatFileWriter.h"
 
 LocalPlayer::LocalPlayer(Minecraft &minecraft, Level &level, User *user, int_t dimension) : Player(level), minecraft(minecraft)
 {
@@ -56,6 +61,9 @@ void LocalPlayer::handleInsidePortal()
 
 void LocalPlayer::aiStep()
 {
+	if (minecraft.statFileWriter != nullptr && !minecraft.statFileWriter->hasAchievementUnlocked(*AchievementList::openInventory))
+		minecraft.achievementToast->queueAchievementInformation(*AchievementList::openInventory);
+
 	oPortalTime = portalTime;
 
 	if (isInsidePortal)
@@ -101,6 +109,22 @@ void LocalPlayer::aiStep()
 		ySlideOffset = 0.2f;
 
 	Player::aiStep();
+}
+
+void LocalPlayer::addStat(const StatBase &stat, int_t amount)
+{
+	if (minecraft.statFileWriter == nullptr)
+		return;
+
+	if (stat.isAchievement())
+	{
+		auto &achievement = static_cast<const Achievement &>(stat);
+		if (!minecraft.statFileWriter->canUnlockAchievement(achievement))
+			return;
+		if (!minecraft.statFileWriter->hasAchievementUnlocked(achievement))
+			minecraft.achievementToast->queueTakenAchievement(const_cast<Achievement &>(achievement));
+	}
+	minecraft.statFileWriter->readStat(stat, amount);
 }
 
 void LocalPlayer::releaseAllKeys()

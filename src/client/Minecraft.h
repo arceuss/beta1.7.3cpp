@@ -87,6 +87,8 @@ private:
 
 public:
 	Gui gui = Gui(*this);
+	std::unique_ptr<class AchievementToast> achievementToast;
+	std::unique_ptr<class StatFileWriter> statFileWriter;
 
 	bool noRender = false;
 

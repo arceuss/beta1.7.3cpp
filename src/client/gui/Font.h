@@ -32,6 +32,8 @@ public:
 	void draw(const jstring &str, int_t x, int_t y, int_t color, bool darken);
 
 	int_t width(const jstring &str);
+	void drawWordWrap(const jstring &str, int_t x, int_t y, int_t maxWidth, int_t color);
+	int_t wordWrapHeight(const jstring &str, int_t maxWidth);
 
 	static jstring sanitize(const jstring &str);
 };

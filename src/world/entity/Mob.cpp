@@ -397,6 +397,7 @@ int_t Mob::getDeathLoot()
 
 void Mob::causeFallDamage(float distance)
 {
+	Entity::causeFallDamage(distance);
 	int_t fallDamage = Mth::ceil(distance - 3.0f);
 	if (fallDamage <= 0)
 		return;

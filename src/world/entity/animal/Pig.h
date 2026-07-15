@@ -14,6 +14,7 @@ public:
 	void onStruckByLightning(Entity &lightning) override;
 
 protected:
+	void causeFallDamage(float distance) override;
 	void addAdditionalSaveData(CompoundTag &tag) override;
 	void readAdditionalSaveData(CompoundTag &tag) override;
 	jstring getAmbientSound() override;

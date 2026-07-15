@@ -5,6 +5,8 @@
 #include "world/item/Items.h"
 #include "world/item/Item.h"
 #include "world/level/Level.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/Achievement.h"
 
 Pig::Pig(Level &level) : Animal(level)
 {
@@ -32,6 +34,16 @@ void Pig::onStruckByLightning(Entity &lightning)
 	pigZombie->moveTo(x, y, z, yRot, xRot);
 	level.addEntity(pigZombie);
 	remove();
+}
+
+void Pig::causeFallDamage(float distance)
+{
+	Animal::causeFallDamage(distance);
+	if (distance > 5.0f && rider != nullptr)
+	{
+		if (Player *player = dynamic_cast<Player *>(rider.get()))
+			player->triggerAchievement(*AchievementList::flyPig);
+	}
 }
 
 void Pig::addAdditionalSaveData(CompoundTag &tag)
