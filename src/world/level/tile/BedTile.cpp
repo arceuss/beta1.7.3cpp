@@ -41,7 +41,7 @@ bool BedTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 		int_t hz = z + headBlockToFootBlockMap[dir][1];
 		if (level.getTile(hx, y, hz) == id)
 			level.setTile(hx, y, hz, 0);
-		(void)level.createExplosion(nullptr, x + 0.5f, y + 0.5f, z + 0.5f, 5.0f);
+		(void)level.createExplosion(nullptr, x + 0.5f, y + 0.5f, z + 0.5f, 5.0f, true);
 		return true;
 	}
 

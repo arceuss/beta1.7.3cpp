@@ -5,6 +5,8 @@
 class SandTile : public Tile
 {
 public:
+	static bool fallInstantly;
+
 	SandTile(int_t id, int_t tex);
 
 	void tick(Level &level, int_t x, int_t y, int_t z, Random &random) override;

@@ -541,6 +541,8 @@ set(McBetaCpp_SOURCES
 	"src/world/level/levelgen/feature/CaveFeature.h"
 	"src/world/level/levelgen/feature/ClayFeature.cpp"
 	"src/world/level/levelgen/feature/ClayFeature.h"
+	"src/world/level/levelgen/feature/DungeonFeature.cpp"
+	"src/world/level/levelgen/feature/DungeonFeature.h"
 	"src/world/level/levelgen/feature/Feature.h"
 	"src/world/level/levelgen/feature/LakeFeature.cpp"
 	"src/world/level/levelgen/feature/LakeFeature.h"

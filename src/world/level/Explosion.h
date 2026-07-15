@@ -3,6 +3,7 @@
 #include <unordered_set>
 #include <vector>
 #include "java/Type.h"
+#include "java/Random.h"
 #include "world/level/TilePos.h"
 
 class Level;
@@ -13,6 +14,7 @@ class Explosion
 {
 public:
 	bool isFlaming = false;
+	Random explosionRNG;
 	Level &level;
 	Entity *exploder = nullptr;
 	double explosionX = 0.0, explosionY = 0.0, explosionZ = 0.0;

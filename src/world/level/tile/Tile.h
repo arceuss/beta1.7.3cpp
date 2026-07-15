@@ -332,7 +332,7 @@ public:
 	float getDestroyProgress(Player &player);
 
 	void spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data);
-	void spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance);
+	virtual void spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance);
 
 	virtual int_t getSpawnResourcesAuxValue(int_t data);
 

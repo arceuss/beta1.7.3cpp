@@ -36,7 +36,6 @@ struct BiomeInfo
 	int_t fillerTileId = 0;
 	bool enableSnow = false;
 	TreeStyle treeStyle = TreeStyle::Default;
-	int_t treeCountAdjustment = 0;
 	int_t yellowFlowerCount = 0;
 	int_t tallGrassCount = 0;
 	int_t deadBushCount = 0;

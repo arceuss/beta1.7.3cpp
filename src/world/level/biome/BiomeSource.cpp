@@ -65,16 +65,16 @@ namespace
 	const std::array<BiomeInfo, 10> &getBiomeInfos()
 	{
 		static const std::array<BiomeInfo, 10> infos = {{
-			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Rainforest, 5, 0, 10, 0, 0, true },
-			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, 0, false },
-			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 2, 4, 2, 0, 0, false },
-			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Forest, 5, 2, 2, 0, 0, false },
-			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, 0, false },
-			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, 0, false },
-			{ Tile::grass.id, Tile::dirt.id, true, TreeStyle::Taiga, 5, 2, 1, 0, 0, false },
-			{ Tile::sand.id, Tile::sand.id, false, TreeStyle::Default, -20, 0, 0, 2, 10, false },
-			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, -20, 3, 10, 0, 0, false },
-			{ Tile::grass.id, Tile::dirt.id, true, TreeStyle::Default, -20, 0, 0, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Rainforest, 0, 10, 0, 0, true },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 4, 2, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Forest, 2, 2, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, true, TreeStyle::Taiga, 2, 1, 0, 0, false },
+			{ Tile::sand.id, Tile::sand.id, false, TreeStyle::Default, 0, 0, 2, 10, false },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 3, 10, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, true, TreeStyle::Default, 0, 0, 0, 0, false },
 		}};
 		return infos;
 	}

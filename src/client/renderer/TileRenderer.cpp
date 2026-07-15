@@ -2932,7 +2932,9 @@ bool TileRenderer::tesselatePistonBaseInWorld(Tile &tt, int_t x, int_t y, int_t 
 
 void TileRenderer::tesselatePistonBaseForceExtended(Tile &tile, int_t x, int_t y, int_t z, int_t forceData)
 {
+	noCulling = true;
 	tesselatePistonBaseInWorld(tile, x, y, z, true, forceData);
+	noCulling = false;
 }
 
 bool TileRenderer::tesselatePistonExtensionInWorld(Tile &tt, int_t x, int_t y, int_t z, bool fullArm, int_t forceData)
@@ -3030,7 +3032,7 @@ void TileRenderer::renderPistonArmUpDown(float x0, float x1, float y0, float y1,
 {
 	Tesselator &t = Tesselator::instance;
 
-	constexpr int_t armTex = 108;
+	int_t armTex = (fixedTexture >= 0) ? fixedTexture : 108;
 	int_t xt = (armTex & 0xF) << 4;
 	int_t yt = armTex & 0xF0;
 
@@ -3051,7 +3053,7 @@ void TileRenderer::renderPistonArmNorthSouth(float x0, float x1, float y0, float
 {
 	Tesselator &t = Tesselator::instance;
 
-	constexpr int_t armTex = 108;
+	int_t armTex = (fixedTexture >= 0) ? fixedTexture : 108;
 	int_t xt = (armTex & 0xF) << 4;
 	int_t yt = armTex & 0xF0;
 
@@ -3072,7 +3074,7 @@ void TileRenderer::renderPistonArmEastWest(float x0, float x1, float y0, float y
 {
 	Tesselator &t = Tesselator::instance;
 
-	constexpr int_t armTex = 108;
+	int_t armTex = (fixedTexture >= 0) ? fixedTexture : 108;
 	int_t xt = (armTex & 0xF) << 4;
 	int_t yt = armTex & 0xF0;
 

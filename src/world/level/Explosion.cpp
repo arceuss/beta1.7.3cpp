@@ -68,12 +68,12 @@ void Explosion::doExplosionA()
 	}
 
 	explosionSize *= 2.0f;
-	double minX = explosionX - explosionSize - 1.0;
-	double minY = explosionY - explosionSize - 1.0;
-	double minZ = explosionZ - explosionSize - 1.0;
-	double maxX = explosionX + explosionSize + 1.0;
-	double maxY = explosionY + explosionSize + 1.0;
-	double maxZ = explosionZ + explosionSize + 1.0;
+	double minX = Mth::floor(explosionX - explosionSize - 1.0);
+	double minY = Mth::floor(explosionY - explosionSize - 1.0);
+	double minZ = Mth::floor(explosionZ - explosionSize - 1.0);
+	double maxX = Mth::floor(explosionX + explosionSize + 1.0);
+	double maxY = Mth::floor(explosionY + explosionSize + 1.0);
+	double maxZ = Mth::floor(explosionZ + explosionSize + 1.0);
 
 	std::vector<std::shared_ptr<Entity>> entities;
 	AABB queryBox(minX, minY, minZ, maxX, maxY, maxZ);
@@ -109,6 +109,24 @@ void Explosion::doExplosionA()
 	}
 
 	explosionSize = size;
+
+	// vanilla places fire at the end of doExplosionA, before any blocks are
+	// destroyed, and rolls it on the explosion's own RNG - fire only lands on
+	// positions that were already air with an opaque block below
+	if (isFlaming)
+	{
+		std::vector<TilePos> blocks(destroyedBlockPositions.begin(), destroyedBlockPositions.end());
+		for (int_t i = static_cast<int_t>(blocks.size()) - 1; i >= 0; i--)
+		{
+			const TilePos &pos = blocks[i];
+			int_t tileId = level.getTile(pos.x, pos.y, pos.z);
+			int_t belowId = level.getTile(pos.x, pos.y - 1, pos.z);
+			if (tileId == 0 && belowId > 0 && Tile::tiles[belowId] != nullptr && Tile::tiles[belowId]->isSolidRender() && explosionRNG.nextInt(3) == 0)
+			{
+				level.setTile(pos.x, pos.y, pos.z, Tile::fire.id);
+			}
+		}
+	}
 }
 
 void Explosion::doExplosionB(bool particles)
@@ -158,20 +176,6 @@ void Explosion::doExplosionB(bool particles)
 			level.setTile(pos.x, pos.y, pos.z, 0);
 			if (tile != nullptr)
 				tile->onBlockDestroyedByExplosion(level, pos.x, pos.y, pos.z);
-		}
-	}
-
-	if (isFlaming)
-	{
-		for (int_t i = static_cast<int_t>(blocks.size()) - 1; i >= 0; i--)
-		{
-			const TilePos &pos = blocks[i];
-			int_t tileId = level.getTile(pos.x, pos.y, pos.z);
-			int_t belowId = level.getTile(pos.x, pos.y - 1, pos.z);
-			if (tileId == 0 && belowId > 0 && Tile::tiles[belowId] != nullptr && Tile::tiles[belowId]->isSolidRender() && level.random.nextInt(3) == 0)
-			{
-				level.setTile(pos.x, pos.y, pos.z, Tile::fire.id);
-			}
 		}
 	}
 }

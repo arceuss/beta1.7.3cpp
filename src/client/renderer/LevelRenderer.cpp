@@ -23,6 +23,8 @@
 #include "world/item/Items.h"
 #include "client/renderer/SignRenderer.h"
 #include "client/renderer/entity/PistonTileEntityRenderer.h"
+#include "world/entity/EntityIO.h"
+#include "world/level/tile/entity/MobSpawnerTileEntity.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "world/level/tile/entity/PistonTileEntity.h"
 
@@ -159,6 +161,7 @@ void LevelRenderer::setLevel(std::shared_ptr<Level> level)
 
 	this->level = level;
 	this->tileRenderer = std::make_unique<TileRenderer>(this->level.get(), false);
+	spawnerRenderMobs.clear();
 	if (pistonRenderer != nullptr)
 		pistonRenderer->setLevel(this->level.get());
 	if (level != nullptr)
@@ -301,6 +304,34 @@ void LevelRenderer::renderEntities(Vec3 &cam, Culler &culler, float a)
 			float brightness = level->getBrightness(pistonEntity->x, pistonEntity->y, pistonEntity->z);
 			glColor3f(brightness, brightness, brightness);
 			pistonRenderer->render(*pistonEntity, pistonEntity->x - EntityRenderDispatcher::xOff, pistonEntity->y - EntityRenderDispatcher::yOff, pistonEntity->z - EntityRenderDispatcher::zOff, a);
+		}
+
+		auto spawnerEntity = std::dynamic_pointer_cast<MobSpawnerTileEntity>(tileEntity);
+		if (spawnerEntity && level != nullptr)
+		{
+			auto it = spawnerRenderMobs.find(spawnerEntity->getEntityId());
+			if (it == spawnerRenderMobs.end())
+				it = spawnerRenderMobs.emplace(spawnerEntity->getEntityId(), EntityIO::newEntity(spawnerEntity->getEntityId(), *level)).first;
+			auto &displayMob = it->second;
+			if (displayMob != nullptr)
+			{
+				float brightness = level->getBrightness(spawnerEntity->x, spawnerEntity->y, spawnerEntity->z);
+				glColor3f(brightness, brightness, brightness);
+				glPushMatrix();
+				glTranslatef(
+					static_cast<float>(spawnerEntity->x - EntityRenderDispatcher::xOff) + 0.5f,
+					static_cast<float>(spawnerEntity->y - EntityRenderDispatcher::yOff),
+					static_cast<float>(spawnerEntity->z - EntityRenderDispatcher::zOff) + 0.5f);
+				float s = 7.0f / 16.0f;
+				glTranslatef(0.0f, 0.4f, 0.0f);
+				glRotatef(static_cast<float>(spawnerEntity->oSpin + (spawnerEntity->spin - spawnerEntity->oSpin) * a) * 10.0f, 0.0f, 1.0f, 0.0f);
+				glRotatef(-30.0f, 1.0f, 0.0f, 0.0f);
+				glTranslatef(0.0f, -0.4f, 0.0f);
+				glScalef(s, s, s);
+				displayMob->moveTo(spawnerEntity->x, spawnerEntity->y, spawnerEntity->z, 0.0f, 0.0f);
+				EntityRenderDispatcher::instance.render(*displayMob, 0.0, 0.0, 0.0, 0.0f, a);
+				glPopMatrix();
+			}
 		}
 	}
 	}

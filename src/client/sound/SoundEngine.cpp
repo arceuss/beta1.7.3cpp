@@ -237,7 +237,8 @@ void SoundEngine::playMusicTick()
 	{
 		noMusicDelay = random.nextInt(12000) + 12000;
 
-		ALuint buffer = loadOGGFile(song->filePath);
+		bool isMus = song->filePath.size() >= 4 && song->filePath.compare(song->filePath.size() - 4, 4, ".mus") == 0;
+		ALuint buffer = loadOGGFile(song->filePath, isMus);
 		if (buffer != 0)
 		{
 			alSourceStop(musicSource);
@@ -423,7 +424,9 @@ void SoundEngine::playStreaming(const jstring &name, float x, float y, float z, 
 	// dist * 4.0F = 64.0F for streaming
 	float dist = 16.0f * 4.0f;
 
-	ALuint buffer = loadOGGFile(sound->filePath, true);
+	// vanilla picks the codec by extension: only .mus files go through CodecMus
+	bool isMus = sound->filePath.size() >= 4 && sound->filePath.compare(sound->filePath.size() - 4, 4, ".mus") == 0;
+	ALuint buffer = loadOGGFile(sound->filePath, isMus);
 	if (buffer == 0)
 	{
 		sourceInfoMap.erase(id);

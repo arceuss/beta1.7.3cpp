@@ -130,11 +130,13 @@ void PistonBaseTile::playBlock(Level &level, int_t x, int_t y, int_t z, int_t ty
 				suppressNeighborUpdates = false;
 				level.setTile(px, py, pz, 0);
 				suppressNeighborUpdates = true;
-				int_t mx = x + PistonTextures::offsetX[dir];
-				int_t my = y + PistonTextures::offsetY[dir];
-				int_t mz = z + PistonTextures::offsetZ[dir];
-				level.setTileAndData(mx, my, mz, Tile::pistonMoving.id, pulledData);
-				level.setTileEntity(mx, my, mz, PistonMovingTile::createTileEntity(pulledId, pulledData, dir, false, false));
+				// vanilla mutates x/y/z here, so the closing sound below
+				// plays at the pulled block's position
+				x += PistonTextures::offsetX[dir];
+				y += PistonTextures::offsetY[dir];
+				z += PistonTextures::offsetZ[dir];
+				level.setTileAndData(x, y, z, Tile::pistonMoving.id, pulledData);
+				level.setTileEntity(x, y, z, PistonMovingTile::createTileEntity(pulledId, pulledData, dir, false, false));
 			}
 			else if (!found)
 			{
@@ -239,13 +241,13 @@ void PistonBaseTile::checkState(Level &level, int_t x, int_t y, int_t z)
 	{
 		if (canExtend(level, x, y, z, dir))
 		{
-			level.setData(x, y, z, dir | 8);
+			level.setDataNoUpdate(x, y, z, dir | 8);
 			level.playNoteAt(x, y, z, 0, dir);
 		}
 	}
 	else if (!powered && isPowered(data))
 	{
-		level.setData(x, y, z, dir);
+		level.setDataNoUpdate(x, y, z, dir);
 		level.playNoteAt(x, y, z, 1, dir);
 	}
 }

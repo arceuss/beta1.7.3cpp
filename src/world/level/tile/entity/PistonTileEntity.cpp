@@ -8,8 +8,6 @@
 #include "world/phys/AABB.h"
 #include "nbt/CompoundTag.h"
 
-std::vector<Entity *> PistonTileEntity::pushedEntities;
-
 PistonTileEntity::PistonTileEntity(int_t blockId, int_t blockData, int_t facing, bool ext, bool head)
 	: storedBlockID(blockId), storedData(blockData), direction(facing), extending(ext), renderHead(head)
 {
@@ -47,20 +45,18 @@ void PistonTileEntity::pushEntities(float currentProgress, float delta)
 	else
 		pushProgress = 1.0f - pushProgress;
 
-	AABB pushBox(
-		x + PistonTextures::offsetX[direction] * pushProgress,
-		y + PistonTextures::offsetY[direction] * pushProgress,
-		z + PistonTextures::offsetZ[direction] * pushProgress,
-		x + PistonTextures::offsetX[direction] * pushProgress + 1.0,
-		y + PistonTextures::offsetY[direction] * pushProgress + 1.0,
-		z + PistonTextures::offsetZ[direction] * pushProgress + 1.0
-	);
+	AABB *pushBox = Tile::pistonMoving.getPushedAABB(*level, x, y, z, storedBlockID, pushProgress, direction);
+	if (pushBox == nullptr)
+		return;
 
-	const auto &entities = level->getEntities(nullptr, pushBox);
+	const auto &entities = level->getEntities(nullptr, *pushBox);
 	if (entities.empty())
 		return;
 
-	for (const auto &entity : entities)
+	// Entity::move re-enters Level::getEntities via getCubes, which clobbers
+	// the shared result buffer - copy before moving (vanilla does the same)
+	std::vector<std::shared_ptr<Entity>> pushed(entities.begin(), entities.end());
+	for (const auto &entity : pushed)
 	{
 		entity->move(
 			delta * PistonTextures::offsetX[direction],

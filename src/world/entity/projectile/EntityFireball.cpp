@@ -105,7 +105,7 @@ void EntityFireball::tick()
 		{
 			if (hit.type == HitResult::Type::ENTITY && hit.entity != nullptr)
 				hit.entity->hurt(ownerRef.get(), 0);
-			level.createExplosion(nullptr, x, y, z, 1.0f);
+			level.createExplosion(nullptr, x, y, z, 1.0f, true);
 		}
 		remove();
 		return;
