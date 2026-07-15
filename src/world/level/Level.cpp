@@ -766,7 +766,13 @@ void Level::scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t d
 
 Explosion Level::createExplosion(Entity *entity, double x, double y, double z, float size)
 {
+	return createExplosion(entity, x, y, z, size, false);
+}
+
+Explosion Level::createExplosion(Entity *entity, double x, double y, double z, float size, bool flaming)
+{
 	Explosion explosion(*this, entity, x, y, z, size);
+	explosion.isFlaming = flaming;
 	explosion.doExplosionA();
 	explosion.doExplosionB(true);
 	return explosion;

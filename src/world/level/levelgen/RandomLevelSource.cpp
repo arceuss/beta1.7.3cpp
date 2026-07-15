@@ -35,6 +35,7 @@
 #include "world/level/levelgen/feature/CactusFeature.h"
 #include "world/level/levelgen/feature/OreFeature.h"
 #include "world/level/levelgen/feature/ClayFeature.h"
+#include "world/level/levelgen/feature/DungeonFeature.h"
 #include "world/level/levelgen/feature/LakeFeature.h"
 #include "world/level/levelgen/feature/SpringFeature.h"
 #include "world/level/levelgen/LargeCaveFeature.h"
@@ -349,6 +350,7 @@ bool RandomLevelSource::hasChunk(int_t x, int_t z)
 
 void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 {
+	SandTile::fallInstantly = true;
 	int_t cx = x * 16;
 	int_t cz = z * 16;
 
@@ -376,6 +378,15 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 		pz = cz + random.nextInt(16) + 8;
 		if (py < 64 || random.nextInt(10) == 0)
 			LakeFeature(Tile::calmLava.id).place(level, random, px, py, pz);
+	}
+
+	// Dungeons (8 attempts)
+	for (int_t i = 0; i < 8; i++)
+	{
+		px = cx + random.nextInt(16) + 8;
+		py = random.nextInt(128);
+		pz = cz + random.nextInt(16) + 8;
+		DungeonFeature().place(level, random, px, py, pz);
 	}
 
 	// Clay (10 attempts)
@@ -466,7 +477,13 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 	double scale = 0.5;
 	int_t forestValue = static_cast<int_t>((forestNoise.getValue(cx * scale, cz * scale) / 8.0 + random.nextDouble() * 4.0 + 4.0) / 3.0);
 	int_t trees = random.nextInt(10) == 0 ? 1 : 0;
-	trees += forestValue + biomeInfo.treeCountAdjustment;
+	if (biome == BiomeId::Forest) trees += forestValue + 5;
+	if (biome == BiomeId::Rainforest) trees += forestValue + 5;
+	if (biome == BiomeId::SeasonalForest) trees += forestValue + 2;
+	if (biome == BiomeId::Taiga) trees += forestValue + 5;
+	if (biome == BiomeId::Desert) trees -= 20;
+	if (biome == BiomeId::Tundra) trees -= 20;
+	if (biome == BiomeId::Plains) trees -= 20;
 	for (int_t i = 0; i < trees; i++)
 	{
 		int_t tx = cx + random.nextInt(16) + 8;
@@ -618,15 +635,13 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 			if (temperature >= 0.5 || snowY <= 0 || snowY >= Level::DEPTH || !level.isEmptyTile(snowX, snowY, snowZ))
 				continue;
 
-			int_t belowTile = level.getTile(snowX, snowY - 1, snowZ);
-			if (belowTile == 0 || !Tile::solid[belowTile])
-				continue;
-
 			const Material &belowMaterial = level.getMaterial(snowX, snowY - 1, snowZ);
 			if (belowMaterial.blocksMotion() && &belowMaterial != &Material::ice())
 				level.setTile(snowX, snowY, snowZ, Tile::snow.id);
 		}
 	}
+
+	SandTile::fallInstantly = false;
 }
 
 bool RandomLevelSource::save(bool force, std::shared_ptr<ProgressListener> progressListener)

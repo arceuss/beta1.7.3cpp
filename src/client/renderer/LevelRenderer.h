@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 
 #include "client/MemoryTracker.h"
 #include "client/renderer/Chunk.h"
@@ -50,6 +51,7 @@ private:
 
 	std::unique_ptr<TileRenderer> tileRenderer;
 	std::unique_ptr<PistonTileEntityRenderer> pistonRenderer;
+	std::unordered_map<jstring, std::shared_ptr<Entity>> spawnerRenderMobs;
 
 	std::vector<int_t> occlusionCheckIds;
 	bool occlusionCheck = false;

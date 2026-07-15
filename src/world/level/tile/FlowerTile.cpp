@@ -4,6 +4,7 @@
 #include "world/level/material/Material.h"
 #include "world/level/tile/GrassTile.h"
 #include "world/level/tile/DirtTile.h"
+#include "world/level/tile/FarmlandTile.h"
 
 FlowerTile::FlowerTile(int_t id, int_t tex) : Tile(id, tex, Material::plants())
 {
@@ -58,7 +59,7 @@ void FlowerTile::updateDefaultShape()
 
 bool FlowerTile::canSurviveOn(int_t belowTile) const
 {
-	return belowTile == Tile::grass.id || belowTile == Tile::dirt.id;
+	return belowTile == Tile::grass.id || belowTile == Tile::dirt.id || belowTile == Tile::farmland.id;
 }
 
 bool FlowerTile::canStay(Level &level, int_t x, int_t y, int_t z)

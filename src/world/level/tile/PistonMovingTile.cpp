@@ -56,6 +56,18 @@ void PistonMovingTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 		Tile::onRemove(level, x, y, z);
 }
 
+void PistonMovingTile::spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance)
+{
+	(void)data; (void)chance;
+	PistonTileEntity *te = getPistonTileEntity(level, x, y, z);
+	if (te != nullptr)
+	{
+		Tile *stored = Tile::tiles[te->getStoredBlockID()];
+		if (stored != nullptr)
+			stored->spawnResources(level, x, y, z, te->getBlockMetadata());
+	}
+}
+
 bool PistonMovingTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
 	(void)player;

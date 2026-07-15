@@ -261,11 +261,14 @@ bool LevelChunk::setTileAndData(int_t x, int_t y, int_t z, int_t tile, int_t dat
 	int_t wx = this->x * 16 + x;
 	int_t wz = this->z * 16 + z;
 
+	// vanilla order: id write, oldTile->onRemove (even when id is unchanged),
+	// then the data nibble - a nested set-block inside onRemove gets its
+	// metadata stomped afterwards, which is what makes block transmutation work
 	blocks[index] = tile;
-	this->data.set(x, y, z, data);
-
-	if (oldTile != 0 && oldTile != tile)
+	if (oldTile != 0 && !level.isOnline)
 		Tile::tiles[oldTile]->onRemove(level, wx, y, wz);
+
+	this->data.set(x, y, z, data);
 
 	if (Tile::lightBlock[tile] != 0)
 	{
@@ -280,7 +283,8 @@ bool LevelChunk::setTileAndData(int_t x, int_t y, int_t z, int_t tile, int_t dat
 	level.updateLight(LightLayer::Sky, wx, y, wz, wx, y, wz);
 	level.updateLight(LightLayer::Block, wx, y, wz, wx, y, wz);
 	lightGaps(x, z);
-	if (tile != 0 && !level.isOnline && oldTile != tile)
+	this->data.set(x, y, z, data);
+	if (tile != 0)
 		Tile::tiles[tile]->onPlace(level, wx, y, wz);
 
 	unsaved = true;

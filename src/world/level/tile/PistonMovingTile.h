@@ -21,10 +21,12 @@ public:
 	bool use(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	AABB *getAABB(Level &level, int_t x, int_t y, int_t z) override;
 	void updateShape(LevelSource &level, int_t x, int_t y, int_t z) override;
+	void spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance) override;
 
 	static std::shared_ptr<TileEntity> createTileEntity(int_t blockId, int_t blockData, int_t facing, bool extending, bool renderHead);
 
+	AABB *getPushedAABB(Level &level, int_t x, int_t y, int_t z, int_t blockId, float progress, int_t dir);
+
 private:
 	class PistonTileEntity *getPistonTileEntity(LevelSource &level, int_t x, int_t y, int_t z);
-	AABB *getPushedAABB(Level &level, int_t x, int_t y, int_t z, int_t blockId, float progress, int_t dir);
 };

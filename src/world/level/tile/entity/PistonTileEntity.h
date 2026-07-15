@@ -2,7 +2,6 @@
 
 #include "world/level/tile/entity/TileEntity.h"
 #include "java/Type.h"
-#include <vector>
 
 class Entity;
 class AABB;
@@ -42,6 +41,4 @@ private:
 	bool renderHead = false;
 	float progress = 0.0f;
 	float lastProgress = 0.0f;
-
-	static std::vector<Entity *> pushedEntities;
 };

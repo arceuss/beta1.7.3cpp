@@ -104,6 +104,7 @@ void PistonExtensionTile::addAABBs(Level &level, int_t x, int_t y, int_t z, AABB
 	if (aabb != nullptr && aabb->intersects(bb))
 		aabbList.push_back(aabb);
 
+	// arm boxes match vanilla exactly, including its asymmetric quirks for dir 2-5
 	float f = 6.0f / 16.0f;
 	float t = 10.0f / 16.0f;
 	switch (dir)
@@ -115,16 +116,16 @@ void PistonExtensionTile::addAABBs(Level &level, int_t x, int_t y, int_t z, AABB
 			setShape(f, 0.0f, f, t, 0.75f, t);
 			break;
 		case 2:
-			setShape(f, f, 0.25f, t, t, 1.0f);
+			setShape(0.25f, f, 0.25f, 0.75f, t, 1.0f);
 			break;
 		case 3:
-			setShape(f, f, 0.0f, t, t, 0.75f);
+			setShape(0.25f, f, 0.0f, 0.75f, t, 0.75f);
 			break;
 		case 4:
-			setShape(0.25f, f, f, 1.0f, t, t);
+			setShape(f, 0.25f, 0.25f, t, 0.75f, 1.0f);
 			break;
 		case 5:
-			setShape(0.0f, f, f, 0.75f, t, t);
+			setShape(0.0f, f, 0.25f, 0.75f, t, 0.75f);
 			break;
 	}
 

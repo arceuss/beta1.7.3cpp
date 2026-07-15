@@ -11,6 +11,8 @@ namespace
 	constexpr int_t FALLING_TILE_CHUNK_RANGE = 32;
 }
 
+bool SandTile::fallInstantly = false;
+
 SandTile::SandTile(int_t id, int_t tex) : Tile(id, tex, Material::sand)
 {
 	setTicking(true);
@@ -41,7 +43,7 @@ void SandTile::checkSlide(Level &level, int_t x, int_t y, int_t z)
 	if (!isFree(level, x, y - 1, z) || y < 0)
 		return;
 
-	if (level.hasChunksAt(x - FALLING_TILE_CHUNK_RANGE, y - FALLING_TILE_CHUNK_RANGE, z - FALLING_TILE_CHUNK_RANGE, x + FALLING_TILE_CHUNK_RANGE, y + FALLING_TILE_CHUNK_RANGE, z + FALLING_TILE_CHUNK_RANGE))
+	if (!fallInstantly && level.hasChunksAt(x - FALLING_TILE_CHUNK_RANGE, y - FALLING_TILE_CHUNK_RANGE, z - FALLING_TILE_CHUNK_RANGE, x + FALLING_TILE_CHUNK_RANGE, y + FALLING_TILE_CHUNK_RANGE, z + FALLING_TILE_CHUNK_RANGE))
 	{
 		level.addEntity(Util::make_shared<FallingTile>(level, static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, id));
 		return;

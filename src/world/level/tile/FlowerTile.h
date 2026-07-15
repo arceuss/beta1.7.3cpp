@@ -16,7 +16,8 @@ public:
 	void onPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void updateDefaultShape() override;
 
+	virtual bool canStay(Level &level, int_t x, int_t y, int_t z);
+
 protected:
 	virtual bool canSurviveOn(int_t belowTile) const;
-	virtual bool canStay(Level &level, int_t x, int_t y, int_t z);
 };

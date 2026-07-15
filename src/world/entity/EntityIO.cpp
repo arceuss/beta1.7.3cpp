@@ -42,6 +42,14 @@ static std::unordered_map<int_t, std::shared_ptr<Entity>(*)(Level &level)> numCl
 };
 #undef ENTITYIO_ID
 
+std::shared_ptr<Entity> newEntity(const jstring &name, Level &level)
+{
+	auto it = idClassMap.find(name);
+	if (it == idClassMap.end())
+		return nullptr;
+	return it->second(level);
+}
+
 std::shared_ptr<Entity> loadStatic(CompoundTag &tag, Level &level)
 {
 	try
