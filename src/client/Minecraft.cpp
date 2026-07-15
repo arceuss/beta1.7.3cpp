@@ -13,6 +13,7 @@
 #include "client/gui/ScreenSizeCalculator.h"
 #include "client/gui/ChatScreen.h"
 #include "client/gui/PauseScreen.h"
+#include "client/gui/AchievementToast.h"
 #include "client/title/TitleScreen.h"
 #include "client/player/KeyboardInput.h"
 
@@ -24,6 +25,9 @@
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
 #include "world/item/Items.h"
+#include "world/stats/Achievement.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/StatFileWriter.h"
 
 #include "java/System.h"
 #include "java/Runtime.h"
@@ -101,6 +105,17 @@ void Minecraft::init()
 	texturePackRepository.updateListAndSelect();
 
 	font = std::make_unique<Font>(options, u"/font/default.png", textures);
+	AchievementList::init();
+	AchievementList::openInventory->setDescriptionFormatter([this](const jstring &description)
+	{
+		jstring result = description;
+		size_t position = result.find(u"%1$s");
+		if (position != jstring::npos)
+			result.replace(position, 4, lwjgl::Keyboard::getKeyName(options.keyInventory.key));
+		return result;
+	});
+	statFileWriter = std::make_unique<StatFileWriter>(*user, *workingDirectory);
+	achievementToast = std::make_unique<AchievementToast>(*this);
 
 	// renderLoadingScreen();
 
@@ -218,6 +233,8 @@ void Minecraft::setScreen(std::shared_ptr<Screen> screen)
 {
 	if (this->screen != nullptr)
 		this->screen->removed();
+	if (statFileWriter != nullptr)
+		statFileWriter->syncStats();
 
 	if (screen == nullptr && level == nullptr)
 		screen = Util::make_shared<TitleScreen>(*this);
@@ -282,6 +299,12 @@ void Minecraft::checkGlError(const std::string &at)
 
 Minecraft::~Minecraft()
 {
+	if (statFileWriter != nullptr)
+	{
+		statFileWriter->syncStats();
+		statFileWriter.reset();
+	}
+	achievementToast.reset();
 	MemoryTracker::release();
 }
 
@@ -480,6 +503,8 @@ void Minecraft::run()
 				if (gameMode != nullptr)
 					gameMode->render(timer.a);
 				gameRenderer.render(timer.a);
+				if (achievementToast != nullptr)
+					achievementToast->render();
 			}
 
 			if (!lwjgl::Display::isActive())
@@ -1002,6 +1027,8 @@ void Minecraft::tick()
 			level->animateTick(Mth::floor(player->x), Mth::floor(player->y), Mth::floor(player->z));
 		if (!pause)
 			particleEngine.tick();
+		if (statFileWriter != nullptr)
+			statFileWriter->tick();
 		if (!pause)
 			gui.tick();
 	}
@@ -1104,6 +1131,8 @@ void Minecraft::setLevel(std::shared_ptr<Level> level, const jstring &title)
 
 void Minecraft::setLevel(std::shared_ptr<Level> level, const jstring &title, std::shared_ptr<Player> player)
 {
+	if (statFileWriter != nullptr)
+		statFileWriter->syncStats();
 	progressRenderer->progressStart(title);
 	progressRenderer->progressStage(u"");
 

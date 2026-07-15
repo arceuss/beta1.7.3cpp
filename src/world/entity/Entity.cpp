@@ -478,7 +478,8 @@ void Entity::burn(int_t a0)
 
 void Entity::causeFallDamage(float distance)
 {
-
+	if (rider != nullptr)
+		rider->causeFallDamage(distance);
 }
 
 bool Entity::isInWater()

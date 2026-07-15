@@ -124,14 +124,14 @@ void ItemRenderer::renderGuiItem(Font &font, Textures &textures, ItemInstance &i
 
 	// Apply tile color tinting for inventory rendering
 	int_t tileColor = (tile != nullptr) ? tile->getItemColor(item.getAuxValue()) : 0xFFFFFF;
-	if (tileColor != 0xFFFFFF)
+	if (renderWithColor && tileColor != 0xFFFFFF)
 	{
 		float r = (float)((tileColor >> 16) & 255) / 255.0f;
 		float g = (float)((tileColor >> 8) & 255) / 255.0f;
 		float b = (float)(tileColor & 255) / 255.0f;
 		glColor4f(r, g, b, 1.0f);
 	}
-	else
+	else if (renderWithColor)
 	{
 		glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	}
@@ -166,7 +166,7 @@ void ItemRenderer::renderGuiItem(Font &font, Textures &textures, ItemInstance &i
 		else
 			textures.bind(textures.loadTexture(u"/gui/items.png"));
 		// Apply tile color tinting for flat icon path
-		if (tile != nullptr)
+		if (renderWithColor && tile != nullptr)
 		{
 			int_t c = tile->getItemColor(item.getAuxValue());
 			if (c != 0xFFFFFF)

@@ -3,11 +3,16 @@
 #include "nbt/ListTag.h"
 #include "util/Mth.h"
 #include "world/entity/item/EntityItem.h"
+#include "world/entity/item/EntityMinecart.h"
+#include "world/entity/monster/Monster.h"
 #include "world/level/Level.h"
 #include "world/level/material/Material.h"
 #include "world/level/material/LiquidMaterial.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/BedTile.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/Achievement.h"
+#include "world/stats/StatBase.h"
 
 Player::Player(Level &level) : Mob(level)
 {
@@ -64,6 +69,8 @@ void Player::tick()
 	xCloak += dx * 0.25;
 	yCloak += dy * 0.25;
 	zCloak += dz * 0.25;
+	if (riding == nullptr)
+		hasMinecartStart = false;
 }
 
 Player::SleepStatus Player::sleepInBedAt(int_t bx, int_t by, int_t bz)
@@ -219,9 +226,38 @@ void Player::closeContainer()
 
 void Player::rideTick()
 {
+	double oldX = x;
+	double oldY = y;
+	double oldZ = z;
 	Mob::rideTick();
 	oBob = bob;
 	bob = 0.0f;
+
+	if (riding != nullptr && dynamic_cast<EntityMinecart *>(riding.get()) != nullptr)
+	{
+		int_t distance = static_cast<int_t>(std::round(Mth::sqrt((x - oldX) * (x - oldX) + (y - oldY) * (y - oldY) + (z - oldZ) * (z - oldZ)) * 100.0f));
+		if (distance > 0)
+		{
+			int_t currentX = Mth::floor(x);
+			int_t currentY = Mth::floor(y);
+			int_t currentZ = Mth::floor(z);
+			if (!hasMinecartStart)
+			{
+				hasMinecartStart = true;
+				minecartStartX = currentX;
+				minecartStartY = currentY;
+				minecartStartZ = currentZ;
+			}
+			else
+			{
+				double dx = currentX - minecartStartX;
+				double dy = currentY - minecartStartY;
+				double dz = currentZ - minecartStartZ;
+				if (dx * dx + dy * dy + dz * dz >= 1000.0)
+					addStat(*AchievementList::onARail, 1);
+			}
+		}
+	}
 }
 
 void Player::resetPos()
@@ -312,6 +348,15 @@ void Player::attack(const std::shared_ptr<Entity> &entity)
 }
 
 void Player::respawn()
+{
+}
+
+void Player::triggerAchievement(const StatBase &stat)
+{
+	addStat(stat, 1);
+}
+
+void Player::addStat(const StatBase &stat, int_t amount)
 {
 }
 
@@ -493,4 +538,11 @@ void Player::drop(ItemInstance &stack, bool randomSpread)
 void Player::reallyDrop(std::shared_ptr<EntityItem> itemEntity)
 {
 	level.addEntity(itemEntity);
+}
+
+void Player::awardKillScore(Entity &source, int_t score)
+{
+	Mob::awardKillScore(source, score);
+	if (dynamic_cast<Monster *>(&source) != nullptr)
+		triggerAchievement(*AchievementList::killEnemy);
 }

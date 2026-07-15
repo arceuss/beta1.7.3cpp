@@ -12,10 +12,16 @@
 #include "world/entity/player/Player.h"
 #include "world/item/Item.h"
 #include "world/item/ItemArmor.h"
+#include "world/item/Items.h"
 #include "world/item/crafting/CraftingContainer.h"
 #include "world/item/crafting/Recipes.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/PumpkinTile.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/Achievement.h"
+#include "world/item/ItemPickaxe.h"
+#include "world/level/tile/FurnaceTile.h"
+#include "world/level/tile/WorkbenchTile.h"
 
 #include "OpenGL.h"
 #include "lwjgl/Keyboard.h"
@@ -105,6 +111,8 @@ InventoryScreen::InventoryScreen(Minecraft &minecraft, int_t craftingWidth, int_
 {
 	passEvents = true;
 	updateCraftingResult();
+	if (craftingWidth == 2 && craftingHeight == 2 && minecraft.player != nullptr)
+		minecraft.player->addStat(*AchievementList::openInventory, 1);
 }
 
 void InventoryScreen::render(int_t xm, int_t ym, float a)
@@ -603,6 +611,22 @@ void InventoryScreen::handleSlotClick(int_t slot, int_t buttonNum)
 			carried->stackSize += result.stackSize;
 		}
 
+		if (result.itemID == Tile::workBench.id)
+			minecraft.player->addStat(*AchievementList::buildWorkBench, 1);
+		else if (result.itemID == Items::pickaxeWood->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::buildPickaxe, 1);
+		else if (result.itemID == Tile::furnace.id)
+			minecraft.player->addStat(*AchievementList::buildFurnace, 1);
+		else if (result.itemID == Items::hoeWood->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::buildHoe, 1);
+		else if (result.itemID == Items::bread->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::makeBread, 1);
+		else if (result.itemID == Items::cake->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::bakeCake, 1);
+		else if (result.itemID == Items::pickaxeStone->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::buildBetterPickaxe, 1);
+		else if (result.itemID == Items::swordWood->getShiftedIndex())
+			minecraft.player->addStat(*AchievementList::buildSword, 1);
 		consumeCraftingIngredients();
 		updateCraftingResult();
 		return;

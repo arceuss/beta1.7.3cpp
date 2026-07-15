@@ -77,6 +77,10 @@
 #include "java/Random.h"
 #include "java/File.h"
 #include "java/String.h"
+#include "world/stats/Achievement.h"
+#include "world/stats/AchievementList.h"
+#include "world/stats/StatFileWriter.h"
+#include "world/stats/StatList.h"
 
 namespace
 {
@@ -309,10 +313,40 @@ int runBlockSmoke()
 		std::cerr << "block-smoke: init" << std::endl;
 		Tile::initTiles();
 		Items::initItems();
+		AchievementList::init();
 
 		bool ok = true;
 		Random random;
 		std::cerr << "block-smoke: static assertions" << std::endl;
+		ok &= expect(AchievementList::achievements.size() == 16, "achievement registry should contain the 16 Beta 1.7.3 achievements");
+		ok &= expect(AchievementList::openInventory->statId == 5242880 && AchievementList::flyPig->statId == 5242895,
+			"achievement stat ids should occupy the Beta 1.7.3 range");
+		ok &= expect(StatList::getStat(5242880) == AchievementList::openInventory && StatList::getStat(5242895) == AchievementList::flyPig,
+			"achievement stat ids should resolve through StatList");
+		ok &= expect(AchievementList::openInventory->independent, "Taking Inventory should be marked independent");
+		ok &= expect(AchievementList::mineWood->parentAchievement == AchievementList::openInventory,
+			"Getting Wood should require Taking Inventory");
+		ok &= expect(AchievementList::buildFurnace->parentAchievement == AchievementList::buildPickaxe,
+			"Hot Topic should require Time to Mine");
+		ok &= expect(AchievementList::flyPig->parentAchievement == AchievementList::killCow,
+			"When Pigs Fly should require Cow Tipper");
+		ok &= expect(AchievementList::onARail->isSpecial() && AchievementList::flyPig->isSpecial(),
+			"On A Rail and When Pigs Fly should use special achievement frames");
+		ok &= expect(AchievementList::minDisplayColumn == -1 && AchievementList::minDisplayRow == -5 &&
+			AchievementList::maxDisplayColumn == 8 && AchievementList::maxDisplayRow == 6,
+			"achievement display bounds should match the Beta 1.7.3 tree");
+		ok &= expect(!AchievementList::openInventory->statGuid.empty() && !AchievementList::flyPig->statGuid.empty(),
+			"achievement GUIDs should load from achievement/map.txt");
+		StatMap achievementStats;
+		achievementStats[AchievementList::openInventory] = 1;
+		achievementStats[AchievementList::mineWood] = 2;
+		jstring smokeUser = u"Smoke";
+		jstring localSession = u"local";
+		std::unique_ptr<StatMap> parsedAchievementStats = StatFileWriter::parse(
+			StatFileWriter::serialize(&smokeUser, &localSession, achievementStats));
+		ok &= expect(parsedAchievementStats != nullptr && parsedAchievementStats->at(AchievementList::openInventory) == 1 &&
+			parsedAchievementStats->at(AchievementList::mineWood) == 2,
+			"achievement stats should survive the Beta checksum serialization round trip");
 		ok &= expect(Tile::lightBlock[65] == 0, "ladder should stay transparent for light sampling like beta");
 		ok &= expect(Tile::lightBlock[53] == 255, "wood stairs should block light like beta");
 		ok &= expect(Tile::lightBlock[67] == 255, "stone stairs should block light like beta");

@@ -7,6 +7,7 @@ Language Language::singleton;
 Language::Language()
 {
 	load(u"/lang/en_US.lang");
+	load(u"/lang/stats_US.lang");
 }
 
 void Language::load(const jstring &name)

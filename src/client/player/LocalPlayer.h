@@ -36,6 +36,7 @@ private:
 
 public:
 	LocalPlayer(Minecraft &minecraft, Level &level, User *user, int_t dimension);
+	void addStat(const StatBase &stat, int_t amount) override;
 
 	void updateAi() override;
 	void handleInsidePortal() override;
