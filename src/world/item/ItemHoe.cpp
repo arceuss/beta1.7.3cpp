@@ -37,6 +37,6 @@ bool ItemHoe::useOn(ItemInstance &stack, Player &player, Level &level, int_t x, 
 
 	if (!level.setTile(x, y, z, FARMLAND_TILE_ID))
 		return false;
-	stack.damageItem(1);
+	stack.damageItem(1, player);
 	return true;
 }

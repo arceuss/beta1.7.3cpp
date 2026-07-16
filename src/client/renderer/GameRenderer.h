@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "client/renderer/ItemInHandRenderer.h"
+#include "client/renderer/MouseFilter.h"
 
 #include "world/entity/Entity.h"
 
@@ -20,6 +21,8 @@ private:
 	float renderDistance = 0.0f;
 
 	ItemInHandRenderer itemInHandRenderer;
+	MouseFilter mouseFilterXAxis;
+	MouseFilter mouseFilterYAxis;
 
 	int_t ticks = 0;
 	std::shared_ptr<Entity> hovered;
@@ -31,6 +34,7 @@ private:
 	long_t lastActiveTime = System::currentTimeMillis();
 
 	Random random = Random();
+	int_t rainSoundCounter = 0;
 
 public:
 	volatile int xMod = 0, yMod = 0;
@@ -56,6 +60,8 @@ private:
 
 	void setupCamera(float a, int_t eye);
 	void renderItemInHand(float a, int_t eye);
+	void addRainParticles();
+	void renderRainSnow(float a);
 
 public:
 	void render(float a);

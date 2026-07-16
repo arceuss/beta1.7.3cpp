@@ -4,6 +4,7 @@
 #include "java/String.h"
 
 class Entity;
+class Player;
 class TileEntity;
 
 class LevelListener
@@ -22,4 +23,5 @@ public:
 	virtual void skyColorChanged() = 0;
 	virtual void playStreamingMusic(const jstring &name, int_t x, int_t y, int_t z) = 0;
 	virtual void tileEntityChanged(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity) = 0;
+	virtual void levelEvent(Player *player, int_t event, int_t x, int_t y, int_t z, int_t data) = 0;
 };

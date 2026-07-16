@@ -7,6 +7,8 @@
 #include <vector>
 
 #include "client/Minecraft.h"
+#include "client/gui/ChatLine.h"
+#include "client/gui/Font.h"
 #include "java/String.h"
 #include "java/System.h"
 #include "util/Mth.h"
@@ -40,6 +42,7 @@
 std::vector<SPCCommand::ChatMessage> SPCCommand::messages;
 
 int_t SPCCommand::guiTickCount = 0;
+Font *SPCCommand::messageFont = nullptr;
 
 bool SPCCommand::flying = false;
 bool SPCCommand::noclip = false;
@@ -77,7 +80,8 @@ jstring SPCCommand::lastCommand;
 
 namespace
 {
-constexpr size_t MAX_MESSAGES = 100;
+constexpr size_t MAX_MESSAGES = 50;
+constexpr int_t MAX_MESSAGE_WIDTH = 320;
 double gTimeSpeed = 1.0;
 
 jstring lowerAscii(const jstring &value)
@@ -182,7 +186,11 @@ bool parseDouble(const jstring &text, double &out)
 
 void pushMessage(const jstring &text)
 {
-	SPCCommand::messages.push_back({text, SPCCommand::guiTickCount});
+	std::vector<jstring> lines = SPCCommand::messageFont == nullptr
+		? std::vector<jstring>{text}
+		: ChatLine::split(*SPCCommand::messageFont, text, MAX_MESSAGE_WIDTH);
+	for (const jstring &line : lines)
+		SPCCommand::messages.push_back({line, SPCCommand::guiTickCount});
 	if (SPCCommand::messages.size() > MAX_MESSAGES)
 		SPCCommand::messages.erase(SPCCommand::messages.begin(), SPCCommand::messages.begin() + static_cast<long long>(SPCCommand::messages.size() - MAX_MESSAGES));
 }
@@ -431,9 +439,19 @@ void SPCCommand::addMessage(const jstring &text)
 	pushMessage(text);
 }
 
+void SPCCommand::addChatMessage(const jstring &text)
+{
+	pushMessage(text);
+}
+
 void SPCCommand::sendError(const jstring &text)
 {
 	addMessage(u"\u00a74" + text);
+}
+
+void SPCCommand::setMessageFont(Font *font)
+{
+	messageFont = font;
 }
 
 void SPCCommand::execute(Minecraft &mc, const jstring &input)

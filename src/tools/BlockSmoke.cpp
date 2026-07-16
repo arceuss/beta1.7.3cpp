@@ -1,13 +1,19 @@
 #include "tools/BlockSmoke.h"
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <iostream>
+#include <limits>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 #include "client/particle/TerrainParticle.h"
 #include "client/particle/NoteParticle.h"
+#include "client/particle/RainParticle.h"
+#include "client/model/WolfModel.h"
 #include "client/Minecraft.h"
+#include "client/User.h"
 #include "client/renderer/TileRenderer.h"
 #include "client/renderer/texturefx/TextureCompassFX.h"
 #include "client/renderer/texturefx/TextureWatchFX.h"
@@ -22,18 +28,24 @@
 #include "world/item/crafting/Recipes.h"
 #include "world/entity/player/Player.h"
 #include "world/entity/Mob.h"
+#include "world/entity/EntityIO.h"
+#include "world/entity/monster/Monster.h"
 #include "world/entity/animal/Cow.h"
 #include "world/entity/animal/Pig.h"
 #include "world/entity/animal/Sheep.h"
 #include "world/entity/animal/Chicken.h"
+#include "world/entity/animal/Wolf.h"
 #include "world/entity/monster/Zombie.h"
 #include "world/entity/monster/Skeleton.h"
 #include "world/entity/monster/PigZombie.h"
 #include "world/entity/monster/Spider.h"
 #include "world/entity/monster/Creeper.h"
 #include "world/entity/projectile/EntityArrow.h"
+#include "world/entity/projectile/EntityFish.h"
 #include "world/entity/projectile/EntitySnowball.h"
 #include "world/entity/projectile/EntityThrownEgg.h"
+#include "world/entity/item/EntityItem.h"
+#include "world/entity/item/EntityPainting.h"
 #include "world/entity/EntityLightningBolt.h"
 #include "world/level/pathfinder/PathEntity.h"
 #include "world/level/pathfinder/Pathfinder.h"
@@ -43,6 +55,8 @@
 #include "util/Mth.h"
 #include "world/level/LevelListener.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/GlassTile.h"
+#include "world/level/tile/ClothTile.h"
 #include "world/level/tile/StoneTile.h"
 #include "world/level/tile/WoodTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
@@ -64,6 +78,7 @@
 #include "world/level/tile/DoorTile.h"
 #include "world/level/tile/NoteTile.h"
 #include "world/level/tile/DispenserTile.h"
+#include "world/level/tile/DeadBushTile.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "nbt/CompoundTag.h"
@@ -81,9 +96,43 @@
 #include "world/stats/AchievementList.h"
 #include "world/stats/StatFileWriter.h"
 #include "world/stats/StatList.h"
+#include "world/stats/StatCrafting.h"
 
 namespace
 {
+	struct StatCapturePlayer : public Player
+	{
+		std::unordered_map<const StatBase *, int_t> capturedStats;
+
+		explicit StatCapturePlayer(Level &level) : Player(level) {}
+
+		void addStat(const StatBase &stat, int_t amount) override
+		{
+			capturedStats[&stat] += amount;
+		}
+
+		int_t getCapturedStat(const StatBase *stat) const
+		{
+			auto it = capturedStats.find(stat);
+			return it == capturedStats.end() ? 0 : it->second;
+		}
+
+		void jumpForSmoke()
+		{
+			jumpFromGround();
+		}
+
+		void fallForSmoke(float distance)
+		{
+			causeFallDamage(distance);
+		}
+
+		void setCachedWaterForSmoke(bool value)
+		{
+			wasInWater = value;
+		}
+	};
+
 	struct CaptureListener : public LevelListener
 	{
 		std::vector<jstring> sounds;
@@ -102,6 +151,7 @@ namespace
 		void skyColorChanged() override {}
 		void playStreamingMusic(const jstring &name, int_t, int_t, int_t) override { streams.push_back(name); }
 		void tileEntityChanged(int_t, int_t, int_t, std::shared_ptr<TileEntity>) override {}
+		void levelEvent(Player *, int_t, int_t, int_t, int_t, int_t) override {}
 
 		void clear()
 		{
@@ -122,6 +172,14 @@ struct InspectableNoteParticle : public NoteParticle
 	{
 		using NoteParticle::NoteParticle;
 		float currentSize() const { return size; }
+	};
+
+	struct InspectableRainParticle : public RainParticle
+	{
+		using RainParticle::RainParticle;
+		int_t textureIndex() const { return tex; }
+		int_t remainingLifetime() const { return lifetime; }
+		float particleGravity() const { return gravity; }
 	};
 
 	struct TestLevelSource : public LevelSource
@@ -313,11 +371,37 @@ int runBlockSmoke()
 		std::cerr << "block-smoke: init" << std::endl;
 		Tile::initTiles();
 		Items::initItems();
-		AchievementList::init();
+		StatList::init();
 
 		bool ok = true;
 		Random random;
 		std::cerr << "block-smoke: static assertions" << std::endl;
+		ok &= expect(StatList::generalStats.size() == 23, "general stat registry should contain the 23 Beta 1.7.3 counters");
+		ok &= expect(StatList::startGameStat->statId == 1000 && StatList::minutesPlayedStat->statId == 1100 &&
+			StatList::distanceWalkedStat->statId == 2000 && StatList::fishCaughtStat->statId == 2025,
+			"general stat ids should match Beta 1.7.3");
+		ok &= expect(StatList::startGameStat->independent && StatList::minutesPlayedStat->independent &&
+			!StatList::damageDealtStat->independent,
+			"only the Beta 1.7.3 independent counters should be marked independent");
+		ok &= expect(StatList::jumpStat->format(1234567) == u"1,234,567" &&
+			StatList::minutesPlayedStat->format(20) == u"1.0 s" &&
+			StatList::minutesPlayedStat->format(21) == u"1.05 s" &&
+			StatList::minutesPlayedStat->format(720) == u"0.60 m" &&
+			StatList::minutesPlayedStat->format(std::numeric_limits<int_t>::min()) == u"-1.073741824E8 s" &&
+			StatList::distanceWalkedStat->format(100) == u"1.00 m" &&
+			StatList::distanceWalkedStat->format(100000) == u"1.00 km",
+			"stat formatters should match the Beta number, time, and distance formats");
+		ok &= expect(StatList::mineBlockStats[Tile::rock.id] != nullptr &&
+			StatList::mineBlockStats[Tile::rock.id]->statId == 16777216 + Tile::rock.id &&
+			StatList::useItemStats[Items::pickaxeWood->getShiftedIndex()] != nullptr &&
+			StatList::breakItemStats[Items::pickaxeWood->getShiftedIndex()] != nullptr &&
+			StatList::craftItemStats[Items::pickaxeWood->getShiftedIndex()] != nullptr,
+			"block mining and item use, break, and craft counters should use the Beta id ranges");
+		ok &= expect(StatList::mineBlockStats[18] == nullptr && StatList::mineBlockStats[9] == StatList::mineBlockStats[8] &&
+			StatList::mineBlockStats[62] == StatList::mineBlockStats[61] &&
+			StatList::mineBlockStats[2] == StatList::mineBlockStats[3] &&
+			StatList::mineBlockStats[60] == StatList::mineBlockStats[3],
+			"disabled and equivalent block mining counters should match the Beta registry aliases");
 		ok &= expect(AchievementList::achievements.size() == 16, "achievement registry should contain the 16 Beta 1.7.3 achievements");
 		ok &= expect(AchievementList::openInventory->statId == 5242880 && AchievementList::flyPig->statId == 5242895,
 			"achievement stat ids should occupy the Beta 1.7.3 range");
@@ -347,6 +431,53 @@ int runBlockSmoke()
 		ok &= expect(parsedAchievementStats != nullptr && parsedAchievementStats->at(AchievementList::openInventory) == 1 &&
 			parsedAchievementStats->at(AchievementList::mineWood) == 2,
 			"achievement stats should survive the Beta checksum serialization round trip");
+		StatMap counterStats;
+		counterStats[StatList::minutesPlayedStat] = 24000;
+		counterStats[StatList::mineBlockStats[Tile::rock.id]] = 37;
+		counterStats[StatList::craftItemStats[Items::pickaxeWood->getShiftedIndex()]] = 4;
+		std::string serializedCounterStats = StatFileWriter::serialize(&smokeUser, &localSession, counterStats);
+		std::unique_ptr<StatMap> parsedCounterStats = StatFileWriter::parse(
+			serializedCounterStats);
+		ok &= expect(parsedCounterStats != nullptr && parsedCounterStats->at(StatList::minutesPlayedStat) == 24000 &&
+			parsedCounterStats->at(StatList::mineBlockStats[Tile::rock.id]) == 37 &&
+			parsedCounterStats->at(StatList::craftItemStats[Items::pickaxeWood->getShiftedIndex()]) == 4,
+			"non-achievement counters should survive the Beta checksum serialization round trip");
+		std::string malformedCounterStats = serializedCounterStats;
+		malformedCounterStats.insert(malformedCounterStats.find("\r\n  ],"), ",");
+		std::unique_ptr<StatMap> malformedResult = StatFileWriter::parse(malformedCounterStats);
+		ok &= expect(malformedResult != nullptr && malformedResult->empty(),
+			"invalid Beta stats JSON syntax should return an empty map");
+		std::string mismatchedCounterStats = serializedCounterStats;
+		const std::string checksumMarker = "\"checksum\":\"";
+		size_t checksumPosition = mismatchedCounterStats.find(checksumMarker) + checksumMarker.size();
+		mismatchedCounterStats[checksumPosition] = mismatchedCounterStats[checksumPosition] == '0' ? '1' : '0';
+		ok &= expect(StatFileWriter::parse(mismatchedCounterStats) == nullptr,
+			"Beta stats checksum mismatches should return null");
+		bool wrongShapeThrew = false;
+		try
+		{
+			StatFileWriter::parse("{\"stats-change\":{},\"checksum\":\"\"}");
+		}
+		catch (const std::exception &)
+		{
+			wrongShapeThrew = true;
+		}
+		ok &= expect(wrongShapeThrew, "wrong Beta stats JSON shapes should propagate from the parser");
+		bool overflowValueThrew = false;
+		try
+		{
+			StatFileWriter::parse("{\"stats-change\":[{\"1000\":1},{\"1001\":2147483648}],\"checksum\":\"\"}");
+		}
+		catch (const std::out_of_range &)
+		{
+			overflowValueThrew = true;
+		}
+		ok &= expect(overflowValueThrew, "overflowing Beta stats values should propagate without returning a partial map");
+		ok &= expect(Items::reed->getDescriptionId() == u"item.reeds" &&
+			Items::minecartPowered->getDescriptionId() == u"item.minecartFurnace" &&
+			Items::diamond->getDescriptionId() == u"item.emerald" &&
+			Tile::deadBush.descriptionId == u"tile.deadbush",
+			"corrected item and tile description ids should match Beta 1.7.3");
 		ok &= expect(Tile::lightBlock[65] == 0, "ladder should stay transparent for light sampling like beta");
 		ok &= expect(Tile::lightBlock[53] == 255, "wood stairs should block light like beta");
 		ok &= expect(Tile::lightBlock[67] == 255, "stone stairs should block light like beta");
@@ -404,6 +535,9 @@ int runBlockSmoke()
 		ok &= expect(Tile::pressurePlateStone.getRenderShape() == Tile::SHAPE_BLOCK, "pressure plate should render as a bounded block shape");
 		ok &= expect(!TileRenderer::canRender(Tile::SHAPE_RED_DUST), "redstone wire item should use flat icon rendering");
 		ok &= expect(!TileRenderer::canRender(Tile::SHAPE_LEVER), "lever item should use flat icon rendering");
+		ok &= expect(TileRenderer::canRender(Tile::SHAPE_FENCE), "fence items should use the Beta 3D inventory renderer");
+		ok &= expect(!TileRenderer::canRender(Tile::SHAPE_BED), "bed items should use flat icon rendering");
+		ok &= expect(!TileRenderer::canRender(Tile::SHAPE_PISTON_EXTENSION), "piston extension items should use flat icon rendering");
 		ok &= expect(Tile::lightBlock[55] == 0, "redstone wire should not block light");
 		ok &= expect(Tile::lightBlock[69] == 0, "lever should not block light");
 		ok &= expect(Tile::lightBlock[70] == 0, "stone pressure plate should not block light");
@@ -555,6 +689,93 @@ int runBlockSmoke()
 		Player player(level);
 		player.yRot = 0.0f;
 		int_t baseY = 80;
+		User overflowUser(u"BlockSmokeOverflow", u"local");
+		std::unique_ptr<File> overflowDirectory(File::open(u"build/block-smoke-workdir"));
+		StatFileWriter overflowStats(overflowUser, *overflowDirectory);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		auto syncStart = std::chrono::steady_clock::now();
+		overflowStats.syncStats();
+		auto syncDuration = std::chrono::steady_clock::now() - syncStart;
+		ok &= expect(syncDuration < std::chrono::seconds(1),
+			"completed Beta stats receive workers should release synchronous saves before the main-thread tick");
+		overflowStats.readStat(*StatList::dropStat, std::numeric_limits<int_t>::max());
+		overflowStats.readStat(*StatList::dropStat, 1);
+		ok &= expect(overflowStats.getStat(*StatList::dropStat) == std::numeric_limits<int_t>::min(),
+			"readStat should wrap INT_MAX plus one like a Java int");
+		overflowStats.readStat(*StatList::jumpStat, 1);
+		StatMap loadedOverflowStats;
+		loadedOverflowStats[StatList::jumpStat] = std::numeric_limits<int_t>::max();
+		overflowStats.mergeLoadedTotal(loadedOverflowStats);
+		ok &= expect(overflowStats.getStat(*StatList::jumpStat) == std::numeric_limits<int_t>::min(),
+			"mergeLoadedTotal should wrap INT_MAX plus one like a Java int");
+		StatCapturePlayer statsPlayer(level);
+		statsPlayer.tick();
+		statsPlayer.jumpForSmoke();
+		statsPlayer.fallForSmoke(2.25f);
+		ok &= expect(statsPlayer.getCapturedStat(StatList::minutesPlayedStat) == 1 &&
+			statsPlayer.getCapturedStat(StatList::jumpStat) == 1 &&
+			statsPlayer.getCapturedStat(StatList::distanceFallenStat) == 225,
+			"player tick, jump, and fall should award the Beta counters");
+		int_t preciseFallBefore = statsPlayer.getCapturedStat(StatList::distanceFallenStat);
+		statsPlayer.fallForSmoke(2.135f);
+		ok &= expect(statsPlayer.getCapturedStat(StatList::distanceFallenStat) == preciseFallBefore + 213,
+			"fall distance should promote the Java float to double before rounding centimeters");
+		StatCapturePlayer cachedWaterPlayer(level);
+		cachedWaterPlayer.setPos(210.5, 126.0, 30.5);
+		cachedWaterPlayer.noPhysics = true;
+		cachedWaterPlayer.setCachedWaterForSmoke(true);
+		ok &= expect(cachedWaterPlayer.isInWater() && !cachedWaterPlayer.handleWaterMovement(),
+			"isInWater should return the cached base-tick state instead of rescanning the level");
+		cachedWaterPlayer.travel(0.0f, 1.0f);
+		ok &= expect(cachedWaterPlayer.getCapturedStat(StatList::distanceSwumStat) > 0 &&
+			cachedWaterPlayer.getCapturedStat(StatList::distanceDoveStat) == 0 &&
+			cachedWaterPlayer.getCapturedStat(StatList::distanceWalkedStat) == 0 &&
+			cachedWaterPlayer.getCapturedStat(StatList::distanceFlownStat) == 0,
+			"cached water state should classify player movement as swimming");
+		ItemInstance craftedPickaxe(Items::pickaxeWood->getShiftedIndex(), 3, 0);
+		craftedPickaxe.onCrafted(level, statsPlayer);
+		ItemInstance brokenPickaxe(Items::pickaxeWood->getShiftedIndex(), 1, 0);
+		brokenPickaxe.damageItem(brokenPickaxe.getMaxDamage() + 1, statsPlayer);
+		ok &= expect(statsPlayer.getCapturedStat(StatList::craftItemStats[Items::pickaxeWood->getShiftedIndex()]) == 3 &&
+			statsPlayer.getCapturedStat(StatList::breakItemStats[Items::pickaxeWood->getShiftedIndex()]) == 1,
+			"crafting and depleting an item should award the Beta counters by output count and break event");
+		Mob statTarget(level);
+		ItemInstance statSword(Items::swordWood->getShiftedIndex(), 1, 0);
+		statSword.hurtEnemy(statTarget, statsPlayer);
+		statsPlayer.awardKillScore(statTarget, 1);
+		Player statPlayerTarget(level);
+		statsPlayer.awardKillScore(statPlayerTarget, 1);
+		auto attackedTarget = std::make_shared<Mob>(level);
+		statsPlayer.attack(attackedTarget);
+		statsPlayer.yd = -0.1;
+		auto fallingAttackTarget = std::make_shared<Mob>(level);
+		statsPlayer.attack(fallingAttackTarget);
+		statsPlayer.yd = 0.0;
+		int_t damageTakenBefore = statsPlayer.getCapturedStat(StatList::damageTakenStat);
+		statsPlayer.hurt(nullptr, 2);
+		Monster hostileAttacker(level);
+		level.difficulty = 1;
+		statsPlayer.hurt(&hostileAttacker, 6);
+		level.difficulty = 0;
+		statsPlayer.hurt(&hostileAttacker, 6);
+		level.difficulty = 2;
+		ItemInstance droppedStack(Items::apple->getShiftedIndex(), 1, 0);
+		statsPlayer.drop(droppedStack);
+		Tile::rock.harvestBlock(level, statsPlayer, 230, baseY, 0, 0);
+		statsPlayer.die(nullptr);
+		ok &= expect(statsPlayer.getCapturedStat(StatList::useItemStats[Items::swordWood->getShiftedIndex()]) == 1 &&
+			statsPlayer.getCapturedStat(StatList::mobKillsStat) == 1 && statsPlayer.getCapturedStat(StatList::playerKillsStat) == 1,
+			"successful item hits and kill scoring should award the Beta counters");
+		ok &= expect(statsPlayer.getCapturedStat(StatList::damageDealtStat) == 3,
+			"successful attacks should award damage dealt including the falling-attack bonus");
+		ok &= expect(statsPlayer.getCapturedStat(StatList::damageTakenStat) == damageTakenBefore + 5,
+			"incoming hostile damage should award the difficulty-scaled amount and skip peaceful damage");
+		ok &= expect(statsPlayer.getCapturedStat(StatList::dropStat) == 1,
+			"dropping an item should award the drop counter");
+		ok &= expect(statsPlayer.getCapturedStat(StatList::mineBlockStats[Tile::rock.id]) == 1,
+			"block harvest should award the matching mined-block counter");
+		ok &= expect(statsPlayer.getCapturedStat(StatList::deathsStat) == 1,
+			"player death should award the death counter");
 		auto mountPlayer = std::make_shared<Player>(level);
 		mountPlayer->setPos(248.5, baseY + 2.0, 2.5);
 		mountPlayer->yRot = 0.0f;
@@ -664,6 +885,23 @@ int runBlockSmoke()
 		arrowRecipe.slots[6] = ItemInstance(Items::feather->getShiftedIndex(), 1, 0);
 		ItemInstance arrowOut = Recipes::getInstance().getItemFor(arrowRecipe);
 		ok &= expect(arrowOut.itemID == Items::arrow->getShiftedIndex() && arrowOut.stackSize == 4, "arrow recipe should match beta");
+		GridCraftingContainer fishingRodRecipe{};
+		fishingRodRecipe.slots[2] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		fishingRodRecipe.slots[4] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		fishingRodRecipe.slots[5] = ItemInstance(Items::silk->getShiftedIndex(), 1, 0);
+		fishingRodRecipe.slots[6] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		fishingRodRecipe.slots[8] = ItemInstance(Items::silk->getShiftedIndex(), 1, 0);
+		ItemInstance fishingRodOut = Recipes::getInstance().getItemFor(fishingRodRecipe);
+		ok &= expect(fishingRodOut.itemID == Items::fishingRod->getShiftedIndex(), "fishing rod recipe should match beta");
+		ok &= expect(Items::fishingRod->getMaxDamage() == 64 && Items::fishingRod->getMaxStackSize() == 1 &&
+			Items::fishingRod->isFull3D() && Items::fishingRod->shouldRotateAroundWhenRendering(),
+			"fishing rod properties should match beta");
+		GridCraftingContainer paintingRecipe{};
+		for (int_t slot = 0; slot < 9; ++slot)
+			paintingRecipe.slots[slot] = ItemInstance(Items::stick->getShiftedIndex(), 1, 0);
+		paintingRecipe.slots[4] = ItemInstance(Tile::wool.id, 1, 7);
+		ItemInstance paintingOut = Recipes::getInstance().getItemFor(paintingRecipe);
+		ok &= expect(paintingOut.itemID == Items::painting->getShiftedIndex(), "painting recipe should match beta");
 		auto bowPlayer = std::make_shared<Player>(level);
 		bowPlayer->setPos(222.5, baseY + 2.0, 20.5);
 		ok &= expect(level.addEntity(bowPlayer), "bow player should join the level");
@@ -679,6 +917,113 @@ int runBlockSmoke()
 		pickupArrow.playerTouch(*bowPlayer);
 		ok &= expect(!bowPlayer->inventory.mainInventory[1].isEmpty() && bowPlayer->inventory.mainInventory[1].itemID == Items::arrow->getShiftedIndex(), "grounded player arrow should be picked back up");
 		ok &= expect(pickupArrow.removed, "picked up arrow should remove itself");
+
+		std::cerr << "block-smoke: fishing and paintings" << std::endl;
+		auto fishingPlayer = std::make_shared<Player>(level);
+		fishingPlayer->setPos(228.5, baseY + 2.0, 20.5);
+		ok &= expect(level.addEntity(fishingPlayer), "fishing player should join the level");
+		fishingPlayer->inventory.setItem(0, ItemInstance(Items::fishingRod->getShiftedIndex(), 1, 0));
+		size_t entityCountBeforeCast = level.getAllEntities().size();
+		fishingPlayer->inventory.mainInventory[0].use(level, *fishingPlayer);
+		auto fishHook = fishingPlayer->fishEntity;
+		ok &= expect(fishHook != nullptr && fishHook->angler == fishingPlayer.get() && !fishHook->removed,
+			"casting should create an owned fishing hook for the player");
+		ok &= expect(level.getAllEntities().size() == entityCountBeforeCast + 1,
+			"casting should add one fishing hook entity to the level");
+		fishHook->bobber = bowPlayer;
+		double hookedMotionBefore = bowPlayer->xd * bowPlayer->xd + bowPlayer->yd * bowPlayer->yd + bowPlayer->zd * bowPlayer->zd;
+		fishingPlayer->inventory.mainInventory[0].use(level, *fishingPlayer);
+		double hookedMotionAfter = bowPlayer->xd * bowPlayer->xd + bowPlayer->yd * bowPlayer->yd + bowPlayer->zd * bowPlayer->zd;
+		ok &= expect(fishingPlayer->fishEntity == nullptr && fishHook->removed,
+			"retracting should remove the hook and clear player ownership");
+		ok &= expect(fishingPlayer->inventory.mainInventory[0].itemDamage == 3 && hookedMotionAfter > hookedMotionBefore,
+			"retracting a hooked entity should damage the rod by three and pull the entity");
+
+		for (int_t wallX = 232; wallX <= 239; ++wallX)
+			for (int_t wallY = baseY + 1; wallY <= baseY + 8; ++wallY)
+				level.setTile(wallX, wallY, 30, Tile::rock.id);
+		ItemInstance paintingStack(Items::painting->getShiftedIndex(), 1, 0);
+		size_t entityCountBeforePainting = level.getAllEntities().size();
+		ok &= expect(paintingStack.useOn(*fishingPlayer, level, 235, baseY + 4, 30, Facing::NORTH),
+			"painting should be usable on a wall face");
+		std::shared_ptr<EntityPainting> placedPainting;
+		for (const auto &entity : level.getAllEntities())
+		{
+			auto candidate = std::dynamic_pointer_cast<EntityPainting>(entity);
+			if (candidate != nullptr && !candidate->removed)
+			{
+				placedPainting = candidate;
+				break;
+			}
+		}
+		ok &= expect(paintingStack.stackSize == 0 && placedPainting != nullptr && placedPainting->direction == 0 && placedPainting->survives(),
+			"painting placement should consume the item and create a surviving north-facing painting");
+		ok &= expect(level.getAllEntities().size() == entityCountBeforePainting + 1,
+			"painting placement should add one entity to the level");
+		size_t paintingDropsBefore = 0;
+		for (const auto &entity : level.getAllEntities())
+		{
+			auto item = std::dynamic_pointer_cast<EntityItem>(entity);
+			if (item != nullptr && item->item.itemID == Items::painting->getShiftedIndex())
+				paintingDropsBefore++;
+		}
+		if (placedPainting != nullptr)
+			placedPainting->hurt(fishingPlayer.get(), 0);
+		size_t paintingDropsAfter = 0;
+		for (const auto &entity : level.getAllEntities())
+		{
+			auto item = std::dynamic_pointer_cast<EntityItem>(entity);
+			if (item != nullptr && item->item.itemID == Items::painting->getShiftedIndex())
+				paintingDropsAfter++;
+		}
+		ok &= expect(placedPainting != nullptr && placedPainting->removed && paintingDropsAfter == paintingDropsBefore + 1,
+			"breaking a painting should remove it and drop exactly one painting item");
+
+		std::cerr << "block-smoke: wolf entity events and shaking" << std::endl;
+		Wolf statusWolf(level);
+		statusWolf.interpolateOnly = true;
+		statusWolf.setPos(244.5, baseY + 2.0, 20.5);
+		statusWolf.onGround = true;
+		listener.clear();
+		statusWolf.handleEntityEvent(7);
+		ok &= expect(listener.particles.size() == 7,
+			"wolf tame success event should spawn seven heart particles");
+		for (const auto &particle : listener.particles)
+			ok &= expect(particle == u"heart", "wolf tame success event should only spawn heart particles");
+		listener.clear();
+		statusWolf.handleEntityEvent(6);
+		ok &= expect(listener.particles.size() == 7,
+			"wolf tame failure event should spawn seven smoke particles");
+		for (const auto &particle : listener.particles)
+			ok &= expect(particle == u"smoke", "wolf tame failure event should only spawn smoke particles");
+		listener.clear();
+		statusWolf.handleEntityEvent(8);
+		for (int_t tick = 0; tick < 10; ++tick)
+			statusWolf.tick();
+		int_t shakeSounds = 0;
+		int_t splashParticles = 0;
+		for (const auto &sound : listener.sounds)
+			if (sound == u"mob.wolf.shake")
+				shakeSounds++;
+		for (const auto &particle : listener.particles)
+			if (particle == u"splash")
+				splashParticles++;
+		ok &= expect(shakeSounds == 1, "wolf shake event should play its sound once");
+		ok &= expect(splashParticles == 3,
+			"wolf shake should emit the beta splash counts through its first ten ticks");
+		ok &= expect(std::abs(statusWolf.getShakeAngle(1.0f, 0.0f)) > 0.001f,
+			"wolf shake event should advance the model shake angle");
+		WolfModel statusWolfModel;
+		statusWolfModel.prepare(statusWolf, 0.0f, 0.0f, 1.0f);
+		ok &= expect(std::abs(statusWolfModel.head.zRot) > 0.001f &&
+			std::abs(statusWolfModel.mane.zRot) > 0.001f &&
+			std::abs(statusWolfModel.body.zRot) > 0.001f &&
+			std::abs(statusWolfModel.tail.zRot) > 0.001f,
+			"wolf model should apply the beta shake offsets to head, mane, body, and tail");
+		for (int_t tick = 0; tick < 32; ++tick)
+			statusWolf.tick();
+		ok &= expect(statusWolf.getShakeAngle(1.0f, 0.0f) == 0.0f,
+			"wolf shake state should reset after two seconds");
 		
 		std::cerr << "block-smoke: validation mobs" << std::endl;
 		InspectableCow cow(level);
@@ -736,11 +1081,80 @@ int runBlockSmoke()
 		ok &= expect(chicken.eggTime > 1, "chicken should reset its egg timer after laying an egg");
 		ok &= expect(level.getAllEntities().size() == entityCountBeforeEgg + 1, "chicken egg timer should spawn an egg item entity");
 
+		std::cerr << "block-smoke: multiplayer weather presentation" << std::endl;
+		ok &= expect(!level.getBiomeSource().getBiomeInfo(BiomeId::Taiga).canSpawnLightningBolt() &&
+			level.getBiomeSource().getBiomeInfo(BiomeId::Plains).canSpawnLightningBolt(),
+			"snow biomes must not also render rain or spawn rain particles");
+		level.lastLightningBolt = 0;
+		level.setRainStrength(0.0f);
+		Vec3 *drySky = level.getSkyColor(player, 1.0f);
+		double drySkyR = drySky->x;
+		double drySkyG = drySky->y;
+		double drySkyB = drySky->z;
+		Vec3 *dryCloud = level.getCloudColor(1.0f);
+		double dryCloudR = dryCloud->x;
+		double dryCloudG = dryCloud->y;
+		double dryCloudB = dryCloud->z;
+		level.setRainStrength(0.625f);
+		ok &= expect(level.getRainStrength(0.0f) == 0.625f &&
+			level.getRainStrength(0.5f) == 0.625f && level.getRainStrength(1.0f) == 0.625f,
+			"multiplayer rain packets should set both interpolation endpoints immediately");
+		level.setRainStrength(1.0f);
+		ok &= expect(level.isRaining(), "full rain strength should satisfy Beta's 0.2 rain threshold");
+		Vec3 *wetSky = level.getSkyColor(player, 1.0f);
+		double rainGray = (drySkyR * 0.3 + drySkyG * 0.59 + drySkyB * 0.11) * 0.6;
+		ok &= expect(std::abs(wetSky->x - (drySkyR * 0.25 + rainGray * 0.75)) < 1.0e-6 &&
+			std::abs(wetSky->y - (drySkyG * 0.25 + rainGray * 0.75)) < 1.0e-6 &&
+			std::abs(wetSky->z - (drySkyB * 0.25 + rainGray * 0.75)) < 1.0e-6,
+			"rain should apply Beta's exact sky-color grayscale blend");
+		Vec3 *wetCloud = level.getCloudColor(1.0f);
+		ok &= expect(wetCloud->x != dryCloudR || wetCloud->y != dryCloudG || wetCloud->z != dryCloudB,
+			"rain should attenuate cloud color");
+		level.setRainStrength(0.0f);
+		ok &= expect(!level.isRaining(), "zero rain strength should clear Beta's rain threshold immediately");
+
+		ok &= expect(level.setTile(10, 127, 20, Tile::glass.id), "weather top-solid test block should place");
+		int_t weatherTop = level.findTopSolidBlock(10, 20);
+		ok &= expect(weatherTop == 128,
+			"rain placement should scan solid and liquid materials from y=127 like Beta");
+		level.setTile(10, 127, 20, 0);
+
+		InspectableRainParticle rainParticle(level, 341.5, 125.0, 20.5);
+		ok &= expect(rainParticle.textureIndex() >= 19 && rainParticle.textureIndex() <= 22,
+			"rain particle should select one of Beta's four rain sprites");
+		ok &= expect(rainParticle.bbWidth == 0.01f && rainParticle.bbHeight == 0.01f &&
+			rainParticle.particleGravity() == 0.06f,
+			"rain particle should use Beta's exact size and gravity");
+		int_t rainLifetime = rainParticle.remainingLifetime();
+		double rainXd = rainParticle.xd;
+		double rainYd = rainParticle.yd;
+		double rainZd = rainParticle.zd;
+		rainParticle.tick();
+		ok &= expect(rainParticle.remainingLifetime() == rainLifetime - 1 &&
+			std::abs(rainParticle.xd - rainXd * 0.98f) < 1.0e-9 &&
+			std::abs(rainParticle.yd - (rainYd - 0.06f) * 0.98f) < 1.0e-9 &&
+			std::abs(rainParticle.zd - rainZd * 0.98f) < 1.0e-9,
+			"rain particle tick should apply Beta's gravity, friction, and countdown order");
+
 		std::cerr << "block-smoke: lightning and spawn commands" << std::endl;
 		InspectablePig lightningPig(level);
 		lightningPig.setPos(232.5, baseY + 2.0, 20.5);
 		size_t entitiesBeforeLightningPig = level.getAllEntities().size();
 		EntityLightningBolt lightning(level, lightningPig.x, lightningPig.y, lightningPig.z);
+		level.lastLightningBolt = 0;
+		Vec3 *normalSky = level.getSkyColor(lightning, 1.0f);
+		double normalSkyR = normalSky->x;
+		double normalSkyG = normalSky->y;
+		double normalSkyB = normalSky->z;
+		lightning.tick();
+		ok &= expect(level.lastLightningBolt == 2, "active lightning should set the world's sky-flash counter");
+		Vec3 *flashedSky = level.getSkyColor(lightning, 1.0f);
+		ok &= expect(std::abs(flashedSky->x - (normalSkyR * 0.55 + 0.8 * 0.45)) < 1.0e-6 &&
+			std::abs(flashedSky->y - (normalSkyG * 0.55 + 0.8 * 0.45)) < 1.0e-6 &&
+			std::abs(flashedSky->z - (normalSkyB * 0.55 + 0.45)) < 1.0e-6,
+			"lightning sky flash should use Beta 1.7.3's exact color blend");
+		ok &= expect(EntityIO::newEntity(48, level) == nullptr,
+			"abstract numeric Mob ID 48 should fail construction like Beta's reflective EntityList");
 		lightningPig.onStruckByLightning(lightning);
 		ok &= expect(lightningPig.removed, "pig struck by lightning should be removed");
 		ok &= expect(level.getAllEntities().size() == entitiesBeforeLightningPig + 1, "pig lightning should spawn a pig zombie");

@@ -10,6 +10,7 @@
 
 Slime::Slime(Level &level) : Mob(level)
 {
+	dataWatcher.addObject(16, static_cast<byte_t>(1));
 	textureName = u"/mob/slime.png";
 	renderOffset = 0.0f;
 	slimeJumpDelay = random.nextInt(20) + 10;
@@ -18,7 +19,7 @@ Slime::Slime(Level &level) : Mob(level)
 
 void Slime::setSlimeSize(int_t size)
 {
-	slimeSize = size;
+	dataWatcher.updateObject(16, static_cast<byte_t>(size));
 	setSize(0.6f * size, 0.6f * size);
 	health = size * size;
 	setPos(x, y, z);
@@ -26,7 +27,7 @@ void Slime::setSlimeSize(int_t size)
 
 int_t Slime::getSlimeSize() const
 {
-	return slimeSize;
+	return dataWatcher.getWatchableObjectByte(16);
 }
 
 void Slime::tick()

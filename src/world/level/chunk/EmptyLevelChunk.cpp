@@ -173,7 +173,7 @@ int_t EmptyLevelChunk::getBlocksAndData(byte_t *out, int_t x0, int_t y0, int_t z
 	return fsize;
 }
 
-int_t EmptyLevelChunk::setBlocksAndData(byte_t *in, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1)
+int_t EmptyLevelChunk::setBlocksAndData(const byte_t *in, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1)
 {
 	int_t w = x1 - x0;
 	int_t h = y1 - y0;

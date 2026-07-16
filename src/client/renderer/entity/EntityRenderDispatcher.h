@@ -27,6 +27,10 @@ class BoatRenderer;
 class ItemRenderer;
 class TNTPrimedRenderer;
 class MobRenderer;
+class FishingHookRenderer;
+class PaintingRenderer;
+class LightningBoltRenderer;
+class GenericEntityRenderer;
 
 class EntityRenderDispatcher
 {
@@ -45,6 +49,10 @@ private:
 	static FireballRenderer &getFireballRenderer();
 	static EntityRenderer &getSnowballRenderer();
 	static EntityRenderer &getThrownEggRenderer();
+	static FishingHookRenderer &getFishingHookRenderer();
+	static PaintingRenderer &getPaintingRenderer();
+	static LightningBoltRenderer &getLightningBoltRenderer();
+	static GenericEntityRenderer &getGenericEntityRenderer();
 	static ChickenRenderer &getChickenRenderer();
 	static PigRenderer &getPigRenderer();
 	static SheepRenderer &getSheepRenderer();

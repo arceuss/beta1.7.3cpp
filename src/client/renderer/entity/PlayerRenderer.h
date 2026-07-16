@@ -2,6 +2,8 @@
 
 #include "client/renderer/entity/MobRenderer.h"
 
+class Player;
+
 class PlayerRenderer : public MobRenderer
 {
 private:
@@ -19,6 +21,8 @@ protected:
 	void additionalRendering(Mob &mob, float a) override;
 	void setupRotations(Mob &mob, float bob, float bodyRot, float a) override;
 	bool prepareArmor(Mob &mob, int_t layer, float a) override;
+	void renderName(Player &player, double x, double y, double z);
+	void renderLivingLabel(Player &player, const jstring &name, double x, double y, double z, int_t maxDistance);
 public:
 	void renderHand();
 };

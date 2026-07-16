@@ -1839,6 +1839,54 @@ void TileRenderer::renderTile(Tile &tile, int_t data)
 			tile.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 			glTranslatef(0.5f, 0.5f, 0.5f);
 		}
+		else if (shape == Tile::SHAPE_FENCE)
+		{
+			for (int_t piece = 0; piece < 4; ++piece)
+			{
+				float width = 2.0f / 16.0f;
+				if (piece == 0)
+					tile.setShape(0.5f - width, 0.0f, 0.0f,
+						0.5f + width, 1.0f, width * 2.0f);
+				if (piece == 1)
+					tile.setShape(0.5f - width, 0.0f, 1.0f - width * 2.0f,
+						0.5f + width, 1.0f, 1.0f);
+				width = 1.0f / 16.0f;
+				if (piece == 2)
+					tile.setShape(0.5f - width, 1.0f - width * 3.0f, -width * 2.0f,
+						0.5f + width, 1.0f - width, 1.0f + width * 2.0f);
+				if (piece == 3)
+					tile.setShape(0.5f - width, 0.5f - width * 3.0f, -width * 2.0f,
+						0.5f + width, 0.5f - width, 1.0f + width * 2.0f);
+
+				glTranslatef(-0.5f, -0.5f, -0.5f);
+				t.begin();
+				t.normal(0.0f, -1.0f, 0.0f);
+				renderFaceUp(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::DOWN));
+				t.end();
+				t.begin();
+				t.normal(0.0f, 1.0f, 0.0f);
+				renderFaceDown(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::UP));
+				t.end();
+				t.begin();
+				t.normal(0.0f, 0.0f, -1.0f);
+				renderNorth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::NORTH));
+				t.end();
+				t.begin();
+				t.normal(0.0f, 0.0f, 1.0f);
+				renderSouth(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::SOUTH));
+				t.end();
+				t.begin();
+				t.normal(-1.0f, 0.0f, 0.0f);
+				renderWest(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::WEST));
+				t.end();
+				t.begin();
+				t.normal(1.0f, 0.0f, 0.0f);
+				renderEast(tile, 0.0, 0.0, 0.0, tile.getTexture(Facing::EAST));
+				t.end();
+				glTranslatef(0.5f, 0.5f, 0.5f);
+			}
+			tile.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+		}
 		else if (shape == Tile::SHAPE_STAIRS)
 		{
 			glTranslatef(-0.5f, -0.5f, -0.5f);
@@ -2092,7 +2140,9 @@ void TileRenderer::renderGuiTile(Tile &tile, int_t data)
 
 bool TileRenderer::canRender(int_t renderShape)
 	{
-		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS || renderShape == Tile::SHAPE_STAIRS || renderShape == Tile::SHAPE_PISTON_BASE || renderShape == Tile::SHAPE_PISTON_EXTENSION || renderShape == Tile::SHAPE_BED;
+		return renderShape == Tile::SHAPE_BLOCK || renderShape == Tile::SHAPE_CACTUS ||
+			renderShape == Tile::SHAPE_STAIRS || renderShape == Tile::SHAPE_FENCE ||
+			renderShape == Tile::SHAPE_PISTON_BASE;
 	}
 
 

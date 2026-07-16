@@ -10,6 +10,7 @@
 #include "world/item/Items.h"
 #include "world/entity/player/Player.h"
 #include "world/entity/item/EntityItem.h"
+#include "world/stats/StatList.h"
 
 LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::leaves, false)
 {
@@ -185,8 +186,10 @@ void LeafTile::stepOn(Level &level, int_t x, int_t y, int_t z, Entity &entity)
 void LeafTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
 {
 	ItemInstance *selected = player.getSelectedItem();
-	if (selected != nullptr && selected->itemID == Items::shears->getShiftedIndex())
+	if (!level.isOnline && selected != nullptr && selected->itemID == Items::shears->getShiftedIndex())
 	{
+		if (StatBase *stat = StatList::mineBlockStats[id])
+			player.addStat(*stat, 1);
 		auto item = std::make_shared<EntityItem>(level, x + 0.5, y + 0.5, z + 0.5, ItemInstance(id, 1, data & 3));
 		level.addEntity(item);
 	}

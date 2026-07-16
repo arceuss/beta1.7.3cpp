@@ -29,6 +29,6 @@ protected:
 	void readAdditionalSaveData(CompoundTag &tag) override;
 
 public:
-	float getShadowHeightOffs();
+	float getShadowHeightOffs() override;
 	Level &getLevel() { return level; }
 };

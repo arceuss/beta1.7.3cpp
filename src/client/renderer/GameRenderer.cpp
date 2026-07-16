@@ -3,10 +3,15 @@
 #include "client/Minecraft.h"
 #include "client/Lighting.h"
 #include "client/gui/ScreenSizeCalculator.h"
+#include "client/particle/RainParticle.h"
+#include "client/particle/SmokeParticle.h"
+#include "client/renderer/Tesselator.h"
 
 #include "client/renderer/culling/FrustumCuller.h"
 
 #include "world/level/chunk/ChunkCache.h"
+#include "world/level/biome/BiomeSource.h"
+#include "world/level/tile/Tile.h"
 
 #include "util/Mth.h"
 #include "util/GLU.h"
@@ -20,11 +25,40 @@
 
 #include "world/level/material/LiquidMaterial.h"
 
+#include <cstdint>
+
+namespace
+{
+	int_t javaIntAdd(int_t left, int_t right)
+	{
+		return static_cast<int_t>(static_cast<std::uint32_t>(left) + static_cast<std::uint32_t>(right));
+	}
+
+	int_t javaIntMultiply(int_t left, int_t right)
+	{
+		return static_cast<int_t>(static_cast<std::uint32_t>(left) * static_cast<std::uint32_t>(right));
+	}
+
+	long_t javaLongMultiply(long_t left, long_t right)
+	{
+		return static_cast<long_t>(static_cast<std::uint64_t>(left) * static_cast<std::uint64_t>(right));
+	}
+
+	int_t rainColumnSeed(int_t x, int_t z)
+	{
+		int_t seed = javaIntMultiply(javaIntMultiply(x, x), 3121);
+		seed = javaIntAdd(seed, javaIntMultiply(x, 45238971));
+		seed = javaIntAdd(seed, javaIntMultiply(javaIntMultiply(z, z), 418711));
+		return javaIntAdd(seed, javaIntMultiply(z, 13761));
+	}
+}
+
 GameRenderer::GameRenderer(Minecraft &mc) : mc(mc), itemInHandRenderer(ItemInHandRenderer(mc))
 {
 
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.EntityRenderer#updateRenderer()
 void GameRenderer::tick()
 {
 	fogBrO = fogBr;
@@ -33,11 +67,92 @@ void GameRenderer::tick()
 	float fogBrTarget = brightness * (1.0f - dist) + dist;
 	fogBr += (fogBrTarget - fogBr) * 0.1f;
 
-	ticks++;
+	ticks = javaIntAdd(ticks, 1);
 
 	itemInHandRenderer.tick();
+	addRainParticles();
+}
 
-	// TODO tickRain rain
+// B173-JAVA-METHOD: net.minecraft.src.EntityRenderer#addRainParticles()
+void GameRenderer::addRainParticles()
+{
+	float rainStrength = mc.level->getRainStrength(1.0f);
+	if (!mc.options.fancyGraphics)
+		rainStrength /= 2.0f;
+
+	if (rainStrength == 0.0f)
+		return;
+
+	random.setSeed(javaLongMultiply(static_cast<long_t>(ticks), 312987231LL));
+	Entity &view = *mc.player;
+	Level &level = *mc.level;
+	int_t playerX = Mth::floor(view.x);
+	int_t playerY = Mth::floor(view.y);
+	int_t playerZ = Mth::floor(view.z);
+	constexpr int_t radius = 10;
+	double soundX = 0.0;
+	double soundY = 0.0;
+	double soundZ = 0.0;
+	int_t rainColumns = 0;
+
+	int_t attempts = static_cast<int_t>(100.0f * rainStrength * rainStrength);
+	for (int_t i = 0; i < attempts; ++i)
+	{
+		int_t x = javaIntAdd(playerX, random.nextInt(radius));
+		x = javaIntAdd(x, -random.nextInt(radius));
+		int_t z = javaIntAdd(playerZ, random.nextInt(radius));
+		z = javaIntAdd(z, -random.nextInt(radius));
+		int_t y = level.findTopSolidBlock(x, z);
+		int_t tileId = level.getTile(x, y - 1, z);
+		const BiomeInfo &biome = level.getBiomeSource().getBiomeInfo(level.getBiomeSource().getBiome(x, z));
+		if (y <= playerY + radius && y >= playerY - radius && biome.canSpawnLightningBolt())
+		{
+			float rx = random.nextFloat();
+			float rz = random.nextFloat();
+			if (tileId > 0)
+			{
+				Tile *tile = Tile::tiles[tileId];
+				double particleY = static_cast<float>(y) + 0.1f - tile->yy0;
+				if (&tile->material == static_cast<const Material *>(&Material::lava))
+				{
+					mc.particleEngine.add(std::make_unique<SmokeParticle>(level,
+						static_cast<float>(x) + rx, particleY, static_cast<float>(z) + rz, 0.0, 0.0, 0.0));
+				}
+				else
+				{
+					if (random.nextInt(++rainColumns) == 0)
+					{
+						soundX = static_cast<float>(x) + rx;
+						soundY = particleY;
+						soundZ = static_cast<float>(z) + rz;
+					}
+
+					mc.particleEngine.add(std::make_unique<RainParticle>(level,
+						static_cast<float>(x) + rx, particleY, static_cast<float>(z) + rz));
+				}
+			}
+		}
+	}
+
+	if (rainColumns > 0)
+	{
+		int_t choice = random.nextInt(3);
+		int_t threshold = rainSoundCounter;
+		rainSoundCounter = javaIntAdd(rainSoundCounter, 1);
+		if (choice < threshold)
+		{
+			rainSoundCounter = 0;
+			if (soundY > view.y + 1.0 &&
+				level.findTopSolidBlock(Mth::floor(view.x), Mth::floor(view.z)) > Mth::floor(view.y))
+			{
+				level.playSoundEffect(soundX, soundY, soundZ, u"ambient.weather.rain", 0.1f, 0.5f);
+			}
+			else
+			{
+				level.playSoundEffect(soundX, soundY, soundZ, u"ambient.weather.rain", 0.2f, 1.0f);
+			}
+		}
+	}
 }
 
 void GameRenderer::itemPlaced()
@@ -115,12 +230,14 @@ void GameRenderer::pick(float a)
 		mc.hitResult = HitResult(hovered);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.EntityRenderer#getFOVModifier(float)
 float GameRenderer::getFov(float a)
 {
 	auto &player = mc.player;
 
 	float result = 70.0f;
-	// TODO water material
+	if (player->isUnderLiquid(Material::water))
+		result = 60.0f;
 
 	if (player->health <= 0)
 	{
@@ -169,8 +286,9 @@ void GameRenderer::bobView(float a)
 void GameRenderer::moveCameraToPlayer(float a)
 {
 	auto &player = *mc.player;
+	float eyeOffset = player.heightOffset - 1.62f;
 	double xOff = player.xOld + (player.x - player.xOld) * a;
-	double yOff = player.yOld + (player.y - player.yOld) * a;
+	double yOff = player.yOld + (player.y - player.yOld) * a - eyeOffset;
 	double zOff = player.zOld + (player.z - player.zOld) * a;
 
 	if (player.sleeping)
@@ -189,11 +307,6 @@ void GameRenderer::moveCameraToPlayer(float a)
 		double distance = 4.0;
 		float yRot = player.yRot;
 		float xRot = player.xRot;
-		if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F1))
-		{
-			xRot += 180.0f;
-			distance += 2.0f;
-		}
 
 		double vx = -Mth::sin(yRot / 180.0f * Mth::PI) * Mth::cos(xRot / 180.0f * Mth::PI) * distance;
 		double vz = Mth::cos(yRot / 180.0f * Mth::PI) * Mth::cos(xRot / 180.0f * Mth::PI) * distance;
@@ -215,9 +328,6 @@ void GameRenderer::moveCameraToPlayer(float a)
 			}
 		}
 
-		if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F1))
-			glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
-
 		glRotatef(player.xRot - xRot, 1.0f, 0.0f, 0.0f);
 		glRotatef(player.yRot - yRot, 0.0f, 1.0f, 0.0f);
 		glTranslatef(0.0f, 0.0f, -distance);
@@ -237,6 +347,7 @@ void GameRenderer::moveCameraToPlayer(float a)
 	}
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.EntityRenderer#setupCameraTransform(float,int)
 void GameRenderer::setupCamera(float a, int_t eye)
 {
 	renderDistance = 256 >> mc.options.viewDistance;
@@ -252,11 +363,11 @@ void GameRenderer::setupCamera(float a, int_t eye)
 	{
 		glTranslatef(zoom_x, -zoom_y, 0.0f);
 		glScaled(zoom, zoom, 1.0);
-		gluPerspective(getFov(a), static_cast<float>(mc.width) / static_cast<float>(mc.height), 0.05f, renderDistance);
+		gluPerspective(getFov(a), static_cast<float>(mc.width) / static_cast<float>(mc.height), 0.05f, renderDistance * 2.0f);
 	}
 	else
 	{
-		gluPerspective(getFov(a), static_cast<float>(mc.width) / static_cast<float>(mc.height), 0.05f, renderDistance);
+		gluPerspective(getFov(a), static_cast<float>(mc.width) / static_cast<float>(mc.height), 0.05f, renderDistance * 2.0f);
 	}
 
 	glMatrixMode(GL_MODELVIEW);
@@ -268,7 +379,15 @@ void GameRenderer::setupCamera(float a, int_t eye)
 	if (mc.options.bobView)
 		bobView(a);
 
-	// TODO portal effect
+	float portalTime = mc.player->oPortalTime + (mc.player->portalTime - mc.player->oPortalTime) * a;
+	if (portalTime > 0.0f)
+	{
+		float scale = 5.0f / (portalTime * portalTime + 5.0f) - portalTime * 0.04f;
+		scale *= scale;
+		glRotatef((ticks + a) * 20.0f, 0.0f, 1.0f, 1.0f);
+		glScalef(1.0f / scale, 1.0f, 1.0f);
+		glRotatef(-(ticks + a) * 20.0f, 0.0f, 1.0f, 1.0f);
+	}
 
 	moveCameraToPlayer(a);
 }
@@ -284,7 +403,7 @@ void GameRenderer::renderItemInHand(float a, int_t eye)
 	bobHurt(a);
 	if (mc.options.bobView)
 		bobView(a);
-	if (!mc.options.thirdPersonView && !lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F1) && !mc.player->sleeping)
+	if (!mc.options.thirdPersonView && !mc.player->sleeping && !mc.options.hideGui)
 		itemInHandRenderer.render(a);
 
 	glPopMatrix();
@@ -320,6 +439,11 @@ void GameRenderer::render(float a)
 			float sens2 = sens * sens * sens * 8.0f;
 			float dx = mc.mouseHandler.xd * sens2;
 			float dy = mc.mouseHandler.yd * sens2;
+			if (mc.options.smoothCamera)
+			{
+				dx = mouseFilterXAxis.smooth(dx, 0.05f * sens2);
+				dy = mouseFilterYAxis.smooth(dy, 0.05f * sens2);
+			}
 
 			mc.player->turn(dx, dy * (mc.options.invertYMouse ? -1 : 1));
 		}
@@ -338,7 +462,7 @@ void GameRenderer::render(float a)
 	if (mc.level != nullptr)
 	{
 		renderLevel(a);
-		if (!lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F1))
+		if (!mc.options.hideGui || mc.screen != nullptr)
 			mc.gui.render(a, mc.screen != nullptr, xm, ym);
 	}
 	else
@@ -434,14 +558,11 @@ void GameRenderer::renderLevel(float a)
 
 		mc.particleEngine.render(*player, a);
 
-		// TODO
-		// water material
-		if (mc.hitResult.type != HitResult::Type::NONE && false) // && player->isUnderLiquid()
+		if (mc.hitResult.type != HitResult::Type::NONE && player->isUnderLiquid(Material::water))
 		{
 			glDisable(GL_ALPHA_TEST);
-			// TODO inventory selected
-			levelRenderer.renderHit(*player, mc.hitResult, 0, nullptr, a);
-			levelRenderer.renderHitOutline(*player, mc.hitResult, 0, nullptr, a);
+			levelRenderer.renderHit(*player, mc.hitResult, 0, player->inventory.getCurrentItem(), a);
+			levelRenderer.renderHitOutline(*player, mc.hitResult, 0, player->inventory.getCurrentItem(), a);
 			glEnable(GL_ALPHA_TEST);
 		}
 
@@ -487,16 +608,15 @@ void GameRenderer::renderLevel(float a)
 		glEnable(GL_CULL_FACE);
 		glDisable(GL_BLEND);
 
-		// TODO
-		// water material
-		if (zoom == 1.0 && mc.hitResult.type != HitResult::Type::NONE) // && !player->isUnderLiquid())
+		if (zoom == 1.0 && mc.hitResult.type != HitResult::Type::NONE && !player->isUnderLiquid(Material::water))
 		{
 			glDisable(GL_ALPHA_TEST);
-			levelRenderer.renderHit(*player, mc.hitResult, 0, nullptr, a);
-			levelRenderer.renderHitOutline(*player, mc.hitResult, 0, nullptr, a);
+			levelRenderer.renderHit(*player, mc.hitResult, 0, player->inventory.getCurrentItem(), a);
+			levelRenderer.renderHitOutline(*player, mc.hitResult, 0, player->inventory.getCurrentItem(), a);
 			glEnable(GL_ALPHA_TEST);
 		}
 
+		renderRainSnow(a);
 		glDisable(GL_FOG);
 		if (hovered != nullptr)
 		{
@@ -525,6 +645,164 @@ void GameRenderer::renderLevel(float a)
 	glColorMask(true, true, true, true);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.EntityRenderer#renderRainSnow(float)
+void GameRenderer::renderRainSnow(float a)
+{
+	float rainStrength = mc.level->getRainStrength(a);
+	if (rainStrength <= 0.0f)
+		return;
+
+	Entity &view = *mc.player;
+	Level &level = *mc.level;
+	int_t playerX = Mth::floor(view.x);
+	int_t playerY = Mth::floor(view.y);
+	int_t playerZ = Mth::floor(view.z);
+	Tesselator &t = Tesselator::instance;
+	glDisable(GL_CULL_FACE);
+	glNormal3f(0.0f, 1.0f, 0.0f);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glAlphaFunc(GL_GREATER, 0.01f);
+	glBindTexture(GL_TEXTURE_2D, mc.textures.loadTexture(u"/environment/snow.png"));
+	double cameraX = view.xOld + (view.x - view.xOld) * a;
+	double cameraY = view.yOld + (view.y - view.yOld) * a;
+	double cameraZ = view.zOld + (view.z - view.zOld) * a;
+	int_t cameraFloorY = Mth::floor(cameraY);
+	int_t radius = 5;
+	if (mc.options.fancyGraphics)
+		radius = 10;
+
+	int_t diameter = radius * 2 + 1;
+	BiomeSource &biomeSource = level.getBiomeSource();
+	biomeSource.getBiomeBlock(playerX - radius, playerZ - radius, diameter, diameter);
+	const std::vector<BiomeId> &biomes = biomeSource.biomes;
+	int_t biomeIndex = 0;
+
+	for (int_t x = playerX - radius; x <= playerX + radius; ++x)
+	{
+		for (int_t z = playerZ - radius; z <= playerZ + radius; ++z)
+		{
+			const BiomeInfo &biome = biomeSource.getBiomeInfo(biomes[static_cast<std::size_t>(biomeIndex++)]);
+			if (biome.enableSnow)
+			{
+				int_t top = level.findTopSolidBlock(x, z);
+				if (top < 0)
+					top = 0;
+				int_t brightnessY = top;
+				if (top < cameraFloorY)
+					brightnessY = cameraFloorY;
+				int_t y0 = playerY - radius;
+				int_t y1 = playerY + radius;
+				if (y0 < top)
+					y0 = top;
+				if (y1 < top)
+					y1 = top;
+				float scale = 1.0f;
+				if (y0 != y1)
+				{
+					int_t seed = rainColumnSeed(x, z);
+					random.setSeed(static_cast<long_t>(seed));
+					float time = ticks + a;
+					float scroll = ((ticks & 511) + a) / 512.0f;
+					float randomU = random.nextFloat();
+					float gaussianU = static_cast<float>(random.nextGaussian());
+					float uOffset = randomU + time * 0.01f * gaussianU;
+					float randomV = random.nextFloat();
+					float gaussianV = static_cast<float>(random.nextGaussian());
+					float vOffset = randomV + time * gaussianV * 0.001f;
+					double dx = static_cast<float>(x) + 0.5f - view.x;
+					double dz = static_cast<float>(z) + 0.5f - view.z;
+					float distance = Mth::sqrt(dx * dx + dz * dz) / radius;
+					t.begin();
+					float brightness = level.getBrightness(x, brightnessY, z);
+					glColor4f(brightness, brightness, brightness,
+						((1.0f - distance * distance) * 0.3f + 0.5f) * rainStrength);
+					t.offset(-cameraX * 1.0, -cameraY * 1.0, -cameraZ * 1.0);
+					t.vertexUV(x + 0, y0, z + 0.5, 0.0f * scale + uOffset,
+						y0 * scale / 4.0f + scroll * scale + vOffset);
+					t.vertexUV(x + 1, y0, z + 0.5, 1.0f * scale + uOffset,
+						y0 * scale / 4.0f + scroll * scale + vOffset);
+					t.vertexUV(x + 1, y1, z + 0.5, 1.0f * scale + uOffset,
+						y1 * scale / 4.0f + scroll * scale + vOffset);
+					t.vertexUV(x + 0, y1, z + 0.5, 0.0f * scale + uOffset,
+						y1 * scale / 4.0f + scroll * scale + vOffset);
+					t.vertexUV(x + 0.5, y0, z + 0, 0.0f * scale + uOffset,
+						y0 * scale / 4.0f + scroll * scale + vOffset);
+					t.vertexUV(x + 0.5, y0, z + 1, 1.0f * scale + uOffset,
+						y0 * scale / 4.0f + scroll * scale + vOffset);
+					t.vertexUV(x + 0.5, y1, z + 1, 1.0f * scale + uOffset,
+						y1 * scale / 4.0f + scroll * scale + vOffset);
+					t.vertexUV(x + 0.5, y1, z + 0, 0.0f * scale + uOffset,
+						y1 * scale / 4.0f + scroll * scale + vOffset);
+					t.offset(0.0, 0.0, 0.0);
+					t.end();
+				}
+			}
+		}
+	}
+
+	glBindTexture(GL_TEXTURE_2D, mc.textures.loadTexture(u"/environment/rain.png"));
+	if (mc.options.fancyGraphics)
+		radius = 10;
+
+	biomeIndex = 0;
+	for (int_t x = playerX - radius; x <= playerX + radius; ++x)
+	{
+		for (int_t z = playerZ - radius; z <= playerZ + radius; ++z)
+		{
+			const BiomeInfo &biome = biomeSource.getBiomeInfo(biomes[static_cast<std::size_t>(biomeIndex++)]);
+			if (biome.canSpawnLightningBolt())
+			{
+				int_t top = level.findTopSolidBlock(x, z);
+				int_t y0 = playerY - radius;
+				int_t y1 = playerY + radius;
+				if (y0 < top)
+					y0 = top;
+				if (y1 < top)
+					y1 = top;
+				float scale = 1.0f;
+				if (y0 != y1)
+				{
+					int_t seed = rainColumnSeed(x, z);
+					random.setSeed(static_cast<long_t>(seed));
+					int_t phase = javaIntAdd(ticks, seed) & 31;
+					float scroll = (phase + a) / 32.0f * (3.0f + random.nextFloat());
+					double dx = static_cast<float>(x) + 0.5f - view.x;
+					double dz = static_cast<float>(z) + 0.5f - view.z;
+					float distance = Mth::sqrt(dx * dx + dz * dz) / radius;
+					t.begin();
+					float brightness = level.getBrightness(x, 128, z) * 0.85f + 0.15f;
+					glColor4f(brightness, brightness, brightness,
+						((1.0f - distance * distance) * 0.5f + 0.5f) * rainStrength);
+					t.offset(-cameraX * 1.0, -cameraY * 1.0, -cameraZ * 1.0);
+					t.vertexUV(x + 0, y0, z + 0.5, 0.0f * scale,
+						y0 * scale / 4.0f + scroll * scale);
+					t.vertexUV(x + 1, y0, z + 0.5, 1.0f * scale,
+						y0 * scale / 4.0f + scroll * scale);
+					t.vertexUV(x + 1, y1, z + 0.5, 1.0f * scale,
+						y1 * scale / 4.0f + scroll * scale);
+					t.vertexUV(x + 0, y1, z + 0.5, 0.0f * scale,
+						y1 * scale / 4.0f + scroll * scale);
+					t.vertexUV(x + 0.5, y0, z + 0, 0.0f * scale,
+						y0 * scale / 4.0f + scroll * scale);
+					t.vertexUV(x + 0.5, y0, z + 1, 1.0f * scale,
+						y0 * scale / 4.0f + scroll * scale);
+					t.vertexUV(x + 0.5, y1, z + 1, 1.0f * scale,
+						y1 * scale / 4.0f + scroll * scale);
+					t.vertexUV(x + 0.5, y1, z + 0, 0.0f * scale,
+						y1 * scale / 4.0f + scroll * scale);
+					t.offset(0.0, 0.0, 0.0);
+					t.end();
+				}
+			}
+		}
+	}
+
+	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
+	glAlphaFunc(GL_GREATER, 0.1f);
+}
+
 void GameRenderer::setupGuiScreen()
 {
 	ScreenSizeCalculator ssc(mc.options, mc.width, mc.height);
@@ -540,6 +818,7 @@ void GameRenderer::setupGuiScreen()
 	glTranslatef(0.0f, 0.0f, -2000.0f);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.EntityRenderer#updateFogColor(float)
 void GameRenderer::setupClearColor(float a)
 {
 	auto &level = mc.level;
@@ -561,6 +840,25 @@ void GameRenderer::setupClearColor(float a)
 	fr += (sr - fr) * dist;
 	fg += (sg - fg) * dist;
 	fb += (sb - fb) * dist;
+
+	float rainStrength = level->getRainStrength(a);
+	if (rainStrength > 0.0f)
+	{
+		float redGreenScale = 1.0f - rainStrength * 0.5f;
+		float blueScale = 1.0f - rainStrength * 0.4f;
+		fr *= redGreenScale;
+		fg *= redGreenScale;
+		fb *= blueScale;
+	}
+
+	float thunderStrength = level->getThunderStrength(a);
+	if (thunderStrength > 0.0f)
+	{
+		float scale = 1.0f - thunderStrength * 0.5f;
+		fr *= scale;
+		fg *= scale;
+		fb *= scale;
+	}
 
 	// Underwater/lava clear color override
 	if (mc.player->isUnderLiquid(Material::water))

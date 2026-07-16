@@ -36,8 +36,8 @@ public:
 	void animateHurt() override;
 	void positionRider() override;
 	void lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps) override;
-	void lerpMotion(double x, double y, double z);
-	float getShadowHeightOffs();
+	void lerpMotion(double x, double y, double z) override;
+	float getShadowHeightOffs() override;
 
 protected:
 	void addAdditionalSaveData(CompoundTag &tag) override;

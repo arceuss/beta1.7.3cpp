@@ -2,11 +2,14 @@
 
 #include "client/Lighting.h"
 #include "client/Minecraft.h"
+#include "client/gamemode/GameMode.h"
 #include "client/locale/Language.h"
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 #include "client/renderer/entity/ItemRenderer.h"
 #include "java/String.h"
 #include "world/CompoundContainer.h"
+#include "world/inventory/BasicInventory.h"
+#include "world/inventory/Container.h"
 #include "world/entity/player/InventoryPlayer.h"
 #include "world/entity/item/EntityMinecart.h"
 #include "world/entity/player/Player.h"
@@ -67,7 +70,7 @@ namespace
 }
 
 ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<ChestTileEntity> chest)
-	: Screen(minecraft), chest(chest)
+	: ContainerScreen(minecraft), chest(chest), containerMenu(minecraft.player->craftingInventory)
 {
 	passEvents = true;
 	inventoryRows = getChestSize() / 9;
@@ -75,14 +78,22 @@ ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<ChestTileEntity> 
 }
 
 ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<CompoundContainer> chest)
-	: Screen(minecraft), compoundChest(chest)
+	: ContainerScreen(minecraft), compoundChest(chest), containerMenu(minecraft.player->craftingInventory)
 {
 	passEvents = true;
 	inventoryRows = getChestSize() / 9;
 	imageHeight = 114 + inventoryRows * 18;
 }
 ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<EntityMinecart> chest)
-	: Screen(minecraft), chestMinecart(chest)
+	: ContainerScreen(minecraft), chestMinecart(chest), containerMenu(minecraft.player->craftingInventory)
+{
+	passEvents = true;
+	inventoryRows = getChestSize() / 9;
+	imageHeight = 114 + inventoryRows * 18;
+}
+
+ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<BasicInventory> chest)
+	: ContainerScreen(minecraft), basicChest(std::move(chest)), containerMenu(minecraft.player->craftingInventory)
 {
 	passEvents = true;
 	inventoryRows = getChestSize() / 9;
@@ -92,13 +103,14 @@ ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<EntityMinecart> c
 
 void ChestScreen::tick()
 {
-	if (minecraft.player == nullptr || getChestSize() <= 0 || !canUseChest(*minecraft.player))
+	ContainerScreen::tick();
+	if (minecraft.player == nullptr || getChestSize() <= 0
+		|| (!minecraft.player->level.isOnline && !canUseChest(*minecraft.player)))
 	{
 		minecraft.setScreen(nullptr);
 		return;
 	}
 
-	Screen::tick();
 }
 
 void ChestScreen::render(int_t xm, int_t ym, float a)
@@ -224,7 +236,7 @@ void ChestScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 {
 	if (eventKey == lwjgl::Keyboard::KEY_ESCAPE || eventKey == minecraft.options.keyInventory.key)
 	{
-		minecraft.setScreen(nullptr);
+		minecraft.player->closeContainer();
 		minecraft.grabMouse();
 		return;
 	}
@@ -240,32 +252,34 @@ void ChestScreen::mouseClicked(int_t x, int_t y, int_t buttonNum)
 	int_t xo = getGuiLeft();
 	int_t yo = getGuiTop();
 	bool outside = x < xo || y < yo || x >= xo + imageWidth || y >= yo + imageHeight;
-	InventoryPlayer &inventory = minecraft.player->inventory;
-	ItemInstance *carried = inventory.getCarried();
-
+	int_t protocolSlot = -1;
 	if (outside)
+		protocolSlot = -999;
+	else
 	{
-		if (carried == nullptr)
-			return;
-
-		if (buttonNum == 0)
-		{
-			minecraft.player->drop(*carried);
-			inventory.setCarriedNull();
-		}
-		else
-		{
-			ItemInstance dropped = carried->remove(1);
-			minecraft.player->drop(dropped);
-			if (carried->isEmpty())
-				inventory.setCarriedNull();
-		}
-		return;
+		int_t slot = getSlotAt(x, y);
+		if (slot >= SLOT_CHEST_BASE)
+			protocolSlot = slot - SLOT_CHEST_BASE;
+		else if (slot >= 9 && slot < 36)
+			protocolSlot = getChestSize() + slot - 9;
+		else if (slot >= 0 && slot < 9)
+			protocolSlot = getChestSize() + 27 + slot;
 	}
+	if (protocolSlot != -1)
+	{
+		bool shiftClick = protocolSlot != -999
+			&& (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_LSHIFT)
+				|| lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_RSHIFT));
+		minecraft.gameMode->clickContainer(minecraft.player->craftingInventory->windowId,
+			protocolSlot, buttonNum, shiftClick, *minecraft.player);
+	}
+}
 
-	int_t slot = getSlotAt(x, y);
-	if (slot != SLOT_NONE)
-		handleSlotClick(slot, buttonNum);
+void ChestScreen::removed()
+{
+	if (minecraft.player != nullptr && containerMenu != nullptr)
+		minecraft.gameMode->closeContainer(containerMenu->windowId, *minecraft.player);
+	Screen::removed();
 }
 
 int_t ChestScreen::getGuiLeft() const
@@ -280,6 +294,8 @@ int_t ChestScreen::getGuiTop() const
 
 int_t ChestScreen::getChestSize() const
 {
+	if (basicChest != nullptr)
+		return basicChest->getContainerSize();
 	if (compoundChest != nullptr)
 		return compoundChest->getContainerSize();
 	if (chest != nullptr)
@@ -333,6 +349,8 @@ int_t ChestScreen::getSlotAt(int_t x, int_t y) const
 
 bool ChestScreen::canUseChest(Player &player) const
 {
+	if (basicChest != nullptr)
+		return basicChest->canUse(player);
 	if (compoundChest != nullptr)
 		return compoundChest->canUse(player);
 	if (chest != nullptr)
@@ -344,6 +362,8 @@ bool ChestScreen::canUseChest(Player &player) const
 
 jstring ChestScreen::getChestName() const
 {
+	if (basicChest != nullptr)
+		return basicChest->getName();
 	if (compoundChest != nullptr)
 		return compoundChest->getName();
 	if (chest != nullptr)
@@ -355,6 +375,8 @@ jstring ChestScreen::getChestName() const
 
 ItemInstance &ChestScreen::getChestItem(int_t slot)
 {
+	if (basicChest != nullptr)
+		return basicChest->getItem(slot);
 	if (compoundChest != nullptr)
 		return compoundChest->getItem(slot);
 	if (chest != nullptr)
@@ -364,6 +386,8 @@ ItemInstance &ChestScreen::getChestItem(int_t slot)
 
 const ItemInstance &ChestScreen::getChestItem(int_t slot) const
 {
+	if (basicChest != nullptr)
+		return basicChest->getItem(slot);
 	if (compoundChest != nullptr)
 		return compoundChest->getItem(slot);
 	if (chest != nullptr)
@@ -373,7 +397,9 @@ const ItemInstance &ChestScreen::getChestItem(int_t slot) const
 
 void ChestScreen::setChestChanged()
 {
-	if (compoundChest != nullptr)
+	if (basicChest != nullptr)
+		basicChest->setChanged();
+	else if (compoundChest != nullptr)
 		compoundChest->setChanged();
 	else if (chest != nullptr)
 		chest->setChanged();
@@ -440,7 +466,7 @@ void ChestScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t buttonNu
 	{
 		if (carried == nullptr)
 			return;
-		int_t toPlace = buttonNum == 0 ? carried->stackSize : 1;
+		int_t toPlace = buttonNum == 0 ? carried->stackSize.load(std::memory_order_relaxed) : 1;
 		if (toPlace > carried->getMaxStackSize())
 			toPlace = carried->getMaxStackSize();
 		if (toPlace <= 0)
@@ -454,7 +480,8 @@ void ChestScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t buttonNu
 
 	if (carried == nullptr)
 	{
-		int_t toTake = buttonNum == 0 ? slotStack.stackSize : (slotStack.stackSize + 1) / 2;
+		int_t toTake = buttonNum == 0 ? slotStack.stackSize.load(std::memory_order_relaxed)
+			: (slotStack.stackSize + 1) / 2;
 		inventory.setCarried(ItemInstance(slotStack.itemID, toTake, slotStack.itemDamage));
 		slotStack.stackSize -= toTake;
 		if (slotStack.isEmpty())
@@ -474,7 +501,7 @@ void ChestScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t buttonNu
 	int_t space = slotStack.getMaxStackSize() - slotStack.stackSize;
 	if (space <= 0)
 		return;
-	int_t toMove = buttonNum == 0 ? carried->stackSize : 1;
+	int_t toMove = buttonNum == 0 ? carried->stackSize.load(std::memory_order_relaxed) : 1;
 	if (toMove > space)
 		toMove = space;
 	if (toMove <= 0)

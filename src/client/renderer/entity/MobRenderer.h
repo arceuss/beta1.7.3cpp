@@ -29,6 +29,7 @@ protected:
 	virtual float getBob(Mob &mob, float a);
 
 	virtual void additionalRendering(Mob &mob, float a);
+	virtual void prepareModel(Mob &mob, float time, float speed, float a);
 
 	virtual bool prepareArmor(Mob &mob, int_t layer, float a);
 	virtual float getFlipDegrees(Mob &mob);

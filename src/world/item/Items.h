@@ -29,6 +29,7 @@ namespace Items
 	extern Item *cookie;
 	extern Item *porkchopRaw;
 	extern Item *porkchopCooked;
+	extern Item *painting;
 	extern Item *appleGold;
 	extern Item *reed;
 	extern Item *doorWood;
@@ -38,6 +39,7 @@ namespace Items
 	extern Item *minecartChest;
 	extern Item *boat;
 	extern Item *compass;
+	extern Item *fishingRod;
 	extern Item *clock;
 	extern Item *record13;
 	extern Item *recordCat;

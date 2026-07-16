@@ -127,13 +127,18 @@ void ParticleEngine::destroy(int_t x, int_t y, int_t z)
 {
 	if (level == nullptr)
 		return;
+	destroy(x, y, z, level->getTile(x, y, z), level->getData(x, y, z));
+}
+
+void ParticleEngine::destroy(int_t x, int_t y, int_t z, int_t tileId, int_t data)
+{
+	if (level == nullptr)
+		return;
 
 	// Beta: Spawn block break particles (ParticleEngine.java:113-130)
-	int_t tid = level->getTile(x, y, z);
-	if (tid != 0 && Tile::tiles[tid] != nullptr)
+	if (tileId != 0 && tileId >= 0 && tileId < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[tileId] != nullptr)
 	{
-		Tile *tile = Tile::tiles[tid];
-		int_t data = level->getData(x, y, z);
+		Tile *tile = Tile::tiles[tileId];
 		int_t SD = 4;
 
 		for (int_t xx = 0; xx < SD; xx++)

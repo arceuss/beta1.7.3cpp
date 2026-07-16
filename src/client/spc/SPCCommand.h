@@ -6,6 +6,7 @@
 #include "java/Type.h"
 
 class Minecraft;
+class Font;
 
 class SPCCommand
 {
@@ -20,10 +21,13 @@ public:
 
 	static void execute(Minecraft &mc, const jstring &input);
 	static void addMessage(const jstring &text);
+	static void addChatMessage(const jstring &text);
 	static void sendError(const jstring &text);
+	static void setMessageFont(Font *font);
 
 	static constexpr int_t MESSAGE_DISPLAY_TICKS = 200;
 	static int_t guiTickCount;
+	static Font *messageFont;
 
 	// SPC state
 	static bool flying;

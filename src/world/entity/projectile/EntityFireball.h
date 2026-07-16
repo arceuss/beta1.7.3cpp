@@ -23,6 +23,8 @@ public:
 	double accelZ = 0.0;
 
 	EntityFireball(Level &level);
+	EntityFireball(Level &level, double x, double y, double z,
+		double xPower, double yPower, double zPower);
 	EntityFireball(Level &level, Mob &owner, double xPower, double yPower, double zPower);
 	bool shouldRenderAtSqrDistance(double distance) override;
 	void tick() override;

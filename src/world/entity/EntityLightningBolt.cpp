@@ -74,6 +74,7 @@ void EntityLightningBolt::tick()
 			if (target != nullptr)
 				target->onStruckByLightning(*this);
 		}
+		level.lastLightningBolt = 2;
 	}
 }
 

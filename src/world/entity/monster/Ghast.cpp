@@ -11,6 +11,7 @@
 
 Ghast::Ghast(Level &level) : Mob(level)
 {
+	dataWatcher.addObject(16, static_cast<byte_t>(0));
 	textureName = u"/mob/ghast.png";
 	setSize(4.0f, 4.0f);
 	fireImmune = true;
@@ -18,12 +19,14 @@ Ghast::Ghast(Level &level) : Mob(level)
 
 jstring Ghast::getTexture()
 {
-	return attackCounter > 10 ? u"/mob/ghast_fire.png" : u"/mob/ghast.png";
+	return textureName;
 }
 
 void Ghast::tick()
 {
 	Mob::tick();
+	textureName = dataWatcher.getWatchableObjectByte(16) == 1
+		? u"/mob/ghast_fire.png" : u"/mob/ghast.png";
 }
 
 void Ghast::updateAi()
@@ -103,6 +106,14 @@ void Ghast::updateAi()
 		yBodyRot = yRot = -static_cast<float>(std::atan2(xd, zd) * 180.0 / Mth::PI);
 		if (attackCounter > 0)
 			attackCounter--;
+	}
+
+	if (!level.isOnline)
+	{
+		byte_t current = dataWatcher.getWatchableObjectByte(16);
+		byte_t attacking = static_cast<byte_t>(attackCounter > 10 ? 1 : 0);
+		if (current != attacking)
+			dataWatcher.updateObject(16, attacking);
 	}
 }
 

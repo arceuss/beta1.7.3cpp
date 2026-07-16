@@ -4,8 +4,11 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
-#include <regex>
+#include <limits>
 #include <sstream>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 #include "client/User.h"
 #include "java/File.h"
@@ -16,6 +19,351 @@
 
 namespace
 {
+	int_t javaIntAdd(int_t left, int_t right)
+	{
+		uint_t resultBits = static_cast<uint_t>(left) + static_cast<uint_t>(right);
+		int_t result;
+		std::memcpy(&result, &resultBits, sizeof(result));
+		return result;
+	}
+
+	class JsonSyntaxError : public std::runtime_error
+	{
+	public:
+		explicit JsonSyntaxError(const char *message) : std::runtime_error(message) {}
+	};
+
+	enum class JsonType
+	{
+		object,
+		array,
+		string,
+		number,
+		boolean,
+		nullValue
+	};
+
+	struct JsonValue
+	{
+		JsonType type = JsonType::nullValue;
+		jstring stringValue;
+		std::string numberValue;
+		std::vector<std::pair<jstring, JsonValue>> fields;
+		std::vector<JsonValue> elements;
+	};
+
+	class JsonParser
+	{
+	private:
+		const std::string &input;
+		size_t position = 0;
+
+		[[noreturn]] void syntaxError() const
+		{
+			throw JsonSyntaxError("Invalid JSON syntax");
+		}
+
+		bool atEnd() const
+		{
+			return position >= input.size();
+		}
+
+		char peek() const
+		{
+			if (atEnd())
+				syntaxError();
+			return input[position];
+		}
+
+		char take()
+		{
+			char value = peek();
+			position++;
+			return value;
+		}
+
+		void skipWhitespace()
+		{
+			while (!atEnd())
+			{
+				char value = input[position];
+				if (value != '\t' && value != '\n' && value != '\r' && value != ' ')
+					break;
+				position++;
+			}
+		}
+
+		void expect(char expected)
+		{
+			if (take() != expected)
+				syntaxError();
+		}
+
+		void expect(const char *expected)
+		{
+			while (*expected != '\0')
+			{
+				if (take() != *expected)
+					syntaxError();
+				expected++;
+			}
+		}
+
+		static int_t hexDigit(char value)
+		{
+			if (value >= '0' && value <= '9')
+				return value - '0';
+			if (value >= 'a' && value <= 'f')
+				return value - 'a' + 10;
+			if (value >= 'A' && value <= 'F')
+				return value - 'A' + 10;
+			throw JsonSyntaxError("Invalid JSON unicode escape");
+		}
+
+		jstring parseString()
+		{
+			expect('"');
+			jstring result;
+			while (true)
+			{
+				char value = take();
+				if (value == '"')
+					return result;
+				if (value != '\\')
+				{
+					result.push_back(static_cast<unsigned char>(value));
+					continue;
+				}
+
+				switch (take())
+				{
+				case '"': result.push_back(u'"'); break;
+				case '/': result.push_back(u'/'); break;
+				case '\\': result.push_back(u'\\'); break;
+				case 'b': result.push_back(u'\b'); break;
+				case 'f': result.push_back(u'\f'); break;
+				case 'n': result.push_back(u'\n'); break;
+				case 'r': result.push_back(u'\r'); break;
+				case 't': result.push_back(u'\t'); break;
+				case 'u':
+				{
+					int_t codePoint = 0;
+					for (int_t i = 0; i < 4; i++)
+						codePoint = codePoint * 16 + hexDigit(take());
+					result.push_back(static_cast<char_t>(codePoint));
+					break;
+				}
+				default:
+					syntaxError();
+				}
+			}
+		}
+
+		std::string parseNumber()
+		{
+			std::string result;
+			if (peek() == '-')
+				result.push_back(take());
+
+			char first = take();
+			if (first == '0')
+				result.push_back(first);
+			else if (first >= '1' && first <= '9')
+			{
+				result.push_back(first);
+				while (!atEnd() && input[position] >= '0' && input[position] <= '9')
+					result.push_back(input[position++]);
+			}
+			else
+				syntaxError();
+
+			if (!atEnd() && input[position] == '.')
+			{
+				result.push_back(input[position++]);
+				if (atEnd() || input[position] < '0' || input[position] > '9')
+					syntaxError();
+				while (!atEnd() && input[position] >= '0' && input[position] <= '9')
+					result.push_back(input[position++]);
+			}
+
+			// Argo's Beta parser recognizes uppercase E here (and, unusually, a second '.').
+			if (!atEnd() && (input[position] == 'E' || input[position] == '.'))
+			{
+				position++;
+				result.push_back('E');
+				if (!atEnd() && (input[position] == '+' || input[position] == '-'))
+					result.push_back(input[position++]);
+				if (atEnd() || input[position] < '0' || input[position] > '9')
+					syntaxError();
+				while (!atEnd() && input[position] >= '0' && input[position] <= '9')
+					result.push_back(input[position++]);
+			}
+			return result;
+		}
+
+		JsonValue parseArray()
+		{
+			expect('[');
+			JsonValue result;
+			result.type = JsonType::array;
+			skipWhitespace();
+			if (!atEnd() && peek() == ']')
+			{
+				position++;
+				return result;
+			}
+
+			while (true)
+			{
+				result.elements.push_back(parseValue());
+				skipWhitespace();
+				char separator = take();
+				if (separator == ']')
+					return result;
+				if (separator != ',')
+					syntaxError();
+				skipWhitespace();
+			}
+		}
+
+		JsonValue parseObject()
+		{
+			expect('{');
+			JsonValue result;
+			result.type = JsonType::object;
+			skipWhitespace();
+			if (!atEnd() && peek() == '}')
+			{
+				position++;
+				return result;
+			}
+
+			while (true)
+			{
+				if (peek() != '"')
+					syntaxError();
+				jstring key = parseString();
+				skipWhitespace();
+				expect(':');
+				result.fields.emplace_back(std::move(key), parseValue());
+				skipWhitespace();
+				char separator = take();
+				if (separator == '}')
+					return result;
+				if (separator != ',')
+					syntaxError();
+				skipWhitespace();
+			}
+		}
+
+		JsonValue parseValue()
+		{
+			skipWhitespace();
+			char value = peek();
+			if (value == '{')
+				return parseObject();
+			if (value == '[')
+				return parseArray();
+
+			JsonValue result;
+			if (value == '"')
+			{
+				result.type = JsonType::string;
+				result.stringValue = parseString();
+			}
+			else if (value == '-' || (value >= '0' && value <= '9'))
+			{
+				result.type = JsonType::number;
+				result.numberValue = parseNumber();
+			}
+			else if (value == 't')
+			{
+				expect("true");
+				result.type = JsonType::boolean;
+			}
+			else if (value == 'f')
+			{
+				expect("false");
+				result.type = JsonType::boolean;
+			}
+			else if (value == 'n')
+			{
+				expect("null");
+				result.type = JsonType::nullValue;
+			}
+			else
+				syntaxError();
+			return result;
+		}
+
+	public:
+		explicit JsonParser(const std::string &input) : input(input) {}
+
+		JsonValue parse()
+		{
+			if (atEnd() || (peek() != '{' && peek() != '['))
+				syntaxError();
+			JsonValue result = parseValue();
+			skipWhitespace();
+			if (!atEnd())
+				syntaxError();
+			return result;
+		}
+	};
+
+	const JsonValue &getField(const JsonValue &object, const jstring &name)
+	{
+		if (object.type != JsonType::object)
+			throw std::runtime_error("Expected JSON object");
+		for (auto it = object.fields.rbegin(); it != object.fields.rend(); ++it)
+		{
+			if (it->first == name)
+				return it->second;
+		}
+		throw std::runtime_error("Missing JSON field");
+	}
+
+	std::string getText(const JsonValue &value)
+	{
+		if (value.type == JsonType::string)
+			return String::toUTF8(value.stringValue);
+		if (value.type == JsonType::number)
+			return value.numberValue;
+		throw std::runtime_error("Expected textual JSON value");
+	}
+
+	int_t parseJavaInt(const std::string &text)
+	{
+		if (text.empty())
+			throw std::invalid_argument("Invalid Java integer");
+		size_t position = 0;
+		bool negative = false;
+		if (text[position] == '-' || text[position] == '+')
+		{
+			negative = text[position] == '-';
+			if (++position == text.size())
+				throw std::invalid_argument("Invalid Java integer");
+		}
+
+		uint64_t limit = static_cast<uint64_t>(std::numeric_limits<int_t>::max()) + (negative ? 1ULL : 0ULL);
+		uint64_t value = 0;
+		for (; position < text.size(); position++)
+		{
+			char digit = text[position];
+			if (digit < '0' || digit > '9')
+				throw std::invalid_argument("Invalid Java integer");
+			uint64_t numericDigit = static_cast<uint64_t>(digit - '0');
+			if (value > (limit - numericDigit) / 10)
+				throw std::out_of_range("Java integer overflow");
+			value = value * 10 + numericDigit;
+		}
+
+		if (negative && value == limit)
+			return std::numeric_limits<int_t>::min();
+		int_t result = static_cast<int_t>(value);
+		return negative ? -result : result;
+	}
+
 	uint32_t rotateLeft(uint32_t value, uint32_t amount)
 	{
 		return (value << amount) | (value >> (32 - amount));
@@ -149,7 +497,9 @@ StatFileWriter::~StatFileWriter() = default;
 
 void StatFileWriter::addToMap(StatMap &map, const StatBase &stat, int_t amount)
 {
-	map[&stat] += amount;
+	auto current = map.find(&stat);
+	int_t value = current == map.end() ? 0 : current->second;
+	map[&stat] = javaIntAdd(value, amount);
 }
 
 void StatFileWriter::readStat(const StatBase &stat, int_t amount)
@@ -179,7 +529,7 @@ void StatFileWriter::mergeLoadedTotal(const StatMap &stats)
 	for (const auto &entry : stats)
 	{
 		auto current = sessionStats.find(entry.first);
-		totalStats[entry.first] = entry.second + (current == sessionStats.end() ? 0 : current->second);
+		totalStats[entry.first] = javaIntAdd(entry.second, current == sessionStats.end() ? 0 : current->second);
 	}
 }
 
@@ -193,42 +543,49 @@ void StatFileWriter::mergeSessionOnly(const StatMap &stats)
 std::unique_ptr<StatMap> StatFileWriter::parse(const std::string &json)
 {
 	std::unique_ptr<StatMap> result = std::make_unique<StatMap>();
+	JsonValue root;
 	try
 	{
-		size_t key = json.find("\"stats-change\"");
-		size_t begin = key == std::string::npos ? std::string::npos : json.find('[', key);
-		size_t end = begin == std::string::npos ? std::string::npos : json.find(']', begin);
-		if (begin == std::string::npos || end == std::string::npos)
-			return result;
-
-		std::string checksumMaterial;
-		std::regex entryPattern("\\\"(-?[0-9]+)\\\"\\s*:\\s*(-?[0-9]+)");
-		std::string entries = json.substr(begin + 1, end - begin - 1);
-		for (std::sregex_iterator it(entries.begin(), entries.end(), entryPattern), last; it != last; ++it)
-		{
-			int_t id = std::stoi((*it)[1].str());
-			int_t value = std::stoi((*it)[2].str());
-			StatBase *stat = StatList::getStat(id);
-			if (stat == nullptr)
-			{
-				std::cout << id << " is not a valid stat" << std::endl;
-				continue;
-			}
-			checksumMaterial += String::toUTF8(stat->statGuid) + "," + std::to_string(value) + ",";
-			(*result)[stat] = value;
-		}
-
-		std::regex checksumPattern("\\\"checksum\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"");
-		std::smatch checksumMatch;
-		if (!std::regex_search(json, checksumMatch, checksumPattern) || md5("local" + checksumMaterial) != checksumMatch[1].str())
-		{
-			std::cout << "CHECKSUM MISMATCH" << std::endl;
-			return nullptr;
-		}
+		root = JsonParser(json).parse();
 	}
-	catch (const std::exception &e)
+	catch (const JsonSyntaxError &e)
 	{
 		std::cerr << e.what() << std::endl;
+		return result;
+	}
+
+	const JsonValue &entries = getField(root, u"stats-change");
+	if (entries.type != JsonType::array)
+		throw std::runtime_error("Expected stats-change array");
+
+	std::string checksumMaterial;
+	for (const JsonValue &entry : entries.elements)
+	{
+		if (entry.type != JsonType::object)
+			throw std::runtime_error("Expected stat object");
+		if (entry.fields.empty())
+			throw std::runtime_error("Expected stat entry");
+
+		const auto &field = entry.fields.front();
+		int_t id = parseJavaInt(String::toUTF8(field.first));
+		int_t value = parseJavaInt(getText(field.second));
+		StatBase *stat = StatList::getStat(id);
+		if (stat == nullptr)
+		{
+			std::cout << id << " is not a valid stat" << std::endl;
+			continue;
+		}
+		checksumMaterial += String::toUTF8(stat->statGuid) + "," + std::to_string(value) + ",";
+		(*result)[stat] = value;
+	}
+
+	const JsonValue &checksum = getField(root, u"checksum");
+	if (checksum.type != JsonType::string)
+		throw std::runtime_error("Expected checksum string");
+	if (md5("local" + checksumMaterial) != String::toUTF8(checksum.stringValue))
+	{
+		std::cout << "CHECKSUM MISMATCH" << std::endl;
+		return nullptr;
 	}
 	return result;
 }

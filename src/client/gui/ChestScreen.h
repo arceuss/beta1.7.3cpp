@@ -2,20 +2,24 @@
 
 #include <memory>
 
-#include "client/gui/Screen.h"
+#include "client/gui/ContainerScreen.h"
 #include "world/item/ItemInstance.h"
 
 class CompoundContainer;
 class ChestTileEntity;
 class EntityMinecart;
+class BasicInventory;
 class Player;
+class Container;
 
-class ChestScreen : public Screen
+class ChestScreen : public ContainerScreen
 {
 private:
 	std::shared_ptr<ChestTileEntity> chest;
 	std::shared_ptr<CompoundContainer> compoundChest;
 	std::shared_ptr<EntityMinecart> chestMinecart;
+	std::shared_ptr<BasicInventory> basicChest;
+	std::shared_ptr<Container> containerMenu;
 	int_t inventoryRows = 0;
 	int_t imageHeight = 0;
 	float xMouse = 0.0f;
@@ -48,10 +52,12 @@ public:
 	ChestScreen(Minecraft &minecraft, std::shared_ptr<ChestTileEntity> chest);
 	ChestScreen(Minecraft &minecraft, std::shared_ptr<CompoundContainer> chest);
 	ChestScreen(Minecraft &minecraft, std::shared_ptr<EntityMinecart> chest);
+	ChestScreen(Minecraft &minecraft, std::shared_ptr<BasicInventory> chest);
 
 	void tick() override;
 	void render(int_t xm, int_t ym, float a) override;
 	bool isPauseScreen() override;
+	void removed() override;
 
 protected:
 	void keyPressed(char_t eventCharacter, int_t eventKey) override;

@@ -54,6 +54,7 @@ public:
 	void releaseTexture(int_t id);
 	int_t loadHttpTexture(const jstring &url, const jstring *backup);
 	int_t loadHttpTexture(const jstring &url);
+	void obtainHttpTexture(const jstring &url);
 	void removeHttpTexture(const jstring &url);
 
 	void registerTextureFX(std::unique_ptr<TextureFX> fx);

@@ -10,7 +10,6 @@ public:
 
 private:
 	int_t slimeJumpDelay = 0;
-	int_t slimeSize = 1;
 
 public:
 	Slime(Level &level);

@@ -35,7 +35,7 @@ bool ItemSword::hurtEnemy(ItemInstance &stack, Entity &target, Entity &attacker)
 {
 	(void)target;
 	(void)attacker;
-	stack.damageItem(1);
+	stack.damageItem(1, attacker);
 	return true;
 }
 
@@ -46,6 +46,6 @@ bool ItemSword::mineBlock(ItemInstance &stack, int_t tile, int_t x, int_t y, int
 	(void)y;
 	(void)z;
 	(void)miner;
-	stack.damageItem(2);
+	stack.damageItem(2, miner);
 	return true;
 }

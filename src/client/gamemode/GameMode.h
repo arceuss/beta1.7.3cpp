@@ -49,6 +49,9 @@ public:
 
 	virtual void interact(std::shared_ptr<Player> &player, std::shared_ptr<Entity> &entity);
 	virtual void attack(std::shared_ptr<Player> &player, std::shared_ptr<Entity> &entity);
+	virtual std::unique_ptr<ItemInstance> clickContainer(int_t windowId, int_t slot, int_t button,
+		bool shiftClick, Player &player);
+	virtual void closeContainer(int_t windowId, Player &player);
 
 	virtual bool isCreativeMode() const { return false; }
 };

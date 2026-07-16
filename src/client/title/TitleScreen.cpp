@@ -5,6 +5,7 @@
 #include <ctime>
 
 #include "client/Minecraft.h"
+#include "client/gui/MultiplayerScreen.h"
 #include "client/gui/OptionsScreen.h"
 #include "client/gui/SelectWorldScreen.h"
 #include "client/locale/Language.h"
@@ -61,7 +62,8 @@ void TitleScreen::init()
 	buttons.push_back(Util::make_shared<Button>(3, width / 2 - 100, y + 48, language.getElement(u"menu.mods")));
 	buttons.push_back(Util::make_shared<Button>(0, width / 2 - 100, y + 84, 98, 20, language.getElement(u"menu.options")));
 	buttons.push_back(Util::make_shared<Button>(4, width / 2 + 2, y + 84, 98, 20, language.getElement(u"menu.quit")));
-	buttons[1]->active = false;
+	if (minecraft.user == nullptr)
+		buttons[1]->active = false;
 }
 
 void TitleScreen::buttonClicked(Button &button)
@@ -73,6 +75,8 @@ void TitleScreen::buttonClicked(Button &button)
 		minecraft.setScreen(Util::make_shared<OptionsScreen>(minecraft, minecraft.screen, minecraft.options));
 	else if (button.id == 1)
 		minecraft.setScreen(Util::make_shared<SelectWorldScreen>(minecraft, minecraft.screen));
+	else if (button.id == 2)
+		minecraft.setScreen(Util::make_shared<MultiplayerScreen>(minecraft, minecraft.screen));
 	else if (button.id == 3)
 		minecraft.setScreen(Util::make_shared<TexturePackSelectScreen>(minecraft, minecraft.screen));
 	else if (button.id == 4)

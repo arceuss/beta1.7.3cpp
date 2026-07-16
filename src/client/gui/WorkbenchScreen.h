@@ -6,12 +6,6 @@ class Level;
 
 class WorkbenchScreen : public InventoryScreen
 {
-private:
-	Level &level;
-	int_t x = 0;
-	int_t y = 0;
-	int_t z = 0;
-
 protected:
 	jstring getBackgroundTexture() const override;
 	int_t getCraftingGridLeft() const override;
@@ -26,5 +20,4 @@ protected:
 public:
 	WorkbenchScreen(Minecraft &minecraft, Level &level, int_t x, int_t y, int_t z);
 
-	void tick() override;
 };

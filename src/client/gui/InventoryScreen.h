@@ -2,12 +2,15 @@
 
 #include <vector>
 
-#include "client/gui/Screen.h"
+#include "client/gui/ContainerScreen.h"
 #include "world/item/ItemInstance.h"
 
-class InventoryScreen : public Screen
+class Container;
+
+class InventoryScreen : public ContainerScreen
 {
 private:
+	std::shared_ptr<Container> containerMenu;
 	float xMouse = 0.0f;
 	float yMouse = 0.0f;
 	std::vector<ItemInstance> craftingSlots;
@@ -31,6 +34,7 @@ private:
 	int_t armorSlotToArmorIndex(int_t slot) const;
 
 	void updateCraftingResult();
+	void syncCraftingSlotsFromMenu();
 	void consumeCraftingIngredients();
 	void dropCraftingContents();
 	void renderBg(float a);

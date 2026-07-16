@@ -2,13 +2,16 @@
 
 #include "world/entity/Mob.h"
 #include "world/entity/player/InventoryPlayer.h"
+#include "world/level/TilePos.h"
 #include "world/level/tile/Tile.h"
 
 #include "java/Type.h"
 #include "java/String.h"
 
 class EntityItem;
+class EntityFish;
 class StatBase;
+class Container;
 
 class Player : public Mob
 {
@@ -34,6 +37,10 @@ public:
 
 	int_t dmgSpill = 0;
 	InventoryPlayer inventory = InventoryPlayer(this);
+	std::shared_ptr<Container> inventorySlots;
+	std::shared_ptr<Container> craftingInventory;
+	std::unique_ptr<TilePos> playerSpawnPosition;
+	std::shared_ptr<EntityFish> fishEntity;
 
 private:
 	bool hasMinecartStart = false;
@@ -46,9 +53,11 @@ public:
 	Player(Level &level);
 
 	void tick() override;
+	void prepareCustomTextures() override;
+	virtual void closeContainer();
 
 protected:
-	virtual void closeContainer();
+	virtual void resetHeight();
 
 public:
 	virtual void rideTick() override;
@@ -56,9 +65,12 @@ public:
 
 protected:
 	virtual void updateAi() override;
+	void jumpFromGround() override;
+	void causeFallDamage(float distance) override;
 
 public:
 	virtual void aiStep() override;
+	void travel(float x, float z) override;
 
 private:
 	void touch(Entity &e);
@@ -75,6 +87,8 @@ public:
 
 	void readAdditionalSaveData(CompoundTag &tag) override;
 	void addAdditionalSaveData(CompoundTag &tag) override;
+	const TilePos *getPlayerSpawnPosition() const;
+	void setPlayerSpawnPosition(const TilePos *position);
 
 	float getHeadHeight() override;
 	double getRidingHeight() override;
@@ -89,12 +103,12 @@ public:
 	virtual void take(Entity &entity, int_t count);
 	ItemInstance *getSelectedItem();
 	void removeSelectedItem();
-	void drop();
+	virtual void drop();
 	void drop(ItemInstance &stack);
 	void drop(ItemInstance &stack, bool randomSpread);
 
 protected:
-	void reallyDrop(std::shared_ptr<EntityItem> itemEntity);
+	virtual void reallyDrop(std::shared_ptr<EntityItem> itemEntity);
 
 public:
 	bool sleeping = false;
@@ -102,6 +116,7 @@ public:
 	int_t bedX = 0, bedY = 0, bedZ = 0;
 
 	float bedViewX = 0.0f;
+	float bedViewY = 0.0f;
 	float bedViewZ = 0.0f;
 
 	enum class SleepStatus
@@ -121,6 +136,8 @@ public:
 	float getBedOrientationInDegrees() const;
 
 	virtual void displayClientMessage(const jstring &message) {}
+	virtual void sendChatMessage(const jstring &message) { (void)message; }
+	virtual void animateRespawn() {}
 	void awardKillScore(Entity &source, int_t score) override;
 
 public:

@@ -1,6 +1,7 @@
 #include "client/Options.h"
 
 #include "client/Minecraft.h"
+#include "client/User.h"
 #include "client/locale/Language.h"
 
 #include "lwjgl/Keyboard.h"
@@ -53,8 +54,18 @@ Options::Options(Minecraft &minecraft) : minecraft(minecraft)
 void Options::open(File *optionsFile)
 {
 	this->optionsFile.reset(File::open(*optionsFile, u"options.txt"));
+	if (minecraft.user != nullptr)
+		setUsername(minecraft.user->name);
 	load();
+	if (minecraft.user != nullptr)
+		minecraft.user->name = username;
 	save();
+}
+
+void Options::setUsername(const jstring &username)
+{
+	if (!username.empty())
+		this->username = username.substr(0, 16);
 }
 
 jstring Options::getKeyDescription(int_t i)
@@ -272,6 +283,8 @@ void Options::load()
 			fancyGraphics = value == "true";
 		if (key == "skin")
 			skin = String::fromUTF8(value);
+		if (key == "username")
+			setUsername(String::fromUTF8(value));
 		if (key == "lastServer")
 			lastMpIp = String::fromUTF8(value);
 
@@ -315,6 +328,7 @@ void Options::save()
 	*os << "difficulty:" << difficulty << '\n';
 	*os << "fancyGraphics:" << fancyGraphics << '\n';
 	*os << "skin:" << String::toUTF8(skin) << '\n';
+	*os << "username:" << String::toUTF8(username) << '\n';
 	*os << "lastServer:" << String::toUTF8(lastMpIp) << '\n';
 
 	for (int_t i = 0; i < keyMappings.size(); i++)

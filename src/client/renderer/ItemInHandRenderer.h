@@ -13,13 +13,14 @@ class Textures;
 
 namespace HeldItemRenderer
 {
-	void render(Textures &textures, TileRenderer &tileRenderer, ItemInstance &item);
+	void render(Textures &textures, TileRenderer &tileRenderer, ItemInstance &item, float brightness);
 }
 class ItemInHandRenderer
 {
 private:
 	Minecraft &mc;
 	ItemInstance selectedItem;
+	std::shared_ptr<const ItemInstanceReference> selectedItemReference;
 
 	float height = 0.0f;
 	float oHeight = 0.0f;
@@ -29,7 +30,7 @@ private:
 
 	std::unique_ptr<MapItemRenderer> mapItemRenderer;
 
-	void renderItem(ItemInstance &item);
+	void renderItem(ItemInstance &item, float brightness);
 	void renderMapFirstPerson(float a, float h);
 
 public:

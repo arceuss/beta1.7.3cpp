@@ -20,10 +20,86 @@ namespace
 
 Wolf::Wolf(Level &level) : Animal(level)
 {
+	dataWatcher.addObject(16, static_cast<byte_t>(0));
+	dataWatcher.addObject(17, jstring());
+	dataWatcher.addObject(18, 0);
 	textureName = u"/mob/wolf.png";
 	setSize(0.8f, 0.8f);
 	runSpeed = 1.1f;
 	health = 8;
+}
+
+void Wolf::tick()
+{
+	Animal::tick();
+
+	looksWithInterest = false;
+	if (hasCurrentTarget() && !hasPath() && !isWolfAngry())
+	{
+		if (auto player = std::dynamic_pointer_cast<Player>(getCurrentTarget()))
+		{
+			ItemInstance *selected = player->getSelectedItem();
+			if (selected != nullptr)
+			{
+				if (!isWolfTamed() && selected->itemID == Items::bone->getShiftedIndex())
+					looksWithInterest = true;
+				else if (isWolfTamed())
+					if (auto food = dynamic_cast<ItemFood *>(selected->getItem()))
+						looksWithInterest = food->isWolfsFavoriteMeat();
+			}
+		}
+	}
+
+	if (!interpolateOnly && wolfShaking && !shakeActive && !hasPath() && onGround)
+	{
+		shakeActive = true;
+		shakeTime = 0.0f;
+		shakeTimeOld = 0.0f;
+		level.broadcastEntityEvent(level.getEntityRef(*this), static_cast<byte_t>(8));
+	}
+
+	interestedAngleOld = interestedAngle;
+	interestedAngle += ((looksWithInterest ? 1.0f : 0.0f) - interestedAngle) * 0.4f;
+	if (looksWithInterest)
+		keepCurrentTarget(10);
+
+	if (isWet())
+	{
+		wolfShaking = true;
+		shakeActive = false;
+		shakeTime = 0.0f;
+		shakeTimeOld = 0.0f;
+	}
+	else if ((wolfShaking || shakeActive) && shakeActive)
+	{
+		if (shakeTime == 0.0f)
+		{
+			level.playSoundAtEntity(*this, u"mob.wolf.shake", getSoundVolume(),
+				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+		}
+
+		shakeTimeOld = shakeTime;
+		shakeTime += 0.05f;
+		if (shakeTimeOld >= 2.0f)
+		{
+			wolfShaking = false;
+			shakeActive = false;
+			shakeTimeOld = 0.0f;
+			shakeTime = 0.0f;
+		}
+
+		if (shakeTime > 0.4f)
+		{
+			float particleY = static_cast<float>(bb.y0);
+			int_t count = static_cast<int_t>(Mth::sin((shakeTime - 0.4f) * Mth::PI) * 7.0f);
+			for (int_t i = 0; i < count; ++i)
+			{
+				float offsetX = (random.nextFloat() * 2.0f - 1.0f) * bbWidth * 0.5f;
+				float offsetZ = (random.nextFloat() * 2.0f - 1.0f) * bbWidth * 0.5f;
+				level.addParticle(u"splash", x + offsetX, particleY + 0.8f, z + offsetZ, xd, yd, zd);
+			}
+		}
+	}
 }
 
 jstring Wolf::getTexture()
@@ -57,12 +133,25 @@ bool Wolf::interact(Player &player)
 		if (selected != nullptr && selected->itemID == Items::bone->getShiftedIndex() && !isWolfAngry())
 		{
 			selected->remove(1);
-			if (!level.isOnline && random.nextInt(3) == 0)
+			if (selected->stackSize <= 0)
+				player.inventory.setItem(player.inventory.currentItem, ItemInstance());
+			if (!level.isOnline)
 			{
-				setWolfTamed(true);
-				setWolfSitting(true);
-				health = 20;
-				setWolfOwner(player.name);
+				if (random.nextInt(3) == 0)
+				{
+					setWolfTamed(true);
+					setPath(nullptr);
+					setWolfSitting(true);
+					health = 20;
+					setWolfOwner(player.name);
+					showHeartsOrSmokeFX(true);
+					level.broadcastEntityEvent(level.getEntityRef(*this), static_cast<byte_t>(7));
+				}
+				else
+				{
+					showHeartsOrSmokeFX(false);
+					level.broadcastEntityEvent(level.getEntityRef(*this), static_cast<byte_t>(6));
+				}
 			}
 			return true;
 		}
@@ -74,7 +163,7 @@ bool Wolf::interact(Player &player)
 		Item *item = selected->getItem();
 		if (auto food = dynamic_cast<ItemFood *>(item))
 		{
-			if (food->isWolfsFavoriteMeat() && health < 20)
+			if (food->isWolfsFavoriteMeat() && dataWatcher.getWatchableObjectInt(18) < 20)
 			{
 				selected->remove(1);
 				health += food->getHealAmount();
@@ -84,7 +173,7 @@ bool Wolf::interact(Player &player)
 			}
 		}
 	}
-	if (player.name == owner)
+	if (player.name == getWolfOwner())
 	{
 		setWolfSitting(!isWolfSitting());
 		setTarget(nullptr);
@@ -103,20 +192,32 @@ int_t Wolf::getMaxSpawnClusterSize()
 	return 8;
 }
 
-bool Wolf::isWolfSitting() const { return (wolfFlags & WOLF_SITTING) != 0; }
-void Wolf::setWolfSitting(bool sitting) { wolfFlags = sitting ? (wolfFlags | WOLF_SITTING) : (wolfFlags & ~WOLF_SITTING); }
-bool Wolf::isWolfAngry() const { return (wolfFlags & WOLF_ANGRY) != 0; }
-void Wolf::setWolfAngry(bool angry) { wolfFlags = angry ? (wolfFlags | WOLF_ANGRY) : (wolfFlags & ~WOLF_ANGRY); }
-bool Wolf::isWolfTamed() const { return (wolfFlags & WOLF_TAMED) != 0; }
-void Wolf::setWolfTamed(bool tamed) { wolfFlags = tamed ? (wolfFlags | WOLF_TAMED) : (wolfFlags & ~WOLF_TAMED); }
-const jstring &Wolf::getWolfOwner() const { return owner; }
-void Wolf::setWolfOwner(const jstring &newOwner) { owner = newOwner; }
+bool Wolf::isWolfSitting() const { return (dataWatcher.getWatchableObjectByte(16) & WOLF_SITTING) != 0; }
+void Wolf::setWolfSitting(bool sitting)
+{
+	byte_t flags = dataWatcher.getWatchableObjectByte(16);
+	dataWatcher.updateObject(16, static_cast<byte_t>(sitting ? flags | WOLF_SITTING : flags & ~WOLF_SITTING));
+}
+bool Wolf::isWolfAngry() const { return (dataWatcher.getWatchableObjectByte(16) & WOLF_ANGRY) != 0; }
+void Wolf::setWolfAngry(bool angry)
+{
+	byte_t flags = dataWatcher.getWatchableObjectByte(16);
+	dataWatcher.updateObject(16, static_cast<byte_t>(angry ? flags | WOLF_ANGRY : flags & ~WOLF_ANGRY));
+}
+bool Wolf::isWolfTamed() const { return (dataWatcher.getWatchableObjectByte(16) & WOLF_TAMED) != 0; }
+void Wolf::setWolfTamed(bool tamed)
+{
+	byte_t flags = dataWatcher.getWatchableObjectByte(16);
+	dataWatcher.updateObject(16, static_cast<byte_t>(tamed ? flags | WOLF_TAMED : flags & ~WOLF_TAMED));
+}
+const jstring &Wolf::getWolfOwner() const { return dataWatcher.getWatchableObjectString(17); }
+void Wolf::setWolfOwner(const jstring &newOwner) { dataWatcher.updateObject(17, newOwner); }
 
 float Wolf::getTailRotation() const
 {
 	if (isWolfAngry())
 		return Mth::PI * 0.49f;
-	return isWolfTamed() ? (0.55f - (20 - health) * 0.02f) * Mth::PI : Mth::PI * 0.2f;
+	return isWolfTamed() ? (0.55f - (20 - dataWatcher.getWatchableObjectInt(18)) * 0.02f) * Mth::PI : Mth::PI * 0.2f;
 }
 
 float Wolf::getInterestedAngle(float a) const
@@ -124,12 +225,64 @@ float Wolf::getInterestedAngle(float a) const
 	return (interestedAngleOld + (interestedAngle - interestedAngleOld) * a) * 0.15f * Mth::PI;
 }
 
+bool Wolf::getWolfShaking() const
+{
+	return wolfShaking;
+}
+
+float Wolf::getShadingWhileShaking(float a) const
+{
+	return 12.0f / 16.0f + (shakeTimeOld + (shakeTime - shakeTimeOld) * a) / 2.0f * 0.25f;
+}
+
+float Wolf::getShakeAngle(float a, float offset) const
+{
+	float phase = (shakeTimeOld + (shakeTime - shakeTimeOld) * a + offset) / 1.8f;
+	if (phase < 0.0f)
+		phase = 0.0f;
+	else if (phase > 1.0f)
+		phase = 1.0f;
+	return Mth::sin(phase * Mth::PI) * Mth::sin(phase * Mth::PI * 11.0f) * 0.15f * Mth::PI;
+}
+
+void Wolf::showHeartsOrSmokeFX(bool hearts)
+{
+	const jstring particle = hearts ? u"heart" : u"smoke";
+	for (int_t i = 0; i < 7; ++i)
+	{
+		double xa = random.nextGaussian() * 0.02;
+		double ya = random.nextGaussian() * 0.02;
+		double za = random.nextGaussian() * 0.02;
+		level.addParticle(particle,
+			x + random.nextFloat() * bbWidth * 2.0f - bbWidth,
+			y + 0.5 + random.nextFloat() * bbHeight,
+			z + random.nextFloat() * bbWidth * 2.0f - bbWidth,
+			xa, ya, za);
+	}
+}
+
+void Wolf::handleEntityEvent(byte_t event)
+{
+	if (event == 7)
+		showHeartsOrSmokeFX(true);
+	else if (event == 6)
+		showHeartsOrSmokeFX(false);
+	else if (event == 8)
+	{
+		shakeActive = true;
+		shakeTime = 0.0f;
+		shakeTimeOld = 0.0f;
+	}
+	else
+		Animal::handleEntityEvent(event);
+}
+
 void Wolf::addAdditionalSaveData(CompoundTag &tag)
 {
 	Animal::addAdditionalSaveData(tag);
 	tag.putBoolean(u"Angry", isWolfAngry());
 	tag.putBoolean(u"Sitting", isWolfSitting());
-	tag.putString(u"Owner", owner);
+	tag.putString(u"Owner", getWolfOwner());
 }
 
 void Wolf::readAdditionalSaveData(CompoundTag &tag)
@@ -137,8 +290,8 @@ void Wolf::readAdditionalSaveData(CompoundTag &tag)
 	Animal::readAdditionalSaveData(tag);
 	setWolfAngry(tag.getBoolean(u"Angry"));
 	setWolfSitting(tag.getBoolean(u"Sitting"));
-	owner = tag.getString(u"Owner");
-	if (!owner.empty())
+	setWolfOwner(tag.getString(u"Owner"));
+	if (!getWolfOwner().empty())
 		setWolfTamed(true);
 }
 
@@ -149,7 +302,7 @@ bool Wolf::canDespawn()
 
 bool Wolf::isMovementCeased()
 {
-	return isWolfSitting();
+	return isWolfSitting() || shakeActive;
 }
 
 std::shared_ptr<Entity> Wolf::findAttackTarget()
@@ -171,11 +324,11 @@ void Wolf::checkHurtTarget(Entity &entity, float distance)
 void Wolf::updateAi()
 {
 	std::shared_ptr<Player> ownerPlayer;
-	if (isWolfTamed() && !owner.empty())
+	if (isWolfTamed() && !getWolfOwner().empty())
 	{
 		for (const auto &player : level.players)
 		{
-			if (player != nullptr && player->name == owner)
+			if (player != nullptr && player->name == getWolfOwner())
 			{
 				ownerPlayer = player;
 				break;
@@ -231,27 +384,10 @@ void Wolf::updateAi()
 
 wolf_follow_done:
 	Animal::updateAi();
-	interestedAngleOld = interestedAngle;
-	looksWithInterest = false;
-	auto target = getTarget();
-	if (target != nullptr && !hasPath() && !isWolfAngry())
-	{
-		if (auto player = std::dynamic_pointer_cast<Player>(target))
-		{
-			ItemInstance *selected = player->getSelectedItem();
-			if (selected != nullptr)
-			{
-				if (!isWolfTamed() && selected->itemID == Items::bone->getShiftedIndex())
-					looksWithInterest = true;
-				else if (isWolfTamed())
-					if (auto food = dynamic_cast<ItemFood *>(selected->getItem()))
-						looksWithInterest = food->isWolfsFavoriteMeat();
-			}
-		}
-	}
-	interestedAngle += ((looksWithInterest ? 1.0f : 0.0f) - interestedAngle) * 0.4f;
 	if (isInWater())
 		setWolfSitting(false);
+	if (!level.isOnline)
+		dataWatcher.updateObject(18, health);
 }
 
 jstring Wolf::getAmbientSound()
@@ -259,7 +395,7 @@ jstring Wolf::getAmbientSound()
 	if (isWolfAngry())
 		return u"mob.wolf.growl";
 	if (random.nextInt(3) == 0)
-		return isWolfTamed() && health < 10 ? u"mob.wolf.whine" : u"mob.wolf.panting";
+		return isWolfTamed() && dataWatcher.getWatchableObjectInt(18) < 10 ? u"mob.wolf.whine" : u"mob.wolf.panting";
 	return u"mob.wolf.bark";
 }
 

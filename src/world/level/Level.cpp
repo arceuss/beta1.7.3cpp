@@ -227,13 +227,18 @@ Level::Level(File *workingDirectory, const jstring &name) : Level(workingDirecto
 
 }
 
-Level::Level(const jstring &name, int_t dimension, long_t seed)
+Level::Level(const jstring &name, int_t dimension, long_t seed) : Level(name, dimension, seed, true)
+{
+}
+
+Level::Level(const jstring &name, int_t dimension, long_t seed, bool initializeChunkSource)
 {
 	this->name = name;
 	this->levelName = name;
 	this->seed = seed;
 	this->dimension.reset(Dimension::getNew(*this, dimension));
-	this->chunkSource.reset(createChunkSource(dir));
+	if (initializeChunkSource)
+		this->chunkSource.reset(createChunkSource(dir));
 	updateSkyBrightness();
 }
 
@@ -353,6 +358,11 @@ ChunkSource *Level::createChunkSource(std::shared_ptr<File> dir)
 	return new ChunkCache(*this, dimension->createStorage(dir), dimension->createRandomLevelSource());
 }
 
+void Level::setChunkSource(std::shared_ptr<ChunkSource> source)
+{
+	chunkSource = std::move(source);
+}
+
 void Level::validateSpawn()
 {
 
@@ -360,14 +370,79 @@ void Level::validateSpawn()
 
 int_t Level::getTopTile(int_t x, int_t z)
 {
-	byte_t y;
-	for (y = SEA_LEVEL; !isEmptyTile(x, y + 1, z); y++);
+	int_t y = 63;
+	while (!isEmptyTile(x, y + 1, z))
+		++y;
 	return getTile(x, y, z);
 }
 
 void Level::clearLoadedPlayerData()
 {
+}
 
+void Level::setSpawnLocation()
+{
+	if (ySpawn <= 0)
+		ySpawn = 64;
+
+	int_t x = xSpawn;
+	int_t z = zSpawn;
+	while (getTopTile(x, z) == 0)
+	{
+		x += random.nextInt(8) - random.nextInt(8);
+		z += random.nextInt(8) - random.nextInt(8);
+	}
+
+	xSpawn = x;
+	zSpawn = z;
+}
+
+void Level::updateEntityList()
+{
+	for (const auto &entity : entitiesToRemove)
+		entities.erase(entity);
+
+	for (const auto &entity : entitiesToRemove)
+	{
+		int_t chunkX = entity->xChunk;
+		int_t chunkZ = entity->zChunk;
+		if (entity->inChunk && hasChunk(chunkX, chunkZ))
+			getChunk(chunkX, chunkZ)->removeEntity(entity);
+	}
+
+	for (const auto &entity : entitiesToRemove)
+		entityRemoved(entity);
+
+	entitiesToRemove.clear();
+
+	for (auto it = entities.begin(); it != entities.end();)
+	{
+		std::shared_ptr<Entity> entity = *it;
+		if (entity->riding != nullptr)
+		{
+			if (!entity->riding->removed && entity->riding->rider == entity)
+			{
+				++it;
+				continue;
+			}
+
+			entity->riding->rider = nullptr;
+			entity->riding = nullptr;
+		}
+
+		if (!entity->removed)
+		{
+			++it;
+			continue;
+		}
+
+		int_t chunkX = entity->xChunk;
+		int_t chunkZ = entity->zChunk;
+		if (entity->inChunk && hasChunk(chunkX, chunkZ))
+			getChunk(chunkX, chunkZ)->removeEntity(entity);
+		it = entities.erase(it);
+		entityRemoved(entity);
+	}
 }
 
 void Level::centerChunkSource(int_t chunkX, int_t chunkZ)
@@ -854,6 +929,18 @@ int_t Level::getHeightmap(int_t x, int_t z)
 	return getChunk(x >> 4, z >> 4)->getHeightmap(x & 0xF, z & 0xF);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.World#findTopSolidBlock(int,int)
+int_t Level::findTopSolidBlock(int_t x, int_t z)
+{
+	for (int_t y = DEPTH - 1; y > 0; --y)
+	{
+		const Material &material = getMaterial(x, y, z);
+		if (material.isSolid() || material.isLiquid())
+			return y + 1;
+	}
+	return -1;
+}
+
 void Level::updateLightIfOtherThan(int_t layer, int_t x, int_t y, int_t z, int_t brightness)
 {
 	if (dimension->hasCeiling && layer == LightLayer::Sky)
@@ -1115,6 +1202,17 @@ bool Level::addEntity(std::shared_ptr<Entity> entity)
 	return true;
 }
 
+bool Level::addWeatherEffect(std::shared_ptr<Entity> entity)
+{
+	weatherEffects.emplace_back(std::move(entity));
+	return true;
+}
+
+const std::vector<std::shared_ptr<Entity>> &Level::getWeatherEffects() const
+{
+	return weatherEffects;
+}
+
 void Level::entityAdded(std::shared_ptr<Entity> entity)
 {
 	for (auto &l : listeners)
@@ -1135,14 +1233,24 @@ void Level::removeEntity(std::shared_ptr<Entity> entity)
 		entity->ride(nullptr);
 	entity->remove();
 	if (entity->isPlayer())
-		;//players.erase(std::static_pointer_cast<Player>(entity));
+	{
+		auto found = std::find(players.begin(), players.end(), std::static_pointer_cast<Player>(entity));
+		if (found != players.end())
+			players.erase(found);
+		updateAllPlayersSleepingFlag();
+	}
 }
 
 void Level::removeEntityImmediately(std::shared_ptr<Entity> entity)
 {
 	entity->remove();
 	if (entity->isPlayer())
-		;//players.erase(std::static_pointer_cast<Player>(entity));
+	{
+		auto found = std::find(players.begin(), players.end(), std::static_pointer_cast<Player>(entity));
+		if (found != players.end())
+			players.erase(found);
+		updateAllPlayersSleepingFlag();
+	}
 	int_t cx = entity->xChunk;
 	int_t cz = entity->zChunk;
 	if (entity->inChunk && hasChunk(cx, cz))
@@ -1185,6 +1293,17 @@ void Level::addParticle(const jstring &name, double x, double y, double z, doubl
 {
 	for (LevelListener *listener : listeners)
 		listener->addParticle(name, x, y, z, xa, ya, za);
+}
+
+void Level::levelEvent(int_t event, int_t x, int_t y, int_t z, int_t data)
+{
+	levelEvent(nullptr, event, x, y, z, data);
+}
+
+void Level::levelEvent(Player *player, int_t event, int_t x, int_t y, int_t z, int_t data)
+{
+	for (LevelListener *listener : listeners)
+		listener->levelEvent(player, event, x, y, z, data);
 }
 
 const std::vector<AABB *> &Level::getCubes(Entity &entity, AABB &bb)
@@ -1234,6 +1353,10 @@ int_t Level::getSkyDarken(float a)
 	float curve = 1.0f - (Mth::cos(tod * Mth::PI * 2.0f) * 2.0f + 0.5f);
 	if (curve < 0.0f) curve = 0.0f;
 	if (curve > 1.0f) curve = 1.0f;
+	curve = 1.0f - curve;
+	curve = static_cast<float>(curve * (1.0 - getRainStrength(a) * 5.0f / 16.0));
+	curve = static_cast<float>(curve * (1.0 - getThunderStrength(a) * 5.0f / 16.0));
+	curve = 1.0f - curve;
 	return static_cast<int_t>(curve * 11.0f);
 }
 
@@ -1314,6 +1437,37 @@ Vec3 *Level::getSkyColor(Entity &entity, float a)
 	g *= curve;
 	b *= curve;
 
+	float rainStrength = getRainStrength(a);
+	if (rainStrength > 0.0f)
+	{
+		float gray = (r * 0.3f + g * 0.59f + b * 0.11f) * 0.6f;
+		float scale = 1.0f - rainStrength * (12.0f / 16.0f);
+		r = r * scale + gray * (1.0f - scale);
+		g = g * scale + gray * (1.0f - scale);
+		b = b * scale + gray * (1.0f - scale);
+	}
+
+	float thunderStrength = getThunderStrength(a);
+	if (thunderStrength > 0.0f)
+	{
+		float gray = (r * 0.3f + g * 0.59f + b * 0.11f) * 0.2f;
+		float scale = 1.0f - thunderStrength * (12.0f / 16.0f);
+		r = r * scale + gray * (1.0f - scale);
+		g = g * scale + gray * (1.0f - scale);
+		b = b * scale + gray * (1.0f - scale);
+	}
+
+	if (lastLightningBolt > 0)
+	{
+		float flash = lastLightningBolt - a;
+		if (flash > 1.0f)
+			flash = 1.0f;
+		flash *= 0.45f;
+		r = r * (1.0f - flash) + 0.8f * flash;
+		g = g * (1.0f - flash) + 0.8f * flash;
+		b = b * (1.0f - flash) + flash;
+	}
+
 	return Vec3::newTemp(r, g, b);
 }
 
@@ -1339,9 +1493,29 @@ Vec3 *Level::getCloudColor(float a)
 	float g = ((cloudColor >> 8) & 0xFF) / 255.0f;
 	float b = (cloudColor & 0xFF) / 255.0f;
 
+	float rainStrength = getRainStrength(a);
+	if (rainStrength > 0.0f)
+	{
+		float gray = (r * 0.3f + g * 0.59f + b * 0.11f) * 0.6f;
+		float scale = 1.0f - rainStrength * 0.95f;
+		r = r * scale + gray * (1.0f - scale);
+		g = g * scale + gray * (1.0f - scale);
+		b = b * scale + gray * (1.0f - scale);
+	}
+
 	r *= curve * 0.9f + 0.1f;
 	g *= curve * 0.9f + 0.1f;
 	b *= curve * 0.85f + 0.15f;
+
+	float thunderStrength = getThunderStrength(a);
+	if (thunderStrength > 0.0f)
+	{
+		float gray = (r * 0.3f + g * 0.59f + b * 0.11f) * 0.2f;
+		float scale = 1.0f - thunderStrength * 0.95f;
+		r = r * scale + gray * (1.0f - scale);
+		g = g * scale + gray * (1.0f - scale);
+		b = b * scale + gray * (1.0f - scale);
+	}
 
 	return Vec3::newTemp(r, g, b);
 }
@@ -1425,6 +1599,15 @@ void Level::addToTickNextTick(int_t x, int_t y, int_t z, int_t tileId)
 
 void Level::tickEntities()
 {
+	for (auto it = weatherEffects.begin(); it != weatherEffects.end();)
+	{
+		(*it)->tick();
+		if ((*it)->removed)
+			it = weatherEffects.erase(it);
+		else
+			++it;
+	}
+
 	// Remove entities queued to remove
 	for (auto &entity : entitiesToRemove)
 		entities.erase(entity);
@@ -2394,19 +2577,54 @@ std::shared_ptr<ChunkSource> Level::getChunkSource()
 
 bool Level::isRaining()
 {
-	return false;
+	return getRainStrength(1.0f) > 0.2f;
+}
+
+// B173-JAVA-METHOD: net.minecraft.src.World#func_27162_g(float)
+float Level::getRainStrength(float a) const
+{
+	return previousRainingStrength + (rainingStrength - previousRainingStrength) * a;
+}
+
+// B173-JAVA-METHOD: net.minecraft.src.World#func_27166_f(float)
+float Level::getThunderStrength(float a) const
+{
+	return (previousThunderingStrength + (thunderingStrength - previousThunderingStrength) * a) * getRainStrength(a);
+}
+
+// B173-JAVA-METHOD: net.minecraft.src.World#func_27158_h(float)
+void Level::setRainStrength(float strength)
+{
+	previousRainingStrength = strength;
+	rainingStrength = strength;
 }
 
 bool Level::canBlockBeRainedOn(int_t x, int_t y, int_t z)
 {
-	(void)x; (void)y; (void)z;
-	return false;
+	if (!isRaining())
+		return false;
+	if (!canSeeSky(x, y, z))
+		return false;
+	int_t top = -1;
+	for (int_t iy = 127; iy > 0; iy--)
+	{
+		const Material &material = getMaterial(x, iy, z);
+		if (material.isSolid() || material.isLiquid())
+		{
+			top = iy + 1;
+			break;
+		}
+	}
+	if (top > y)
+		return false;
+	const BiomeInfo &biome = getBiomeSource().getBiomeInfo(getBiomeSource().getBiome(x, z));
+	return !biome.enableSnow && biome.enableRain;
 }
 
 MapDataBase *Level::loadItemData(const jstring &id, const std::function<std::unique_ptr<MapDataBase>(const jstring&)> &factory)
 {
-	auto it = loadedItemData.find(id);
-	if (it != loadedItemData.end())
+	auto it = loadedItemData->find(id);
+	if (it != loadedItemData->end())
 		return it->second.get();
 
 	if (dir != nullptr)
@@ -2430,7 +2648,7 @@ MapDataBase *Level::loadItemData(const jstring &id, const std::function<std::uni
 							if (data != nullptr)
 							{
 								data->readFromNBT(*dataTag);
-								loadedItemData[id] = std::move(data);
+								(*loadedItemData)[id] = std::move(data);
 							}
 						}
 					}
@@ -2440,8 +2658,8 @@ MapDataBase *Level::loadItemData(const jstring &id, const std::function<std::uni
 		}
 	}
 
-	auto it2 = loadedItemData.find(id);
-	if (it2 != loadedItemData.end())
+	auto it2 = loadedItemData->find(id);
+	if (it2 != loadedItemData->end())
 		return it2->second.get();
 	return nullptr;
 }
@@ -2450,16 +2668,22 @@ void Level::setItemData(const jstring &id, MapDataBase *data)
 {
 	if (data == nullptr)
 		return;
-	loadedItemData[id] = std::unique_ptr<MapDataBase>(data);
+	(*loadedItemData)[id] = std::unique_ptr<MapDataBase>(data);
+}
+
+void Level::shareItemDataWith(Level &level)
+{
+	loadedItemData = level.loadedItemData;
+	idCounts = level.idCounts;
 }
 
 int_t Level::getUniqueDataId(const jstring &key)
 {
 	short_t value = 0;
-	auto it = idCounts.find(key);
-	if (it != idCounts.end())
+	auto it = idCounts->find(key);
+	if (it != idCounts->end())
 		value = it->second + 1;
-	idCounts[key] = value;
+	(*idCounts)[key] = value;
 
 	if (dir != nullptr)
 	{
@@ -2474,7 +2698,7 @@ int_t Level::getUniqueDataId(const jstring &key)
 				if (idFile != nullptr)
 				{
 					auto root = Util::make_shared<CompoundTag>();
-					for (const auto &entry : idCounts)
+					for (const auto &entry : *idCounts)
 						root->putShort(entry.first, entry.second);
 					std::unique_ptr<std::ostream> os(idFile->toStreamOut());
 					if (os)
@@ -2498,7 +2722,7 @@ void Level::saveAllItemData()
 	if (!dataDir->exists())
 		dataDir->mkdirs();
 
-	for (auto &entry : loadedItemData)
+	for (auto &entry : *loadedItemData)
 	{
 		MapDataBase *data = entry.second.get();
 		if (data == nullptr || !data->isDirty())

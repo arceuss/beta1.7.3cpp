@@ -1,5 +1,7 @@
 #include "world/level/chunk/LevelChunk.h"
 
+#include <cstring>
+
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
 
@@ -566,9 +568,57 @@ int_t LevelChunk::getBlocksAndData(byte_t *out, int_t x0, int_t y0, int_t z0, in
 	return 0;
 }
 
-int_t LevelChunk::setBlocksAndData(byte_t *in, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1)
+int_t LevelChunk::setBlocksAndData(const byte_t *in, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1)
 {
-	return 0;
+	int_t offset = 0;
+
+	for (int_t x = x0; x < x1; x++)
+	{
+		for (int_t z = z0; z < z1; z++)
+		{
+			int_t index = (x << 11) | (z << 7) | y0;
+			int_t length = y1 - y0;
+			std::memcpy(blocks.data() + index, in + offset, length);
+			offset += length;
+		}
+	}
+
+	recalcHeightmapOnly();
+
+	for (int_t x = x0; x < x1; x++)
+	{
+		for (int_t z = z0; z < z1; z++)
+		{
+			int_t index = ((x << 11) | (z << 7) | y0) >> 1;
+			int_t length = (y1 - y0) / 2;
+			std::memcpy(data.data.data() + index, in + offset, length);
+			offset += length;
+		}
+	}
+
+	for (int_t x = x0; x < x1; x++)
+	{
+		for (int_t z = z0; z < z1; z++)
+		{
+			int_t index = ((x << 11) | (z << 7) | y0) >> 1;
+			int_t length = (y1 - y0) / 2;
+			std::memcpy(blockLight.data.data() + index, in + offset, length);
+			offset += length;
+		}
+	}
+
+	for (int_t x = x0; x < x1; x++)
+	{
+		for (int_t z = z0; z < z1; z++)
+		{
+			int_t index = ((x << 11) | (z << 7) | y0) >> 1;
+			int_t length = (y1 - y0) / 2;
+			std::memcpy(skyLight.data.data() + index, in + offset, length);
+			offset += length;
+		}
+	}
+
+	return offset;
 }
 
 Random LevelChunk::getRandom(long_t seed)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <future>
 #include <memory>
 
@@ -21,7 +22,7 @@ private:
 	std::unique_ptr<File> unsentTempFile;
 	std::unique_ptr<File> statsTempFile;
 
-	bool busy = false;
+	std::atomic<bool> busy{false};
 	int_t saveDelay = 0;
 	int_t unusedDelay = 0;
 	std::future<std::unique_ptr<StatMap>> receiveFuture;

@@ -18,9 +18,11 @@
 #include "client/particle/PortalParticle.h"
 #include "client/particle/NoteParticle.h"
 #include "client/particle/ItemParticle.h"
+#include "java/Math.h"
 #include "world/item/Item.h"
 #include "world/item/ItemInstance.h"
 #include "world/item/Items.h"
+#include "world/item/RecordItem.h"
 #include "client/renderer/SignRenderer.h"
 #include "client/renderer/entity/PistonTileEntityRenderer.h"
 #include "world/entity/EntityIO.h"
@@ -277,10 +279,16 @@ void LevelRenderer::renderEntities(Vec3 &cam, Culler &culler, float a)
 	EntityRenderDispatcher::zOff = player.zOld + (player.z - player.zOld) * a;
 
 	const auto &entities = level->getAllEntities();
+	for (auto &entity : level->getWeatherEffects())
+	{
+		renderedEntities++;
+		if (entity->shouldRender(cam))
+			EntityRenderDispatcher::instance.render(*entity, a);
+	}
 
 	for (auto &entity : entities)
 	{
-		if (entity->shouldRender(cam) && culler.isVisible(entity->bb) && (entity != mc.player || mc.options.thirdPersonView) && level->hasChunkAt(Mth::floor(entity->x), Mth::floor(entity->y), Mth::floor(entity->z)))
+		if (entity->shouldRender(cam) && (entity->noCulling || culler.isVisible(entity->bb)) && (entity != mc.player || mc.options.thirdPersonView) && level->hasChunkAt(Mth::floor(entity->x), Mth::floor(entity->y), Mth::floor(entity->z)))
 		{
 			renderedEntities++;
 			EntityRenderDispatcher::instance.render(*entity, a);
@@ -636,6 +644,7 @@ void LevelRenderer::tick()
 	ticks++;
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.RenderGlobal#renderSky(float)
 void LevelRenderer::renderSky(float alpha)
 {
 	if (mc.level->dimension->foggy)
@@ -716,7 +725,8 @@ void LevelRenderer::renderSky(float alpha)
 	yp = 0.0f;
 	float zp = 0.0f;
 	
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	float weatherAlpha = 1.0f - level->getRainStrength(alpha);
+	glColor4f(1.0f, 1.0f, 1.0f, weatherAlpha);
 	glTranslatef(xp, yp, zp);
 	glRotatef(0.0f, 0.0f, 0.0f, 1.0f);
 	glRotatef(level->getTimeOfDay(alpha) * 360.0f, 1.0f, 0.0f, 0.0f);
@@ -742,7 +752,7 @@ void LevelRenderer::renderSky(float alpha)
 
 	glDisable(GL_TEXTURE_2D);
 
-	float a = level->getStarBrightness(alpha);
+	float a = level->getStarBrightness(alpha) * weatherAlpha;
 	if (a > 0.0f)
 	{
 		glColor4f(a, a, a, a);
@@ -756,7 +766,10 @@ void LevelRenderer::renderSky(float alpha)
 	glEnable(GL_FOG);
 	glPopMatrix();
 
-	glColor3f(sr * 0.2f + 0.04f, sg * 0.2f + 0.04f, sb * 0.6f + 0.1f);
+	if (level->dimension->foggy)
+		glColor3f(sr * 0.2f + 0.04f, sg * 0.2f + 0.04f, sb * 0.6f + 0.1f);
+	else
+		glColor3f(sr, sg, sb);
 	glDisable(GL_TEXTURE_2D);
 	glCallList(darkList);
 	glEnable(GL_TEXTURE_2D);
@@ -1296,6 +1309,8 @@ void LevelRenderer::cull(Culler &culler, float a)
 
 void LevelRenderer::playStreamingMusic(const jstring &name, int_t x, int_t y, int_t z)
 {
+	if (!name.empty())
+		mc.gui.setRecordPlayingMessage(u"C418 - " + name);
 	mc.soundEngine.playStreaming(name, (float)x, (float)y, (float)z, 1.0f, 1.0f);
 }
 
@@ -1349,12 +1364,19 @@ void LevelRenderer::playMusic(const jstring &name, double x, double y, double z,
 
 void LevelRenderer::entityAdded(std::shared_ptr<Entity> entity)
 {
-
+	entity->prepareCustomTextures();
+	if (!entity->customTextureUrl.empty())
+		textures.obtainHttpTexture(entity->customTextureUrl);
+	if (!entity->customTextureUrl2.empty())
+		textures.obtainHttpTexture(entity->customTextureUrl2);
 }
 
 void LevelRenderer::entityRemoved(std::shared_ptr<Entity> entity)
 {
-
+	if (!entity->customTextureUrl.empty())
+		textures.removeHttpTexture(entity->customTextureUrl);
+	if (!entity->customTextureUrl2.empty())
+		textures.removeHttpTexture(entity->customTextureUrl2);
 }
 
 void LevelRenderer::skyColorChanged()
@@ -1373,4 +1395,73 @@ void LevelRenderer::tileEntityChanged(int_t x, int_t y, int_t z, std::shared_ptr
 {
 	(void)tileEntity;
 	setDirty(x, y, z, x, y, z);
+}
+
+void LevelRenderer::levelEvent(Player *player, int_t event, int_t x, int_t y, int_t z, int_t data)
+{
+	(void)player;
+	Random &random = level->random;
+	switch (event)
+	{
+	case 1000:
+		level->playSoundEffect(x, y, z, u"random.click", 1.0f, 1.0f);
+		break;
+	case 1001:
+		level->playSoundEffect(x, y, z, u"random.click", 1.0f, 1.2f);
+		break;
+	case 1002:
+		level->playSoundEffect(x, y, z, u"random.bow", 1.0f, 1.2f);
+		break;
+	case 1003:
+		if (Math::random() < 0.5)
+			level->playSoundEffect(x + 0.5, y + 0.5, z + 0.5, u"random.door_open", 1.0f, level->random.nextFloat() * 0.1f + 0.9f);
+		else
+			level->playSoundEffect(x + 0.5, y + 0.5, z + 0.5, u"random.door_close", 1.0f, level->random.nextFloat() * 0.1f + 0.9f);
+		break;
+	case 1004:
+		level->playSoundEffect(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f,
+			u"random.fizz", 0.5f, 2.6f + (random.nextFloat() - random.nextFloat()) * 0.8f);
+		break;
+	case 1005:
+	{
+		RecordItem *record = nullptr;
+		if (data >= 0 && data < static_cast<int_t>(Item::items.size()))
+			record = dynamic_cast<RecordItem *>(Item::items[data]);
+		level->playRecord(record == nullptr ? jstring() : record->getRecordName(), x, y, z);
+		break;
+	}
+	case 2000:
+	{
+		int_t xDirection = data % 3 - 1;
+		int_t zDirection = data / 3 % 3 - 1;
+		double particleX = x + xDirection * 0.6 + 0.5;
+		double particleY = y + 0.5;
+		double particleZ = z + zDirection * 0.6 + 0.5;
+		for (int_t i = 0; i < 10; i++)
+		{
+			double speed = random.nextDouble() * 0.2 + 0.01;
+			double px = particleX + xDirection * 0.01 + (random.nextDouble() - 0.5) * zDirection * 0.5;
+			double py = particleY + (random.nextDouble() - 0.5) * 0.5;
+			double pz = particleZ + zDirection * 0.01 + (random.nextDouble() - 0.5) * xDirection * 0.5;
+			double xa = xDirection * speed + random.nextGaussian() * 0.01;
+			double ya = -0.03 + random.nextGaussian() * 0.01;
+			double za = zDirection * speed + random.nextGaussian() * 0.01;
+			addParticle(u"smoke", px, py, pz, xa, ya, za);
+		}
+		break;
+	}
+	case 2001:
+	{
+		int_t tileId = data & 0xff;
+		if (tileId > 0)
+		{
+			Tile *tile = Tile::tiles[tileId];
+			StepSound *sound = tile->soundType;
+			mc.soundEngine.play(sound->stepSoundDir(), static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f,
+				static_cast<float>(z) + 0.5f, (sound->getVolume() + 1.0f) / 2.0f, sound->getPitch() * 0.8f);
+		}
+		mc.particleEngine.destroy(x, y, z, tileId, static_cast<int_t>((static_cast<uint_t>(data) >> 8) & 0xffU));
+		break;
+	}
+	}
 }

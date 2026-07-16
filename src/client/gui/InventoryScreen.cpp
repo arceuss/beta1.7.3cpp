@@ -4,12 +4,14 @@
 
 #include "client/Lighting.h"
 #include "client/Minecraft.h"
+#include "client/gamemode/GameMode.h"
 #include "client/locale/Language.h"
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 #include "client/renderer/entity/ItemRenderer.h"
 #include "java/String.h"
 #include "world/entity/player/InventoryPlayer.h"
 #include "world/entity/player/Player.h"
+#include "world/inventory/Container.h"
 #include "world/item/Item.h"
 #include "world/item/ItemArmor.h"
 #include "world/item/Items.h"
@@ -107,16 +109,20 @@ namespace
 }
 
 InventoryScreen::InventoryScreen(Minecraft &minecraft, int_t craftingWidth, int_t craftingHeight)
-	: Screen(minecraft), craftingSlots(craftingWidth * craftingHeight), craftingWidth(craftingWidth), craftingHeight(craftingHeight)
+	: ContainerScreen(minecraft), craftingSlots(craftingWidth * craftingHeight), craftingWidth(craftingWidth), craftingHeight(craftingHeight)
 {
+	if (minecraft.player != nullptr)
+		containerMenu = craftingWidth == 2 && craftingHeight == 2
+			? minecraft.player->inventorySlots : minecraft.player->craftingInventory;
 	passEvents = true;
-	updateCraftingResult();
+	syncCraftingSlotsFromMenu();
 	if (craftingWidth == 2 && craftingHeight == 2 && minecraft.player != nullptr)
 		minecraft.player->addStat(*AchievementList::openInventory, 1);
 }
 
 void InventoryScreen::render(int_t xm, int_t ym, float a)
 {
+	syncCraftingSlotsFromMenu();
 	xMouse = static_cast<float>(xm);
 	yMouse = static_cast<float>(ym);
 
@@ -199,7 +205,7 @@ void InventoryScreen::render(int_t xm, int_t ym, float a)
 	}
 
 	// Armor slots (left side of inventory)
-	for (int_t slot = 0; slot < 4; ++slot)
+	for (int_t slot = 0; craftingWidth == 2 && craftingHeight == 2 && slot < 4; ++slot)
 	{
 		int_t slotX = getArmorSlotX(slot);
 		int_t slotY = getArmorSlotY(slot);
@@ -264,7 +270,12 @@ bool InventoryScreen::isPauseScreen()
 
 void InventoryScreen::removed()
 {
-	dropCraftingContents();
+	if (minecraft.player != nullptr && containerMenu != nullptr)
+	{
+		minecraft.gameMode->closeContainer(containerMenu->windowId, *minecraft.player);
+		if (craftingWidth == 3 && craftingHeight == 3)
+			containerMenu->onClosed(*minecraft.player);
+	}
 	Screen::removed();
 }
 
@@ -272,7 +283,7 @@ void InventoryScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 {
 	if (eventKey == lwjgl::Keyboard::KEY_ESCAPE || eventKey == minecraft.options.keyInventory.key)
 	{
-		minecraft.setScreen(nullptr);
+		minecraft.player->closeContainer();
 		minecraft.grabMouse();
 		return;
 	}
@@ -288,32 +299,32 @@ void InventoryScreen::mouseClicked(int_t x, int_t y, int_t buttonNum)
 	int_t xo = getGuiLeft();
 	int_t yo = getGuiTop();
 	bool outside = x < xo || y < yo || x >= xo + imageWidth || y >= yo + imageHeight;
-	InventoryPlayer &inventory = minecraft.player->inventory;
-	ItemInstance *carried = inventory.getCarried();
-
+	int_t protocolSlot = -1;
 	if (outside)
+		protocolSlot = -999;
+	else
 	{
-		if (carried == nullptr)
-			return;
-
-		if (buttonNum == 0)
-		{
-			minecraft.player->drop(*carried);
-			inventory.setCarriedNull();
-		}
-		else
-		{
-			ItemInstance dropped = carried->remove(1);
-			minecraft.player->drop(dropped);
-			if (carried->isEmpty())
-				inventory.setCarriedNull();
-		}
-		return;
+		int_t slot = getSlotAt(x, y);
+		if (slot == SLOT_RESULT)
+			protocolSlot = 0;
+		else if (slot >= SLOT_CRAFTING_BASE && slot < SLOT_CRAFTING_BASE + craftingWidth * craftingHeight)
+			protocolSlot = 1 + slot - SLOT_CRAFTING_BASE;
+		else if (craftingWidth == 2 && slot >= SLOT_ARMOR_BASE && slot < SLOT_ARMOR_BASE + 4)
+			protocolSlot = 5 + slot - SLOT_ARMOR_BASE;
+		else if (slot >= 9 && slot < 36)
+			protocolSlot = craftingWidth == 2 ? slot : slot + 1;
+		else if (slot >= 0 && slot < 9)
+			protocolSlot = (craftingWidth == 2 ? 36 : 37) + slot;
 	}
-
-	int_t slot = getSlotAt(x, y);
-	if (slot != SLOT_NONE)
-		handleSlotClick(slot, buttonNum);
+	if (protocolSlot != -1 && containerMenu != nullptr)
+	{
+		bool shiftClick = protocolSlot != -999
+			&& (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_LSHIFT)
+				|| lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_RSHIFT));
+		minecraft.gameMode->clickContainer(containerMenu->windowId, protocolSlot,
+			buttonNum, shiftClick, *minecraft.player);
+		syncCraftingSlotsFromMenu();
+	}
 }
 
 int_t InventoryScreen::getGuiLeft() const
@@ -370,7 +381,7 @@ int_t InventoryScreen::getSlotAt(int_t x, int_t y) const
 			return slot;
 	}
 
-	for (int_t slot = 0; slot < 4; ++slot)
+	for (int_t slot = 0; craftingWidth == 2 && craftingHeight == 2 && slot < 4; ++slot)
 	{
 		if (isPointInSlot(relX, relY, getArmorSlotX(slot), getArmorSlotY(slot)))
 			return SLOT_ARMOR_BASE + slot;
@@ -383,6 +394,19 @@ void InventoryScreen::updateCraftingResult()
 {
 	GridCraftingContainer container(craftingSlots, craftingWidth, craftingHeight);
 	craftingResult = Recipes::getInstance().getItemFor(container);
+}
+
+void InventoryScreen::syncCraftingSlotsFromMenu()
+{
+	if (containerMenu == nullptr)
+		return;
+	for (int_t slot = 0; slot < static_cast<int_t>(craftingSlots.size()); ++slot)
+	{
+		const ItemInstance *item = containerMenu->getSlot(slot + 1).getItem();
+		craftingSlots[slot] = item == nullptr ? ItemInstance() : *item;
+	}
+	const ItemInstance *result = containerMenu->getSlot(0).getItem();
+	craftingResult = result == nullptr ? ItemInstance() : *result;
 }
 
 void InventoryScreen::consumeCraftingIngredients()
@@ -515,7 +539,8 @@ const ItemInstance *InventoryScreen::getSlotItem(int_t slot) const
 	}
 
 	// Armor slots
-	if (slot >= SLOT_ARMOR_BASE && slot < SLOT_ARMOR_BASE + 4)
+	if (craftingWidth == 2 && craftingHeight == 2
+		&& slot >= SLOT_ARMOR_BASE && slot < SLOT_ARMOR_BASE + 4)
 	{
 		int_t armorIdx = 3 - (slot - SLOT_ARMOR_BASE);
 		const ItemInstance &stack = minecraft.player->inventory.armorInventory[armorIdx];
@@ -535,7 +560,7 @@ void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t butt
 		if (carried == nullptr)
 			return;
 
-		int_t toPlace = buttonNum == 0 ? carried->stackSize : 1;
+		int_t toPlace = buttonNum == 0 ? carried->stackSize.load(std::memory_order_relaxed) : 1;
 		if (toPlace > carried->getMaxStackSize())
 			toPlace = carried->getMaxStackSize();
 		if (toPlace <= 0)
@@ -550,7 +575,8 @@ void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t butt
 
 	if (carried == nullptr)
 	{
-		int_t toTake = buttonNum == 0 ? slotStack.stackSize : (slotStack.stackSize + 1) / 2;
+		int_t toTake = buttonNum == 0 ? slotStack.stackSize.load(std::memory_order_relaxed)
+			: (slotStack.stackSize + 1) / 2;
 		inventory.setCarried(ItemInstance(slotStack.itemID, toTake, slotStack.itemDamage));
 		slotStack.stackSize -= toTake;
 		if (slotStack.isEmpty())
@@ -571,7 +597,7 @@ void InventoryScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t butt
 	if (space <= 0)
 		return;
 
-	int_t toMove = buttonNum == 0 ? carried->stackSize : 1;
+	int_t toMove = buttonNum == 0 ? carried->stackSize.load(std::memory_order_relaxed) : 1;
 	if (toMove > space)
 		toMove = space;
 	if (toMove <= 0)
@@ -592,10 +618,6 @@ void InventoryScreen::handleSlotClick(int_t slot, int_t buttonNum)
 			return;
 
 		ItemInstance result = craftingResult;
-		Item *resultItem = result.getItem();
-		if (resultItem != nullptr && minecraft.player != nullptr && minecraft.level != nullptr)
-			resultItem->onCreated(result, *minecraft.level, *minecraft.player);
-
 		ItemInstance *carried = inventory.getCarried();
 		if (carried == nullptr)
 			inventory.setCarried(result);
@@ -610,6 +632,7 @@ void InventoryScreen::handleSlotClick(int_t slot, int_t buttonNum)
 				return;
 			carried->stackSize += result.stackSize;
 		}
+		result.onCrafted(*minecraft.level, *minecraft.player);
 
 		if (result.itemID == Tile::workBench.id)
 			minecraft.player->addStat(*AchievementList::buildWorkBench, 1);

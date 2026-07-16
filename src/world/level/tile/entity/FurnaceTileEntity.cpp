@@ -186,3 +186,29 @@ int_t FurnaceTileEntity::getBurnDuration(const ItemInstance &stack) const
 	return 0;
 
 }
+
+void FurnaceTileEntity::setItem(int_t slot, const ItemInstance &item)
+{
+	items[slot] = item;
+	if (!items[slot].isEmpty() && items[slot].stackSize > getInventoryStackLimit())
+		items[slot].stackSize = getInventoryStackLimit();
+	setChanged();
+}
+
+ItemInstance FurnaceTileEntity::removeItem(int_t slot, int_t count)
+{
+	if (items[slot].isEmpty())
+		return ItemInstance();
+	if (items[slot].stackSize <= count)
+	{
+		ItemInstance removed = items[slot];
+		items[slot] = ItemInstance();
+		setChanged();
+		return removed;
+	}
+	ItemInstance removed = items[slot].remove(count);
+	if (items[slot].stackSize == 0)
+		items[slot] = ItemInstance();
+	setChanged();
+	return removed;
+}

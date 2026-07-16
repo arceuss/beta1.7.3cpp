@@ -11,11 +11,12 @@ WolfRenderer::WolfRenderer(EntityRenderDispatcher &entityRenderDispatcher)
 float WolfRenderer::getBob(Mob &mobBase, float a)
 {
 	Wolf &wolf = static_cast<Wolf &>(mobBase);
-	if (auto wolfModel = std::dynamic_pointer_cast<WolfModel>(model))
-	{
-		wolfModel->sitting = wolf.isWolfSitting();
-		wolfModel->angry = wolf.isWolfAngry();
-		wolfModel->interestedAngle = wolf.getInterestedAngle(a);
-	}
 	return wolf.getTailRotation();
+}
+
+void WolfRenderer::prepareModel(Mob &mobBase, float time, float speed, float a)
+{
+	Wolf &wolf = static_cast<Wolf &>(mobBase);
+	if (auto wolfModel = std::dynamic_pointer_cast<WolfModel>(model))
+		wolfModel->prepare(wolf, time, speed, a);
 }

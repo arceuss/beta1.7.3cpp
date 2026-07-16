@@ -2,11 +2,14 @@
 
 #include "client/Minecraft.h"
 #include "world/item/ItemInstance.h"
+#include "world/entity/player/Player.h"
+#include "world/inventory/Container.h"
 #include "world/level/Level.h"
 #include "world/level/tile/StepSound.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/SnowTile.h"
 #include "world/phys/AABB.h"
+#include "world/stats/StatList.h"
 
 namespace
 {
@@ -188,6 +191,8 @@ bool GameMode::useItemOn(std::shared_ptr<Player> &player, Level &level, ItemInst
 	}
 
 	item->stackSize--;
+	if (StatBase *stat = StatList::useItemStats[item->itemID])
+		player->addStat(*stat, 1);
 	if (item->isEmpty())
 		player->removeSelectedItem();
 	return true;
@@ -206,4 +211,18 @@ void GameMode::interact(std::shared_ptr<Player> &player, std::shared_ptr<Entity>
 void GameMode::attack(std::shared_ptr<Player> &player, std::shared_ptr<Entity> &entity)
 {
 	player->attack(entity);
+}
+
+std::unique_ptr<ItemInstance> GameMode::clickContainer(int_t windowId, int_t slot, int_t button,
+	bool shiftClick, Player &player)
+{
+	(void)windowId;
+	return player.craftingInventory->click(slot, button, shiftClick, player);
+}
+
+void GameMode::closeContainer(int_t windowId, Player &player)
+{
+	(void)windowId;
+	player.craftingInventory->onClosed(player);
+	player.craftingInventory = player.inventorySlots;
 }

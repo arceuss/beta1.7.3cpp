@@ -781,7 +781,41 @@ ItemInstance *Mob::getCarriedItem()
 	return nullptr;
 }
 
+bool Mob::hasCurrentTarget() const
+{
+	return lookingAt != nullptr;
+}
+
+std::shared_ptr<Entity> Mob::getCurrentTarget() const
+{
+	return lookingAt;
+}
+
 void Mob::handleEntityEvent(byte_t event)
 {
-
+	if (event == 2)
+	{
+		walkAnimSpeed = 1.5f;
+		invulnerableTime = invulnerableDuration;
+		hurtTime = hurtDuration = 10;
+		hurtDir = 0.0f;
+		jstring hurtSound = getHurtSound();
+		if (!hurtSound.empty())
+			level.playSoundAtEntity(*this, hurtSound, getSoundVolume(),
+				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+		hurt(nullptr, 0);
+	}
+	else if (event == 3)
+	{
+		jstring deathSound = getDeathSound();
+		if (!deathSound.empty())
+			level.playSoundAtEntity(*this, deathSound, getSoundVolume(),
+				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+		health = 0;
+		die(nullptr);
+	}
+	else
+	{
+		Entity::handleEntityEvent(event);
+	}
 }

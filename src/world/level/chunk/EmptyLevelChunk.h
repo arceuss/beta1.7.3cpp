@@ -51,7 +51,7 @@ public:
 
 	void setBlocks(byte_t *blocks, int_t y) override;
 	int_t getBlocksAndData(byte_t *out, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1) override;
-	int_t setBlocksAndData(byte_t *in, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1) override;
+	int_t setBlocksAndData(const byte_t *in, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1) override;
 
 	Random getRandom(long_t seed) override;
 

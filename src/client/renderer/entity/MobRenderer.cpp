@@ -55,6 +55,7 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 	glColor3f(br, br, br);
 	glEnable(GL_ALPHA_TEST);
 
+	prepareModel(mob, wp, ws, a);
 	model->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
 	for (int_t i = 0; i < MAX_ARMOR_LAYERS; i++)
 	{
@@ -147,6 +148,10 @@ float MobRenderer::getBob(Mob &mob, float a)
 void MobRenderer::additionalRendering(Mob &mob, float a)
 {
 
+}
+
+void MobRenderer::prepareModel(Mob &mob, float time, float speed, float a)
+{
 }
 
 bool MobRenderer::prepareArmor(Mob &mob, int_t layer, float a)

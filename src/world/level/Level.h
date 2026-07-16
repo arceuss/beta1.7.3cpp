@@ -95,6 +95,7 @@ public:
 public:
 	std::unordered_set<std::shared_ptr<Entity>> entities;
 	std::unordered_set<std::shared_ptr<Entity>> entitiesToRemove;
+	std::vector<std::shared_ptr<Entity>> weatherEffects;
 
 	std::unordered_set<std::shared_ptr<TileEntity>> tileEntityList;
 
@@ -107,8 +108,13 @@ private:
 
 public:
 	int_t skyDarken = 0;
+	int_t lastLightningBolt = 0;
 
 protected:
+	float previousRainingStrength = 0.0f;
+	float rainingStrength = 0.0f;
+	float previousThunderingStrength = 0.0f;
+	float thunderingStrength = 0.0f;
 	int_t randValue = Random().nextInt();
 	int_t addend = 1013904223;
 
@@ -159,8 +165,10 @@ private:
 	bool spawnEnemies = true;
 	bool spawnFriendlies = true;
 
-	std::unordered_map<jstring, std::unique_ptr<MapDataBase>> loadedItemData;
-	std::unordered_map<jstring, short_t> idCounts;
+	std::shared_ptr<std::unordered_map<jstring, std::unique_ptr<MapDataBase>>> loadedItemData =
+		std::make_shared<std::unordered_map<jstring, std::unique_ptr<MapDataBase>>>();
+	std::shared_ptr<std::unordered_map<jstring, short_t>> idCounts =
+		std::make_shared<std::unordered_map<jstring, short_t>>();
 
 public:
 	struct Summary
@@ -200,7 +208,9 @@ public:
 	Level(File *workingDirectory, const jstring &name, long_t seed, int_t dimension);
 
 protected:
-	ChunkSource *createChunkSource(std::shared_ptr<File> dir);
+	Level(const jstring &name, int_t dimension, long_t seed, bool initializeChunkSource);
+	virtual ChunkSource *createChunkSource(std::shared_ptr<File> dir);
+	void setChunkSource(std::shared_ptr<ChunkSource> source);
 
 public:
 	void validateSpawn();
@@ -209,6 +219,8 @@ public:
 	void centerChunkSource(int_t chunkX, int_t chunkZ);
 
 	void clearLoadedPlayerData();
+	virtual void setSpawnLocation();
+	void updateEntityList();
 	void loadPlayer(std::shared_ptr<Player> player);
 
 	void save(bool force, std::shared_ptr<ProgressListener> progressRenderer);
@@ -231,14 +243,14 @@ public:
 	std::shared_ptr<LevelChunk> getChunkAt(int_t x, int_t z);
 	std::shared_ptr<LevelChunk> getChunk(int_t xc, int_t zc);
 
-	bool setTileAndDataNoUpdate(int_t x, int_t y, int_t z, int_t tile, int_t data);
-	bool setTileNoUpdate(int_t x, int_t y, int_t z, int_t tile);
+	virtual bool setTileAndDataNoUpdate(int_t x, int_t y, int_t z, int_t tile, int_t data);
+	virtual bool setTileNoUpdate(int_t x, int_t y, int_t z, int_t tile);
 
 	const Material &getMaterial(int_t x, int_t y, int_t z) override;
 
 	int_t getData(int_t x, int_t y, int_t z) override;
 	void setData(int_t x, int_t y, int_t z, int_t data);
-	bool setDataNoUpdate(int_t x, int_t y, int_t z, int_t data);
+	virtual bool setDataNoUpdate(int_t x, int_t y, int_t z, int_t data);
 
 	bool setTile(int_t x, int_t y, int_t z, int_t tile);
 	bool setTileAndData(int_t x, int_t y, int_t z, int_t tile, int_t data);
@@ -262,6 +274,7 @@ public:
 
 	bool isSkyLit(int_t x, int_t y, int_t z);
 	int_t getHeightmap(int_t x, int_t z);
+	int_t findTopSolidBlock(int_t x, int_t z);
 
 	void updateLightIfOtherThan(int_t layer, int_t x, int_t y, int_t z, int_t brightness);
 
@@ -278,15 +291,17 @@ public:
 	std::unique_ptr<PathEntity> getEntityPathToXYZ(Entity &entity, int_t x, int_t y, int_t z, float distance);
 	std::shared_ptr<Entity> getEntityRef(Entity &entity);
 
-	bool addEntity(std::shared_ptr<Entity> entity);
+	virtual bool addEntity(std::shared_ptr<Entity> entity);
+	bool addWeatherEffect(std::shared_ptr<Entity> entity);
+	const std::vector<std::shared_ptr<Entity>> &getWeatherEffects() const;
 
 protected:
-	void entityAdded(std::shared_ptr<Entity> entity);
-	void entityRemoved(std::shared_ptr<Entity> entity);
+	virtual void entityAdded(std::shared_ptr<Entity> entity);
+	virtual void entityRemoved(std::shared_ptr<Entity> entity);
 
 public:
-	void removeEntity(std::shared_ptr<Entity> entity);
-	void removeEntityImmediately(std::shared_ptr<Entity> entity);
+	virtual void removeEntity(std::shared_ptr<Entity> entity);
+	virtual void removeEntityImmediately(std::shared_ptr<Entity> entity);
 
 	void addListener(LevelListener &listener);
 	void removeListener(LevelListener &listener);
@@ -296,6 +311,8 @@ public:
 	void playSoundEffect(double x, double y, double z, const jstring &name, float volume, float pitch);
 	void playRecord(const jstring &name, int_t x, int_t y, int_t z);
 	void addParticle(const jstring &name, double x, double y, double z, double xa, double ya, double za);
+	void levelEvent(int_t event, int_t x, int_t y, int_t z, int_t data);
+	void levelEvent(Player *player, int_t event, int_t x, int_t y, int_t z, int_t data);
 
 	const std::vector<AABB *> &getCubes(Entity &entity, AABB &bb);
 
@@ -345,13 +362,13 @@ public:
 
 	void setSpawnSettings(bool spawnEnemies, bool spawnFriendlies);
 
-	void tick();
+	virtual void tick();
 
 protected:
 	void tickTiles();
 
 public:
-	bool tickPendingTicks(bool unknown);
+	virtual bool tickPendingTicks(bool unknown);
 	void animateTick(int_t x, int_t y, int_t z);
 
 	const std::vector<std::shared_ptr<Entity>> &getEntities(Entity *ignore, AABB &aabb);
@@ -364,7 +381,7 @@ public:
 	void addEntities(const std::unordered_set<std::shared_ptr<Entity>> &entities);
 	void removeEntities(const std::unordered_set<std::shared_ptr<Entity>> &entities);
 
-	void disconnect();
+	virtual void disconnect();
 
 	void checkSession();
 
@@ -382,17 +399,21 @@ public:
 	bool isBlockIndirectlyProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir);
 	bool isBlockIndirectlyGettingPowered(int_t x, int_t y, int_t z);
 	void notifyBlocksOfNeighborChange(int_t x, int_t y, int_t z, int_t tileId);
-	void scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t delay);
+	virtual void scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t delay);
 	Explosion createExplosion(Entity *entity, double x, double y, double z, float size);
 	Explosion createExplosion(Entity *entity, double x, double y, double z, float size, bool flaming);
 	void playNoteAt(int_t x, int_t y, int_t z, int_t type, int_t data);
 	std::shared_ptr<ChunkSource> getChunkSource();
 
-	bool isRaining();
+	virtual bool isRaining();
+	virtual float getRainStrength(float a) const;
+	virtual float getThunderStrength(float a) const;
+	virtual void setRainStrength(float strength);
 	bool canBlockBeRainedOn(int_t x, int_t y, int_t z);
 
 	MapDataBase *loadItemData(const jstring &id, const std::function<std::unique_ptr<MapDataBase>(const jstring&)> &factory);
 	void setItemData(const jstring &id, MapDataBase *data);
+	void shareItemDataWith(Level &level);
 	int_t getUniqueDataId(const jstring &key);
 	void saveAllItemData();
 

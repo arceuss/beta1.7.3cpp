@@ -136,6 +136,10 @@ Recipes::Recipes()
 		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
 		{'X', ItemInstance(Items::silk->getShiftedIndex(), 1, 0)}
 	});
+	addShapedRecipe(ItemInstance(Items::fishingRod->getShiftedIndex(), 1, 0), {"  #", " #X", "# X"}, {
+		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Items::silk->getShiftedIndex(), 1, 0)}
+	});
 	addShapedRecipe(ItemInstance(Items::arrow->getShiftedIndex(), 4, 0), {"X", "#", "Y"}, {
 		{'Y', ItemInstance(Items::feather->getShiftedIndex(), 1, 0)},
 		{'X', ItemInstance(Items::flint->getShiftedIndex(), 1, 0)},
@@ -158,6 +162,10 @@ Recipes::Recipes()
 	addShapedRecipe(ItemInstance(Items::appleGold->getShiftedIndex(), 1, 0), {"###", "#X#", "###"}, {
 		{'#', ItemInstance(Tile::goldBlock.id, 1, -1)},
 		{'X', ItemInstance(Items::apple->getShiftedIndex(), 1, 0)}
+	});
+	addShapedRecipe(ItemInstance(Items::painting->getShiftedIndex(), 1, 0), {"###", "#X#", "###"}, {
+		{'#', ItemInstance(Items::stick->getShiftedIndex(), 1, 0)},
+		{'X', ItemInstance(Tile::wool.id, 1, -1)}
 	});
 
 	addShapedRecipe(ItemInstance(Items::bucketEmpty->getShiftedIndex(), 1, 0), {"# #", " # "}, {

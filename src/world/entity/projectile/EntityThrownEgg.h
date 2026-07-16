@@ -28,8 +28,9 @@ public:
 	bool shouldRenderAtSqrDistance(double distance) override;
 	void shoot(double xd, double yd, double zd, float speed, float spread);
 	void setVelocity(double xd, double yd, double zd);
+	void lerpMotion(double xd, double yd, double zd) override { setVelocity(xd, yd, zd); }
 	void tick() override;
-	float getShadowHeightOffs() { return 0.0f; }
+	float getShadowHeightOffs() override { return 0.0f; }
 
 protected:
 	void addAdditionalSaveData(CompoundTag &tag) override;

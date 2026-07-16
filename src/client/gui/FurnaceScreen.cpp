@@ -2,6 +2,7 @@
 
 #include "client/Lighting.h"
 #include "client/Minecraft.h"
+#include "client/gamemode/GameMode.h"
 #include "client/locale/Language.h"
 #include "client/renderer/entity/EntityRenderDispatcher.h"
 #include "client/renderer/entity/ItemRenderer.h"
@@ -11,6 +12,7 @@
 #include "world/item/Item.h"
 #include "world/item/Items.h"
 #include "world/item/ItemInstance.h"
+#include "world/inventory/Container.h"
 #include "world/level/tile/FurnaceTile.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
@@ -80,22 +82,9 @@ namespace
 }
 
 FurnaceScreen::FurnaceScreen(Minecraft &minecraft, std::shared_ptr<FurnaceTileEntity> furnace)
-	: Screen(minecraft), furnace(std::move(furnace))
+	: ContainerScreen(minecraft), furnace(std::move(furnace)), containerMenu(minecraft.player->craftingInventory)
 {
 	passEvents = true;
-}
-
-void FurnaceScreen::tick()
-{
-	if (minecraft.player == nullptr || furnace == nullptr || furnace->level == nullptr)
-	{
-		minecraft.setScreen(nullptr);
-		return;
-	}
-
-	int_t tile = furnace->level->getTile(furnace->x, furnace->y, furnace->z);
-	if ((tile != Tile::furnace.id && tile != Tile::furnaceLit.id) || !furnace->canUse(*minecraft.player))
-		minecraft.setScreen(nullptr);
 }
 
 void FurnaceScreen::render(int_t xm, int_t ym, float a)
@@ -235,7 +224,7 @@ void FurnaceScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 {
 	if (eventKey == lwjgl::Keyboard::KEY_ESCAPE || eventKey == minecraft.options.keyInventory.key)
 	{
-		minecraft.setScreen(nullptr);
+		minecraft.player->closeContainer();
 		minecraft.grabMouse();
 		return;
 	}
@@ -250,49 +239,38 @@ void FurnaceScreen::mouseClicked(int_t x, int_t y, int_t buttonNum)
 	int_t xo = getGuiLeft();
 	int_t yo = getGuiTop();
 	bool outside = x < xo || y < yo || x >= xo + imageWidth || y >= yo + imageHeight;
-	InventoryPlayer &inventory = minecraft.player->inventory;
-	ItemInstance *carried = inventory.getCarried();
-
+	int_t protocolSlot = -1;
 	if (outside)
+		protocolSlot = -999;
+	else
 	{
-		if (carried == nullptr)
-			return;
+		int_t slot = getSlotAt(x, y);
+		if (slot == SLOT_INPUT)
+			protocolSlot = 0;
+		else if (slot == SLOT_FUEL)
+			protocolSlot = 1;
+		else if (slot == SLOT_OUTPUT)
+			protocolSlot = 2;
+		else if (slot >= 9 && slot < 36)
+			protocolSlot = 3 + slot - 9;
+		else if (slot >= 0 && slot < 9)
+			protocolSlot = 30 + slot;
+	}
+	if (protocolSlot != -1)
+	{
+		bool shiftClick = protocolSlot != -999
+			&& (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_LSHIFT)
+				|| lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_RSHIFT));
+		minecraft.gameMode->clickContainer(minecraft.player->craftingInventory->windowId,
+			protocolSlot, buttonNum, shiftClick, *minecraft.player);
+	}
+}
 
-		if (buttonNum == 0)
-		{
-			minecraft.player->drop(*carried);
-			inventory.setCarriedNull();
-		}
-		else
-		{
-			ItemInstance dropped = carried->remove(1);
-			minecraft.player->drop(dropped);
-			if (carried->isEmpty())
-				inventory.setCarriedNull();
-		}
-		return;
-	}
-
-	int_t slot = getSlotAt(x, y);
-	if (slot == SLOT_NONE)
-		return;
-	if (slot == SLOT_OUTPUT)
-	{
-		handleOutputSlotClick(buttonNum);
-		return;
-	}
-	if (slot == SLOT_INPUT)
-	{
-		handleRegularSlotClick(furnace->getItem(0), buttonNum);
-		return;
-	}
-	if (slot == SLOT_FUEL)
-	{
-		handleRegularSlotClick(furnace->getItem(1), buttonNum);
-		return;
-	}
-	if (slot >= 0 && slot < 36)
-		handleRegularSlotClick(minecraft.player->inventory.mainInventory[slot], buttonNum);
+void FurnaceScreen::removed()
+{
+	if (minecraft.player != nullptr && containerMenu != nullptr)
+		minecraft.gameMode->closeContainer(containerMenu->windowId, *minecraft.player);
+	Screen::removed();
 }
 
 int_t FurnaceScreen::getGuiLeft() const
@@ -410,7 +388,7 @@ void FurnaceScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t button
 	{
 		if (carried == nullptr)
 			return;
-		int_t toPlace = buttonNum == 0 ? carried->stackSize : 1;
+		int_t toPlace = buttonNum == 0 ? carried->stackSize.load(std::memory_order_relaxed) : 1;
 		if (toPlace > carried->getMaxStackSize())
 			toPlace = carried->getMaxStackSize();
 		if (toPlace <= 0)
@@ -426,7 +404,8 @@ void FurnaceScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t button
 
 	if (carried == nullptr)
 	{
-		int_t toTake = buttonNum == 0 ? slotStack.stackSize : (slotStack.stackSize + 1) / 2;
+		int_t toTake = buttonNum == 0 ? slotStack.stackSize.load(std::memory_order_relaxed)
+			: (slotStack.stackSize + 1) / 2;
 		inventory.setCarried(ItemInstance(slotStack.itemID, toTake, slotStack.itemDamage));
 		slotStack.stackSize -= toTake;
 		if (slotStack.isEmpty())
@@ -450,7 +429,7 @@ void FurnaceScreen::handleRegularSlotClick(ItemInstance &slotStack, int_t button
 	int_t space = slotStack.getMaxStackSize() - slotStack.stackSize;
 	if (space <= 0)
 		return;
-	int_t toMove = buttonNum == 0 ? carried->stackSize : 1;
+	int_t toMove = buttonNum == 0 ? carried->stackSize.load(std::memory_order_relaxed) : 1;
 	if (toMove > space)
 		toMove = space;
 	if (toMove <= 0)
@@ -474,12 +453,15 @@ void FurnaceScreen::handleOutputSlotClick(int_t buttonNum)
 	if (carried == nullptr)
 	{
 		int_t outputId = slotStack.itemID;
-		int_t toTake = buttonNum == 0 ? slotStack.stackSize : (slotStack.stackSize + 1) / 2;
+		int_t toTake = buttonNum == 0 ? slotStack.stackSize.load(std::memory_order_relaxed)
+			: (slotStack.stackSize + 1) / 2;
+		ItemInstance taken(slotStack.itemID, toTake, slotStack.itemDamage);
 		inventory.setCarried(ItemInstance(slotStack.itemID, toTake, slotStack.itemDamage));
 		slotStack.stackSize -= toTake;
 		if (slotStack.isEmpty())
 			slotStack = ItemInstance();
 		furnace->setChanged();
+		taken.onCrafted(*minecraft.level, *minecraft.player);
 		if (outputId == Items::ingotIron->getShiftedIndex())
 			minecraft.player->addStat(*AchievementList::acquireIron, 1);
 		else if (outputId == Items::fishCooked->getShiftedIndex())
@@ -493,17 +475,19 @@ void FurnaceScreen::handleOutputSlotClick(int_t buttonNum)
 	int_t space = carried->getMaxStackSize() - carried->stackSize;
 	if (space <= 0)
 		return;
-	int_t toMove = buttonNum == 0 ? slotStack.stackSize : 1;
+	int_t toMove = buttonNum == 0 ? slotStack.stackSize.load(std::memory_order_relaxed) : 1;
 	if (toMove > space)
 		toMove = space;
 	if (toMove <= 0)
 		return;
 	int_t outputId = slotStack.itemID;
+	ItemInstance taken(slotStack.itemID, toMove, slotStack.itemDamage);
 	carried->stackSize += toMove;
 	slotStack.stackSize -= toMove;
 	if (slotStack.isEmpty())
 		slotStack = ItemInstance();
 	furnace->setChanged();
+	taken.onCrafted(*minecraft.level, *minecraft.player);
 	if (outputId == Items::ingotIron->getShiftedIndex())
 		minecraft.player->addStat(*AchievementList::acquireIron, 1);
 	else if (outputId == Items::fishCooked->getShiftedIndex())

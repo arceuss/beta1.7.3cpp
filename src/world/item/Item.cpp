@@ -6,6 +6,7 @@
 #include "world/item/ItemInstance.h"
 
 std::array<Item *, 32000> Item::items = {};
+Random Item::itemRandom;
 
 Item::Item(int_t baseId)
 {
@@ -133,4 +134,10 @@ void Item::onCreated(ItemInstance &stack, Level &level, Player &player)
 	(void)stack;
 	(void)level;
 	(void)player;
+}
+
+Item &Item::setContainerItem(Item &item)
+{
+	containerItem = &item;
+	return *this;
 }

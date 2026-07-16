@@ -6,7 +6,10 @@
 #include "client/title/TitleScreen.h"
 #include "client/gui/AchievementsScreen.h"
 #include "client/gui/OptionsScreen.h"
+#include "client/gui/StatisticsScreen.h"
 #include "world/stats/StatCollector.h"
+#include "world/stats/StatFileWriter.h"
+#include "world/stats/StatList.h"
 
 #include "util/Mth.h"
 
@@ -27,6 +30,7 @@ void PauseScreen::init()
 	buttons.push_back(Util::make_shared<Button>(4, width / 2 - 100, height / 4 + 8, u"Back to game"));
 	buttons.push_back(Util::make_shared<Button>(0, width / 2 - 100, height / 4 + 80, u"Options..."));
 	buttons.push_back(Util::make_shared<Button>(5, width / 2 - 100, height / 4 + 32, 98, 20, StatCollector::translate(u"gui.achievements")));
+	buttons.push_back(Util::make_shared<Button>(6, width / 2 + 2, height / 4 + 32, 98, 20, StatCollector::translate(u"gui.stats")));
 }
 
 void PauseScreen::buttonClicked(Button &button)
@@ -35,6 +39,8 @@ void PauseScreen::buttonClicked(Button &button)
 		minecraft.setScreen(Util::make_shared<OptionsScreen>(minecraft, minecraft.screen, minecraft.options));
 	if (button.id == 1)
 	{
+		if (minecraft.statFileWriter != nullptr)
+			minecraft.statFileWriter->readStat(*StatList::leaveGameStat, 1);
 		if (minecraft.isOnline())
 			minecraft.level->disconnect();
 
@@ -48,6 +54,8 @@ void PauseScreen::buttonClicked(Button &button)
 	}
 	if (button.id == 5 && minecraft.statFileWriter != nullptr)
 		minecraft.setScreen(Util::make_shared<AchievementsScreen>(minecraft, *minecraft.statFileWriter));
+	if (button.id == 6 && minecraft.statFileWriter != nullptr)
+		minecraft.setScreen(Util::make_shared<StatisticsScreen>(minecraft, minecraft.screen, *minecraft.statFileWriter));
 }
 
 void PauseScreen::tick()

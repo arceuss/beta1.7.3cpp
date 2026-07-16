@@ -39,6 +39,7 @@ public:
 	void renderLit(Entity &player, float a);
 	void setLevel(Level *level);
 	void destroy(int_t x, int_t y, int_t z);
+	void destroy(int_t x, int_t y, int_t z, int_t tileId, int_t data);
 	void crack(int_t x, int_t y, int_t z, int_t face);
 	jstring countParticles();
 };

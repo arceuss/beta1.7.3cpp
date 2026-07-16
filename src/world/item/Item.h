@@ -4,6 +4,7 @@
 
 #include "java/String.h"
 #include "java/Type.h"
+#include "java/Random.h"
 #include "Facing.h"
 
 class ItemInstance;
@@ -18,11 +19,15 @@ class Item
 public:
 	static std::array<Item *, 32000> items;
 
+protected:
+	static Random itemRandom;
+
 private:
 	int_t baseId = 0;
 	int_t shiftedIndex = 0;
 	int_t maxStackSize = 64;
 	jstring descriptionId;
+	Item *containerItem = nullptr;
 
 public:
 	explicit Item(int_t baseId);
@@ -37,6 +42,9 @@ public:
 	Item &setMaxDamage(int_t damage);
 	Item &setIconIndex(int_t icon);
 	Item &setDescriptionId(const jstring &id);
+	Item &setContainerItem(Item &item);
+	bool hasContainerItem() const { return containerItem != nullptr; }
+	Item *getContainerItem() const { return containerItem; }
 
 	virtual int_t getIcon(const ItemInstance &stack) const;
 

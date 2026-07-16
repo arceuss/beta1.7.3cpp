@@ -158,4 +158,5 @@ public:
 	void skyColorChanged() override;
 
 	void tileEntityChanged(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity) override;
+	void levelEvent(Player *player, int_t event, int_t x, int_t y, int_t z, int_t data) override;
 };

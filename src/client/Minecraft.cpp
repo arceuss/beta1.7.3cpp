@@ -9,13 +9,16 @@
 #include "client/renderer/Chunk.h"
 #include "client/renderer/Tesselator.h"
 #include "client/gui/DeathScreen.h"
+#include "client/gui/ConnectingScreen.h"
 #include "client/gui/InventoryScreen.h"
 #include "client/gui/ScreenSizeCalculator.h"
 #include "client/gui/ChatScreen.h"
 #include "client/gui/PauseScreen.h"
 #include "client/gui/AchievementToast.h"
+#include "client/gui/SleepScreen.h"
 #include "client/title/TitleScreen.h"
 #include "client/player/KeyboardInput.h"
+#include "client/spc/SPCCommand.h"
 
 #include "client/gamemode/SurvivalMode.h"
 
@@ -28,6 +31,7 @@
 #include "world/stats/Achievement.h"
 #include "world/stats/AchievementList.h"
 #include "world/stats/StatFileWriter.h"
+#include "world/stats/StatList.h"
 
 #include "java/System.h"
 #include "java/Runtime.h"
@@ -105,7 +109,8 @@ void Minecraft::init()
 	texturePackRepository.updateListAndSelect();
 
 	font = std::make_unique<Font>(options, u"/font/default.png", textures);
-	AchievementList::init();
+	SPCCommand::setMessageFont(font.get());
+	StatList::init();
 	AchievementList::openInventory->setDescriptionFormatter([this](const jstring &description)
 	{
 		jstring result = description;
@@ -151,7 +156,10 @@ void Minecraft::init()
 	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(0));
 	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(1));
 
-	setScreen(Util::make_shared<TitleScreen>(*this));
+	if (serverHost.empty())
+		setScreen(Util::make_shared<TitleScreen>(*this));
+	else
+		setScreen(Util::make_shared<ConnectingScreen>(*this, serverHost, serverPort));
 }
 
 void Minecraft::renderLoadingScreen()
@@ -240,6 +248,8 @@ void Minecraft::setScreen(std::shared_ptr<Screen> screen)
 		screen = Util::make_shared<TitleScreen>(*this);
 	else if (screen == nullptr && player != nullptr && player->health <= 0)
 		screen = Util::make_shared<DeathScreen>(*this);
+	if (std::dynamic_pointer_cast<TitleScreen>(screen) != nullptr)
+		SPCCommand::messages.clear();
 
 	this->screen = std::move(screen);
 	if (this->screen != nullptr)
@@ -299,6 +309,12 @@ void Minecraft::checkGlError(const std::string &at)
 
 Minecraft::~Minecraft()
 {
+	SPCCommand::setMessageFont(nullptr);
+	for (std::thread &thread : connectionThreads)
+	{
+		if (thread.joinable())
+			thread.join();
+	}
 	if (statFileWriter != nullptr)
 	{
 		statFileWriter->syncStats();
@@ -760,7 +776,8 @@ void Minecraft::handleMouseClick(int_t button)
 		else
 		{
 			ItemInstance *selected = player->getSelectedItem();
-			int_t selectedCount = selected != nullptr ? selected->stackSize : 0;
+			int_t selectedCount = selected != nullptr
+				? selected->stackSize.load(std::memory_order_relaxed) : 0;
 			if (gameMode->useItemOn(player, *level, selected, x, y, z, f))
 			{
 				canUseItem = false;
@@ -874,19 +891,31 @@ void Minecraft::tick()
 	if (!pause)
 		textures.tick();
 
-	// Show death screen when dead
-	if (screen == nullptr && player != nullptr && player->health <= 0)
+	if (screen == nullptr && player != nullptr)
+	{
+		if (player->health <= 0)
+			setScreen(nullptr);
+		else if (player->isPlayerSleeping() && level != nullptr && level->isOnline)
+			setScreen(Util::make_shared<SleepScreen>(*this));
+	}
+	else if (screen != nullptr && dynamic_cast<SleepScreen *>(screen.get()) != nullptr
+		&& player != nullptr && !player->isPlayerSleeping())
+	{
 		setScreen(nullptr);
+	}
 
 	// Tick screen
 	if (screen != nullptr)
 		lastClickTick = ticks + 10000;
 	if (screen != nullptr)
 	{
-		std::shared_ptr<Screen> screen_ptr = screen; // Ensure that the screen is not deleted while processing events
-		screen->updateEvents();
+		std::shared_ptr<Screen> eventScreen = screen;
+		eventScreen->updateEvents();
 		if (screen != nullptr)
-			screen->tick();
+		{
+			std::shared_ptr<Screen> tickScreen = screen;
+			tickScreen->tick();
+		}
 	}
 
 	// Event processing
@@ -924,7 +953,10 @@ void Minecraft::tick()
 				continue;
 			}
 			if (screen != nullptr)
-				screen->mouseEvent();
+			{
+				std::shared_ptr<Screen> activeScreen = screen;
+				activeScreen->mouseEvent();
+			}
 		}
 
 		if (missTime > 0)
@@ -944,12 +976,15 @@ void Minecraft::tick()
 
 				if (screen != nullptr)
 				{
-					screen->keyboardEvent();
+					std::shared_ptr<Screen> activeScreen = screen;
+					activeScreen->keyboardEvent();
 				}
 				else
 				{
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_ESCAPE)
 						pauseGame();
+					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F1)
+						options.hideGui = !options.hideGui;
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F3)
 						options.showDebugInfo = !options.showDebugInfo;
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_S && lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
@@ -959,6 +994,8 @@ void Minecraft::tick()
 						if (player == nullptr || !player->sleeping)
 							options.thirdPersonView = !options.thirdPersonView;
 					}
+					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F8)
+						options.smoothCamera = !options.smoothCamera;
 					if (lwjgl::Keyboard::getEventKey() == options.keyDrop.key && player != nullptr)
 						player->drop();
 					if (lwjgl::Keyboard::getEventKey() == options.keyInventory.key && player != nullptr)
@@ -1017,7 +1054,11 @@ void Minecraft::tick()
 		if (!pause)
 			levelRenderer.tick();
 		if (!pause)
+		{
+			if (level->lastLightningBolt > 0)
+				--level->lastLightningBolt;
 			level->tickEntities();
+		}
 		if (!pause || isOnline())
 		{
 			level->setSpawnSettings(options.difficulty > 0, true);
@@ -1107,6 +1148,15 @@ void Minecraft::selectLevel(const jstring &name, const jstring &levelName, long_
 
 	std::unique_ptr<File> saves(File::open(*getWorkingDirectory(), u"saves"));
 	std::shared_ptr<Level> new_level = Util::make_shared<Level>(saves.release(), name, levelName, seed);
+	if (statFileWriter != nullptr)
+	{
+		if (new_level->isNew && StatList::createWorldStat != nullptr)
+			statFileWriter->readStat(*StatList::createWorldStat, 1);
+		else if (!new_level->isNew && StatList::loadWorldStat != nullptr)
+			statFileWriter->readStat(*StatList::loadWorldStat, 1);
+		if (StatList::startGameStat != nullptr)
+			statFileWriter->readStat(*StatList::startGameStat, 1);
+	}
 	if (new_level->isNew)
 		setLevel(new_level, u"Generating level");
 	else
@@ -1135,6 +1185,7 @@ void Minecraft::setLevel(std::shared_ptr<Level> level, const jstring &title, std
 		statFileWriter->syncStats();
 	progressRenderer->progressStart(title);
 	progressRenderer->progressStage(u"");
+	soundEngine.playStreaming(jstring(), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
 	if (this->level != nullptr)
 		this->level->forceSave(progressRenderer);
@@ -1258,22 +1309,29 @@ jstring Minecraft::gatherStats3()
 	return u"P: 0. T: " + level->gatherStats();
 }
 
-void Minecraft::respawnPlayer()
+void Minecraft::respawnPlayer(int_t dimension)
 {
-	if (level == nullptr || player == nullptr || gameMode == nullptr)
+	if (level == nullptr || gameMode == nullptr)
 		return;
 
-	int_t entityId = player->entityId;
+	level->setSpawnLocation();
+	level->updateEntityList();
 
-	level->removeEntity(player);
-	level->clearLoadedPlayerData();
+	int_t entityId = 0;
+	if (player != nullptr)
+	{
+		entityId = player->entityId;
+		level->removeEntity(player);
+	}
 
 	this->player = std::static_pointer_cast<LocalPlayer>(gameMode->createPlayer(*level));
+	this->player->dimension = dimension;
 	this->player->resetPos();
 	gameMode->initPlayer(this->player);
 	level->loadPlayer(this->player);
 	this->player->input = std::make_unique<KeyboardInput>(options);
 	this->player->entityId = entityId;
+	this->player->animateRespawn();
 	gameMode->adjustPlayer(this->player);
 	prepareLevel(u"Respawning");
 
@@ -1298,7 +1356,15 @@ void Minecraft::startAndConnectTo(const jstring *name, const jstring *sessionId,
 	
 	if (ip != nullptr)
 	{
-		// TODO
+		std::string address = String::toUTF8(*ip);
+		size_t separator = address.rfind(':');
+		if (separator == std::string::npos)
+			throw std::invalid_argument("Server address must be host:port");
+		int port = std::stoi(address.substr(separator + 1));
+		if (port < 0 || port > 65535)
+			throw std::out_of_range("Server port is out of range");
+		minecraft->serverHost = address.substr(0, separator);
+		minecraft->serverPort = static_cast<std::uint16_t>(port);
 	}
 
 	minecraft->run();
