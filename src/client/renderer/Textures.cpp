@@ -46,11 +46,6 @@ bool usesBetacraftTextureProxy(const ParsedHttpUrl &parsed)
 	return parsed.path.rfind("/MinecraftSkins/", 0) == 0 || parsed.path.rfind("/MinecraftCloaks/", 0) == 0;
 }
 
-bool isSkinTextureUrl(const jstring &url)
-{
-	return url.find(u"MinecraftSkins") != jstring::npos || url.find(u"/skin/") != jstring::npos;
-}
-
 std::string makeHttpTextureCacheName(const ParsedHttpUrl &parsed)
 {
 	std::string name = parsed.host + parsed.path;
@@ -292,13 +287,11 @@ BufferedImage processMobSkin(BufferedImage &in)
 	int_t srcW = in.getWidth();
 	int_t srcH = in.getHeight();
 
-	for (int_t y = 0; y < 32; y++)
+	for (int_t y = 0; y < srcH && y < 32; y++)
 	{
-		int_t srcY = (y * srcH) / 32;
-		for (int_t x = 0; x < 64; x++)
+		for (int_t x = 0; x < srcW && x < 64; x++)
 		{
-			int_t srcX = (x * srcW) / 64;
-			int_t srcIdx = (srcY * srcW + srcX) * 4;
+			int_t srcIdx = (y * srcW + x) * 4;
 			int_t dstIdx = (y * 64 + x) * 4;
 			dstPixels[dstIdx + 0] = srcPixels[srcIdx + 0];
 			dstPixels[dstIdx + 1] = srcPixels[srcIdx + 1];
@@ -386,10 +379,7 @@ void downloadHttpTexture(const std::shared_ptr<HttpTexture> &texture, const jstr
 			}
 		}
 
-		if (isSkinTextureUrl(url))
-		{
-			image = processMobSkin(image);
-		}
+		image = processMobSkin(image);
 
 		std::lock_guard<std::mutex> lock(texture->mutex);
 		if (image.getWidth() == 0 || image.getHeight() == 0)
@@ -602,12 +592,6 @@ void Textures::releaseTexture(int_t id)
 int_t Textures::loadHttpTexture(const jstring &url, const jstring *backup)
 {
 	auto it = httpTextures.find(url);
-	if (it == httpTextures.end())
-	{
-		addHttpTexture(url);
-		it = httpTextures.find(url);
-	}
-
 	if (it != httpTextures.end())
 	{
 		HttpTexture *texture = it->second.get();
@@ -643,6 +627,11 @@ int_t Textures::loadHttpTexture(const jstring &url, const jstring *backup)
 int_t Textures::loadHttpTexture(const jstring &url)
 {
 	return loadHttpTexture(url, nullptr);
+}
+
+void Textures::obtainHttpTexture(const jstring &url)
+{
+	addHttpTexture(url);
 }
 
 HttpTexture *Textures::addHttpTexture(const jstring &url)

@@ -19,5 +19,6 @@ namespace EntityIO
 
 std::shared_ptr<Entity> loadStatic(CompoundTag &tag, Level &level);
 std::shared_ptr<Entity> newEntity(const jstring &name, Level &level);
+std::shared_ptr<Entity> newEntity(int_t id, Level &level);
 
 }

@@ -8,6 +8,7 @@
 #include "world/level/Level.h"
 #include "world/level/LevelSource.h"
 #include "world/level/material/Material.h"
+#include "world/stats/StatList.h"
 
 SnowTile::SnowTile(int_t id, int_t tex) : Tile(id, tex, Material::snow())
 {
@@ -85,6 +86,8 @@ void SnowTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_
 	auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, ItemInstance(snowballId, 1, 0));
 	entity->throwTime = 10;
 	level.addEntity(entity);
+	if (StatBase *stat = StatList::mineBlockStats[id])
+		player.addStat(*stat, 1);
 }
 
 int_t SnowTile::getResource(int_t data, Random &random)

@@ -16,13 +16,13 @@ protected:
 	int_t inTile = 0;
 	int_t inData = 0;
 	bool inGround = false;
-	std::weak_ptr<Entity> owner;
 	int_t ticksInGround = 0;
 	int_t ticksInAir = 0;
 
 public:
 	bool doesArrowBelongToPlayer = false;
 	int_t arrowShake = 0;
+	std::weak_ptr<Entity> owner;
 
 	EntityArrow(Level &level);
 	EntityArrow(Level &level, double x, double y, double z);
@@ -31,6 +31,7 @@ public:
 	jstring getEncodeId() const override { return u"Arrow"; }
 	void setArrowHeading(double xd, double yd, double zd, float speed, float spread);
 	void setVelocity(double xd, double yd, double zd);
+	void lerpMotion(double xd, double yd, double zd) override { setVelocity(xd, yd, zd); }
 	void tick() override;
 	void playerTouch(Player &player) override;
 

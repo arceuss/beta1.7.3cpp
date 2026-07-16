@@ -25,6 +25,8 @@ public:
 		int_t size() const { return width * height; }
 	};
 
+	const std::vector<ShapedRecipe> &getRecipes() const { return shapedRecipes; }
+
 private:
 	std::vector<ShapedRecipe> shapedRecipes;
 

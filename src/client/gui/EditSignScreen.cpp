@@ -1,9 +1,13 @@
 #include "client/gui/EditSignScreen.h"
 
+#include <utility>
+
 #include "client/Minecraft.h"
 #include "client/gui/Font.h"
 #include "client/renderer/SignRenderer.h"
 #include "client/renderer/Textures.h"
+#include "network/NetClientHandler.h"
+#include "network/PacketWorld.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "SharedConstants.h"
@@ -25,8 +29,12 @@ void EditSignScreen::init()
 void EditSignScreen::removed()
 {
 	lwjgl::Keyboard::enableRepeatEvents(false);
-	sign->lineBeingEdited = -1;
-	sign->setChanged();
+	if (minecraft.isOnline())
+	{
+		auto signLines = std::shared_ptr<const std::array<jstring, 4>>(sign, &sign->signText);
+		minecraft.connection->addToSendQueue(std::make_unique<Packet130UpdateSign>(
+			sign->x, sign->y, sign->z, std::move(signLines)));
+	}
 }
 
 void EditSignScreen::tick()
@@ -40,7 +48,7 @@ void EditSignScreen::render(int_t xm, int_t ym, float a)
 	drawCenteredString(font, u"Edit sign message:", width / 2, 40, 0xFFFFFF);
 
 	glPushMatrix();
-	glTranslatef(static_cast<float>(width / 2), static_cast<float>(height / 2), 50.0f);
+	glTranslatef(static_cast<float>(width / 2), 0.0f, 50.0f);
 	float s = 93.75f;
 	glScalef(-s, -s, -s);
 	glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
@@ -51,7 +59,7 @@ void EditSignScreen::render(int_t xm, int_t ym, float a)
 	{
 		float rot = static_cast<float>(sign->getData() * 360) / 16.0f;
 		glRotatef(rot, 0.0f, 1.0f, 0.0f);
-		glTranslatef(0.0f, 0.3125f, 0.0f);
+		glTranslatef(0.0f, -1.0625f, 0.0f);
 	}
 	else
 	{
@@ -64,7 +72,7 @@ void EditSignScreen::render(int_t xm, int_t ym, float a)
 		else if (data == 5)
 			rot = -90.0f;
 		glRotatef(rot, 0.0f, 1.0f, 0.0f);
-		glTranslatef(0.0f, 0.3125f, 0.0f);
+		glTranslatef(0.0f, -1.0625f, 0.0f);
 	}
 
 	if (updateCounter / 6 % 2 == 0)

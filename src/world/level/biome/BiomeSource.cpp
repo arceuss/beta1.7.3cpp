@@ -72,7 +72,7 @@ namespace
 			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, false },
 			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, false },
 			{ Tile::grass.id, Tile::dirt.id, true, TreeStyle::Taiga, 2, 1, 0, 0, false },
-			{ Tile::sand.id, Tile::sand.id, false, TreeStyle::Default, 0, 0, 2, 10, false },
+			{ Tile::sand.id, Tile::sand.id, false, TreeStyle::Default, 0, 0, 2, 10, false, false },
 			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 3, 10, 0, 0, false },
 			{ Tile::grass.id, Tile::dirt.id, true, TreeStyle::Default, 0, 0, 0, 0, false },
 		}};
@@ -119,6 +119,12 @@ const BiomeInfo &BiomeSource::getBiomeInfo(BiomeId biome) const
 
 void BiomeSource::getBiomeBlock(int_t x, int_t z, int_t xd, int_t zd)
 {
+	std::size_t count = static_cast<std::size_t>(xd) * static_cast<std::size_t>(zd);
+	temperatures.resize(count);
+	downfalls.resize(count);
+	noises.resize(count);
+	biomes.resize(count);
+
 	temperatureMap.getRegion(temperatures.data(), x, z, xd, zd, tempScale, tempScale, 1.0 / 4.0);
 	downfallMap.getRegion(downfalls.data(), x, z, xd, zd, downfallScale, downfallScale, 1.0 / 3.0);
 	noiseMap.getRegion(noises.data(), x, z, xd, zd, noiseScale, noiseScale, 1.0 / 1.7);

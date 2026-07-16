@@ -12,6 +12,7 @@
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/player/Player.h"
 #include "world/item/ItemInstance.h"
+#include "world/stats/StatList.h"
 
 // Tile properties
 std::array<Tile *, 256> Tile::tiles;
@@ -346,7 +347,7 @@ void Tile::initTiles()
 	rail.setDescriptionId(u"tile.rail");
 	sandstone.setDescriptionId(u"tile.sandStone");
 	tallGrass.setDescriptionId(u"tile.grass");
-	deadBush.setDescriptionId(u"tile.deadBush");
+	deadBush.setDescriptionId(u"tile.deadbush");
 	flower.setDescriptionId(u"tile.flower");
 	rose.setDescriptionId(u"tile.rose");
 	brownMushroom.setDescriptionId(u"tile.mushroom");
@@ -864,7 +865,8 @@ void Tile::playerDestroy(Level &, int_t, int_t, int_t, int_t)
 
 void Tile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
 {
-	(void)player;
+	if (StatBase *stat = StatList::mineBlockStats[id])
+		player.addStat(*stat, 1);
 	spawnResources(level, x, y, z, data);
 }
 

@@ -7,8 +7,8 @@ class Creeper : public Monster
 private:
 	int_t swell = 0;
 	int_t oldSwell = 0;
-	int_t swellDir = -1;
-	bool powered = false;
+	int_t getCreeperState() const;
+	void setCreeperState(int_t state);
 
 public:
 	Creeper(Level &level);

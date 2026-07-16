@@ -17,6 +17,10 @@
 #include "client/renderer/entity/WolfRenderer.h"
 #include "client/renderer/entity/GiantRenderer.h"
 #include "client/renderer/entity/FireballRenderer.h"
+#include "client/renderer/entity/FishingHookRenderer.h"
+#include "client/renderer/entity/PaintingRenderer.h"
+#include "client/renderer/entity/LightningBoltRenderer.h"
+#include "client/renderer/entity/GenericEntityRenderer.h"
 #include "client/renderer/entity/GhastRenderer.h"
 #include "client/renderer/entity/TNTPrimedRenderer.h"
 #include "client/renderer/entity/MobRenderer.h"
@@ -34,6 +38,7 @@
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/FallingTile.h"
 #include "world/entity/item/EntityMinecart.h"
+#include "world/entity/item/EntityPainting.h"
 #include "world/entity/monster/Monster.h"
 #include "world/entity/monster/Creeper.h"
 #include "world/entity/monster/Spider.h"
@@ -47,7 +52,10 @@
 #include "world/entity/projectile/EntityArrow.h"
 #include "world/entity/projectile/EntitySnowball.h"
 #include "world/entity/projectile/EntityThrownEgg.h"
+#include "world/entity/projectile/EntityFish.h"
 #include "world/entity/PrimedTNT.h"
+#include "world/entity/EntityLightningBolt.h"
+#include "world/entity/player/Player.h"
 #include "OpenGL.h"
 
 
@@ -85,6 +93,30 @@ EntityRenderer &EntityRenderDispatcher::getSnowballRenderer()
 EntityRenderer &EntityRenderDispatcher::getThrownEggRenderer()
 {
 	static ThrownItemRenderer renderer(instance, 12);
+	return renderer;
+}
+
+FishingHookRenderer &EntityRenderDispatcher::getFishingHookRenderer()
+{
+	static FishingHookRenderer renderer(instance);
+	return renderer;
+}
+
+PaintingRenderer &EntityRenderDispatcher::getPaintingRenderer()
+{
+	static PaintingRenderer renderer(instance);
+	return renderer;
+}
+
+LightningBoltRenderer &EntityRenderDispatcher::getLightningBoltRenderer()
+{
+	static LightningBoltRenderer renderer(instance);
+	return renderer;
+}
+
+GenericEntityRenderer &EntityRenderDispatcher::getGenericEntityRenderer()
+{
+	static GenericEntityRenderer renderer(instance);
 	return renderer;
 }
 
@@ -281,6 +313,30 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
+	if (dynamic_cast<EntityFish *>(&entity) != nullptr)
+	{
+		FishingHookRenderer &renderer = getFishingHookRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<EntityPainting *>(&entity) != nullptr)
+	{
+		PaintingRenderer &renderer = getPaintingRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<EntityLightningBolt *>(&entity) != nullptr)
+	{
+		LightningBoltRenderer &renderer = getLightningBoltRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
 	if (dynamic_cast<EntityItem *>(&entity) != nullptr)
 	{
 		ItemRenderer &itemRenderer = getItemRenderer();
@@ -436,8 +492,24 @@ void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z
 		return;
 	}
 
-	playerRenderer.render(entity, x, y, z, rot, a);
-	playerRenderer.postRender(entity, x, y, z, rot, a);
+	if (dynamic_cast<Player *>(&entity) != nullptr)
+	{
+		playerRenderer.render(entity, x, y, z, rot, a);
+		playerRenderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	if (dynamic_cast<Mob *>(&entity) != nullptr)
+	{
+		HumanoidMobRenderer &renderer = getMonsterRenderer();
+		renderer.render(entity, x, y, z, rot, a);
+		renderer.postRender(entity, x, y, z, rot, a);
+		return;
+	}
+
+	GenericEntityRenderer &renderer = getGenericEntityRenderer();
+	renderer.render(entity, x, y, z, rot, a);
+	renderer.postRender(entity, x, y, z, rot, a);
 }
 
 void EntityRenderDispatcher::setLevel(std::shared_ptr<Level> level)

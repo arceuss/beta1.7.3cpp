@@ -16,6 +16,7 @@ class DispenserTileEntity;
 class ChestTileEntity;
 class EntityMinecart;
 class CompoundContainer;
+class IInventory;
 class SignTileEntity;
 class LocalPlayer : public Player
 {
@@ -55,6 +56,7 @@ public:
 	void startChest(std::shared_ptr<ChestTileEntity> chest);
 	void startChest(std::shared_ptr<CompoundContainer> chest);
 	void startChest(std::shared_ptr<EntityMinecart> chest);
+	void startChest(std::shared_ptr<IInventory> chest);
 	void startFurnace(std::shared_ptr<FurnaceTileEntity> furnace);
 	void startDispenser(std::shared_ptr<DispenserTileEntity> dispenser);
 	void openTextEdit(std::shared_ptr<SignTileEntity> sign);
@@ -62,4 +64,5 @@ public:
 	void prepareForTick();
 	bool isSneaking() override;
 	void displayClientMessage(const jstring &message) override;
+	void sendChatMessage(const jstring &message) override;
 };

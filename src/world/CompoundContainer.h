@@ -4,11 +4,12 @@
 
 #include "java/String.h"
 #include "world/item/ItemInstance.h"
+#include "world/inventory/IInventory.h"
 
 class Player;
 class ChestTileEntity;
 
-class CompoundContainer
+class CompoundContainer : public IInventory
 {
 private:
 	jstring name;
@@ -25,4 +26,13 @@ public:
 	bool canUse(Player &player) const;
 	void setChanged();
 	const jstring &getName() const;
+
+	int_t getSizeInventory() const override { return getContainerSize(); }
+	ItemInstance *getStackInSlot(int_t slot) override { return getItem(slot).isEmpty() ? nullptr : &getItem(slot); }
+	const ItemInstance *getStackInSlot(int_t slot) const override { return getItem(slot).isEmpty() ? nullptr : &getItem(slot); }
+	ItemInstance decrStackSize(int_t slot, int_t count) override { return removeItem(slot, count); }
+	void setInventorySlotContents(int_t slot, const ItemInstance &item) override { setItem(slot, item); }
+	jstring getInvName() const override { return getName(); }
+	void onInventoryChanged() override { setChanged(); }
+	bool canInteractWith(Player &player) const override { return canUse(player); }
 };

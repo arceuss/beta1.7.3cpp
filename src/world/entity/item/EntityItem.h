@@ -22,6 +22,7 @@ public:
 	void playerTouch(Player &player) override;
 	bool hurt(Entity *source, int_t dmg) override;
 	bool shouldRenderAtSqrDistance(double distance) override;
+	bool handleWaterMovement() override;
 
 protected:
 	void addAdditionalSaveData(CompoundTag &tag) override;

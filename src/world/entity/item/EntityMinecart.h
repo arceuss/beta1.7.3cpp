@@ -3,10 +3,11 @@
 #include <array>
 #include "world/item/ItemInstance.h"
 #include "world/entity/Entity.h"
+#include "world/inventory/IInventory.h"
 
 class Vec3;
 
-class EntityMinecart : public Entity
+class EntityMinecart : public Entity, public IInventory
 {
 public:
 	static constexpr int_t TYPE_RIDEABLE = 0;
@@ -56,6 +57,15 @@ public:
 	int_t getContainerSize() const;
 	bool canUse(Player &player) const;
 	jstring getName() const;
+
+	int_t getSizeInventory() const override { return getContainerSize(); }
+	ItemInstance *getStackInSlot(int_t slot) override { return getItem(slot).isEmpty() ? nullptr : &getItem(slot); }
+	const ItemInstance *getStackInSlot(int_t slot) const override { return getItem(slot).isEmpty() ? nullptr : &getItem(slot); }
+	ItemInstance decrStackSize(int_t slot, int_t count) override { return removeItem(slot, count); }
+	void setInventorySlotContents(int_t slot, const ItemInstance &item) override { setItem(slot, item); }
+	jstring getInvName() const override { return getName(); }
+	void onInventoryChanged() override {}
+	bool canInteractWith(Player &player) const override { return canUse(player); }
 
 protected:
 	void addAdditionalSaveData(CompoundTag &tag) override;

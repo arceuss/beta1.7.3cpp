@@ -1,5 +1,7 @@
 #include "client/player/LocalPlayer.h"
 
+#include <utility>
+
 #include "client/Minecraft.h"
 #include "client/gui/ChestScreen.h"
 #include "client/gui/DispenserScreen.h"
@@ -9,9 +11,14 @@
 #include "client/particle/TakeAnimationParticle.h"
 #include "client/spc/SPCCommand.h"
 #include "client/locale/Language.h"
+#include "world/CompoundContainer.h"
 #include "world/entity/item/EntityMinecart.h"
+#include "world/level/tile/entity/ChestTileEntity.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
+#include "world/inventory/BasicInventory.h"
+#include "world/inventory/ContainerMenus.h"
+#include "world/inventory/IInventory.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 #include "client/gui/EditSignScreen.h"
 #include "util/Memory.h"
@@ -24,10 +31,10 @@ LocalPlayer::LocalPlayer(Minecraft &minecraft, Level &level, User *user, int_t d
 {
 	this->dimension = dimension;
 
-	const jstring username = u"arceus413";
+	const jstring username = user == nullptr ? u"" : user->name;
 	name = username;
-	customTextureUrl = u"http://s3.amazonaws.com/MinecraftSkins/" + username + u".png";
-	customTextureUrl2 = u"http://s3.amazonaws.com/MinecraftCloaks/" + username + u".png";
+	if (!username.empty())
+		customTextureUrl = u"http://s3.amazonaws.com/MinecraftSkins/" + username + u".png";
 }
 
 
@@ -160,32 +167,60 @@ void LocalPlayer::respawn()
 
 void LocalPlayer::startCrafting(int_t x, int_t y, int_t z)
 {
+	auto menu = std::make_shared<ContainerWorkbench>(inventory, *minecraft.level, x, y, z);
+	craftingInventory = menu;
 	minecraft.setScreen(Util::make_shared<WorkbenchScreen>(minecraft, *minecraft.level, x, y, z));
+	craftingInventory = std::move(menu);
 }
 
 void LocalPlayer::startChest(std::shared_ptr<ChestTileEntity> chest)
 {
+	auto menu = std::make_shared<ContainerChest>(inventory, chest);
+	craftingInventory = menu;
 	minecraft.setScreen(Util::make_shared<ChestScreen>(minecraft, chest));
+	craftingInventory = std::move(menu);
 }
 
 void LocalPlayer::startChest(std::shared_ptr<CompoundContainer> chest)
 {
+	auto menu = std::make_shared<ContainerChest>(inventory, chest);
+	craftingInventory = menu;
 	minecraft.setScreen(Util::make_shared<ChestScreen>(minecraft, chest));
+	craftingInventory = std::move(menu);
 }
 
 void LocalPlayer::startChest(std::shared_ptr<EntityMinecart> chest)
 	{
+		auto menu = std::make_shared<ContainerChest>(inventory, chest);
+		craftingInventory = menu;
 		minecraft.setScreen(Util::make_shared<ChestScreen>(minecraft, chest));
+		craftingInventory = std::move(menu);
 	}
+
+void LocalPlayer::startChest(std::shared_ptr<IInventory> chest)
+{
+	auto menu = std::make_shared<ContainerChest>(inventory, chest);
+	craftingInventory = menu;
+	auto basic = std::dynamic_pointer_cast<BasicInventory>(chest);
+	if (basic != nullptr)
+		minecraft.setScreen(Util::make_shared<ChestScreen>(minecraft, basic));
+	craftingInventory = std::move(menu);
+}
 
 void LocalPlayer::startFurnace(std::shared_ptr<FurnaceTileEntity> furnace)
 {
+	auto menu = std::make_shared<ContainerFurnace>(inventory, furnace);
+	craftingInventory = menu;
 	minecraft.setScreen(Util::make_shared<FurnaceScreen>(minecraft, furnace));
+	craftingInventory = std::move(menu);
 }
 
 void LocalPlayer::startDispenser(std::shared_ptr<DispenserTileEntity> dispenser)
 {
+	auto menu = std::make_shared<ContainerDispenser>(inventory, dispenser);
+	craftingInventory = menu;
 	minecraft.setScreen(Util::make_shared<DispenserScreen>(minecraft, dispenser));
+	craftingInventory = std::move(menu);
 }
 void LocalPlayer::openTextEdit(std::shared_ptr<SignTileEntity> sign)
 {
@@ -242,7 +277,12 @@ void LocalPlayer::displayClientMessage(const jstring &message)
 	Language &language = Language::getInstance();
 	jstring translated = language.getElement(message);
 	if (!translated.empty())
-		SPCCommand::addMessage(translated);
+		SPCCommand::addChatMessage(translated);
 	else
-		SPCCommand::addMessage(message);
+		SPCCommand::addChatMessage(message);
+}
+
+void LocalPlayer::sendChatMessage(const jstring &message)
+{
+	SPCCommand::execute(minecraft, message);
 }

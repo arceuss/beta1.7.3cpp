@@ -4,10 +4,6 @@
 
 class Sheep : public Animal
 {
-private:
-	int_t fleeceColor = 0;
-	bool sheared = false;
-
 public:
 	Sheep(Level &level);
 	jstring getEncodeId() const override { return u"Sheep"; }

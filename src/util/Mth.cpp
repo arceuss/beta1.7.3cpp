@@ -1,10 +1,36 @@
 #include "util/Mth.h"
 
 #include <cmath>
+#include <cstring>
 #include <iostream>
+#include <limits>
 
 static constexpr int_t BIG_ENOUGH_INT = 1024;
 static constexpr float BIG_ENOUGH_FLOAT = 1024.0f;
+
+namespace
+{
+
+int_t javaNumberToInt(double value)
+{
+	if (std::isnan(value))
+		return 0;
+	if (value <= static_cast<double>(std::numeric_limits<int_t>::min()))
+		return std::numeric_limits<int_t>::min();
+	if (value >= static_cast<double>(std::numeric_limits<int_t>::max()))
+		return std::numeric_limits<int_t>::max();
+	return static_cast<int_t>(value);
+}
+
+int_t javaSubtractOne(int_t value)
+{
+	uint_t bits = static_cast<uint_t>(value) - 1U;
+	int_t result;
+	std::memcpy(&result, &bits, sizeof(result));
+	return result;
+}
+
+}
 
 namespace Mth
 {
@@ -31,8 +57,8 @@ float sqrt(double value)
 
 int_t floor(float value)
 {
-	int_t i = value;
-	return (value < i) ? (i - 1) : i;
+	int_t i = javaNumberToInt(value);
+	return (value < i) ? javaSubtractOne(i) : i;
 }
 int_t fastFloor(double value)
 {
@@ -40,8 +66,8 @@ int_t fastFloor(double value)
 }
 int_t floor(double value)
 {
-	int_t i = value;
-	return (value < i) ? (i - 1) : i;
+	int_t i = javaNumberToInt(value);
+	return (value < i) ? javaSubtractOne(i) : i;
 }
 int_t absFloor(double value)
 {

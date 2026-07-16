@@ -4,8 +4,120 @@
 #include "nbt/CompoundTag.h"
 #include "world/entity/Entity.h"
 #include "world/entity/Mob.h"
+#include "world/entity/player/Player.h"
 #include "world/item/Item.h"
 #include "world/level/tile/Tile.h"
+#include "world/stats/StatList.h"
+
+namespace
+{
+
+ItemInstanceReference::Snapshot snapshot(const ItemInstance &item)
+{
+	return {
+		item.stackSize.load(std::memory_order_relaxed),
+		item.itemID.load(std::memory_order_relaxed),
+		item.itemDamage.load(std::memory_order_relaxed)
+	};
+}
+
+}
+
+ItemInstanceReference::ItemInstanceReference(const ItemInstance &item)
+	: liveItem(&item), detachedItem(snapshot(item))
+{
+}
+
+ItemInstanceReference::Snapshot ItemInstanceReference::get() const
+{
+	std::lock_guard<std::mutex> guard(lock);
+	return liveItem == nullptr ? detachedItem : snapshot(*liveItem);
+}
+
+void ItemInstanceReference::detach(const ItemInstance &item)
+{
+	std::lock_guard<std::mutex> guard(lock);
+	if (liveItem == &item)
+	{
+		detachedItem = snapshot(item);
+		liveItem = nullptr;
+	}
+}
+
+void ItemInstanceReference::move(const ItemInstance &from, const ItemInstance &to)
+{
+	std::lock_guard<std::mutex> guard(lock);
+	if (liveItem == &from)
+		liveItem = &to;
+}
+
+ItemInstance::ItemInstance(const ItemInstance &other)
+	: stackSize(other.stackSize.load(std::memory_order_relaxed)),
+	  itemID(other.itemID.load(std::memory_order_relaxed)),
+	  itemDamage(other.itemDamage.load(std::memory_order_relaxed)), popTime(other.popTime)
+{
+}
+
+ItemInstance::ItemInstance(ItemInstance &&other) noexcept
+	: stackSize(other.stackSize.load(std::memory_order_relaxed)),
+	  itemID(other.itemID.load(std::memory_order_relaxed)),
+	  itemDamage(other.itemDamage.load(std::memory_order_relaxed)), popTime(other.popTime)
+{
+	moveJavaReference(other);
+}
+
+ItemInstance &ItemInstance::operator=(const ItemInstance &other)
+{
+	if (this == &other)
+		return *this;
+	detachJavaReference();
+	stackSize.store(other.stackSize.load(std::memory_order_relaxed), std::memory_order_relaxed);
+	itemID.store(other.itemID.load(std::memory_order_relaxed), std::memory_order_relaxed);
+	itemDamage.store(other.itemDamage.load(std::memory_order_relaxed), std::memory_order_relaxed);
+	popTime = other.popTime;
+	return *this;
+}
+
+ItemInstance &ItemInstance::operator=(ItemInstance &&other) noexcept
+{
+	if (this == &other)
+		return *this;
+	detachJavaReference();
+	stackSize.store(other.stackSize.load(std::memory_order_relaxed), std::memory_order_relaxed);
+	itemID.store(other.itemID.load(std::memory_order_relaxed), std::memory_order_relaxed);
+	itemDamage.store(other.itemDamage.load(std::memory_order_relaxed), std::memory_order_relaxed);
+	popTime = other.popTime;
+	moveJavaReference(other);
+	return *this;
+}
+
+ItemInstance::~ItemInstance()
+{
+	detachJavaReference();
+}
+
+void ItemInstance::detachJavaReference()
+{
+	if (javaReference)
+	{
+		javaReference->detach(*this);
+		javaReference.reset();
+	}
+}
+
+void ItemInstance::moveJavaReference(ItemInstance &other)
+{
+	javaReference = std::move(other.javaReference);
+	if (javaReference)
+		javaReference->move(other, *this);
+}
+
+std::shared_ptr<const ItemInstanceReference> ItemInstance::retainReference() const
+{
+	if (!javaReference)
+		javaReference = std::shared_ptr<ItemInstanceReference>(new ItemInstanceReference(*this));
+	return javaReference;
+}
 
 ItemInstance::ItemInstance(int_t itemID) : ItemInstance(itemID, 1, 0)
 {
@@ -105,23 +217,32 @@ bool ItemInstance::useOn(Player &player, Level &level, int_t x, int_t y, int_t z
 	Item *item = getItem();
 	if (item == nullptr)
 		return false;
-	return item->useOn(*this, player, level, x, y, z, face);
+	bool used = item->useOn(*this, player, level, x, y, z, face);
+	if (used)
+	{
+		if (StatBase *stat = StatList::useItemStats[itemID])
+			player.addStat(*stat, 1);
+	}
+	return used;
 }
 
-void ItemInstance::damageItem(int_t amount)
+void ItemInstance::damageItem(int_t amount, Entity &entity)
 {
-	if (amount <= 0 || isEmpty())
-		return;
 	int_t maxDamage = getMaxDamage();
 	if (maxDamage <= 0)
 		return;
 	itemDamage += amount;
 	if (itemDamage > maxDamage)
 	{
-		itemDamage = 0;
+		if (auto *player = dynamic_cast<Player *>(&entity))
+		{
+			if (StatBase *stat = StatList::breakItemStats[itemID])
+				player->addStat(*stat, 1);
+		}
 		stackSize--;
 		if (stackSize < 0)
 			stackSize = 0;
+		itemDamage = 0;
 	}
 }
 
@@ -130,7 +251,16 @@ bool ItemInstance::hurtEnemy(Entity &target, Entity &attacker)
 	Item *item = getItem();
 	if (item == nullptr)
 		return false;
-	return item->hurtEnemy(*this, target, attacker);
+	bool used = item->hurtEnemy(*this, target, attacker);
+	if (used)
+	{
+		if (auto *player = dynamic_cast<Player *>(&attacker))
+		{
+			if (StatBase *stat = StatList::useItemStats[itemID])
+				player->addStat(*stat, 1);
+		}
+	}
+	return used;
 }
 
 void ItemInstance::saddleEntity(Mob &target)
@@ -146,7 +276,25 @@ bool ItemInstance::mineBlock(int_t tile, int_t x, int_t y, int_t z, Entity &mine
 	Item *item = getItem();
 	if (item == nullptr)
 		return false;
-	return item->mineBlock(*this, tile, x, y, z, miner);
+	bool used = item->mineBlock(*this, tile, x, y, z, miner);
+	if (used)
+	{
+		if (auto *player = dynamic_cast<Player *>(&miner))
+		{
+			if (StatBase *stat = StatList::useItemStats[itemID])
+				player->addStat(*stat, 1);
+		}
+	}
+	return used;
+}
+
+void ItemInstance::onCrafted(Level &level, Player &player)
+{
+	if (StatBase *stat = StatList::craftItemStats[itemID])
+		player.addStat(*stat, stackSize);
+	Item *item = getItem();
+	if (item != nullptr)
+		item->onCreated(*this, level, player);
 }
 
 void ItemInstance::save(CompoundTag &tag) const

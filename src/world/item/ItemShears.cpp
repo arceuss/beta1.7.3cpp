@@ -31,6 +31,6 @@ bool ItemShears::mineBlock(ItemInstance &stack, int_t tileId, int_t x, int_t y, 
 {
     (void)x; (void)y; (void)z; (void)miner;
     if (tileId == Tile::cobweb.id || tileId == Tile::leaves.id)
-        stack.damageItem(1);
+        stack.damageItem(1, miner);
     return true;
 }

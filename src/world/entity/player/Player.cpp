@@ -3,8 +3,13 @@
 #include "nbt/ListTag.h"
 #include "util/Mth.h"
 #include "world/entity/item/EntityItem.h"
+#include "world/entity/item/EntityBoat.h"
 #include "world/entity/item/EntityMinecart.h"
+#include "world/entity/animal/Pig.h"
 #include "world/entity/monster/Monster.h"
+#include "world/entity/projectile/EntityArrow.h"
+#include "world/inventory/Container.h"
+#include "world/inventory/ContainerMenus.h"
 #include "world/level/Level.h"
 #include "world/level/material/Material.h"
 #include "world/level/material/LiquidMaterial.h"
@@ -13,9 +18,13 @@
 #include "world/stats/AchievementList.h"
 #include "world/stats/Achievement.h"
 #include "world/stats/StatBase.h"
+#include "world/stats/StatList.h"
 
 Player::Player(Level &level) : Mob(level)
 {
+	inventorySlots = std::make_shared<ContainerPlayer>(inventory, !level.isOnline);
+	craftingInventory = inventorySlots;
+	dataWatcher.addObject(16, static_cast<byte_t>(0));
 	heightOffset = 1.62f;
 	moveTo(level.xSpawn + 0.5, level.ySpawn + 1, level.zSpawn + 0.5, 0.0f, 0.0f);
 	health = 20;
@@ -23,6 +32,12 @@ Player::Player(Level &level) : Mob(level)
 	rotOffs = 180.0f;
 	flameTime = 20;
 	textureName = u"/mob/char.png";
+}
+
+void Player::prepareCustomTextures()
+{
+	cloakTexture = u"http://s3.amazonaws.com/MinecraftCloaks/" + name + u".png";
+	customTextureUrl2 = cloakTexture;
 }
 
 void Player::tick()
@@ -49,6 +64,11 @@ void Player::tick()
 	}
 
 	Mob::tick();
+	if (!level.isOnline && craftingInventory != nullptr && !craftingInventory->canUse(*this))
+	{
+		closeContainer();
+		craftingInventory = inventorySlots;
+	}
 
 	xCloakO = xCloak;
 	yCloakO = yCloak;
@@ -69,6 +89,7 @@ void Player::tick()
 	xCloak += dx * 0.25;
 	yCloak += dy * 0.25;
 	zCloak += dz * 0.25;
+	addStat(*StatList::minutesPlayedStat, 1);
 	if (riding == nullptr)
 		hasMinecartStart = false;
 }
@@ -140,7 +161,7 @@ Player::SleepStatus Player::sleepInBedAt(int_t bx, int_t by, int_t bz)
 void Player::wakeUpPlayer(bool immediately, bool updateSleepFlag, bool setSpawn)
 {
 	setSize(0.6f, 1.8f);
-	heightOffset = 1.62f;
+	resetHeight();
 
 	int_t wx = bedX, wy = bedY, wz = bedZ;
 	if (wy != 0 && level.getTile(wx, wy, wz) == Tile::bed.id)
@@ -220,8 +241,12 @@ float Player::getBedOrientationInDegrees() const
 
 void Player::closeContainer()
 {
-	// TODO
-	// inventory/container menus are not implemented yet
+	craftingInventory = inventorySlots;
+}
+
+void Player::resetHeight()
+{
+	heightOffset = 1.62f;
 }
 
 void Player::rideTick()
@@ -233,29 +258,37 @@ void Player::rideTick()
 	oBob = bob;
 	bob = 0.0f;
 
-	if (riding != nullptr && dynamic_cast<EntityMinecart *>(riding.get()) != nullptr)
+	if (riding != nullptr)
 	{
 		int_t distance = static_cast<int_t>(std::round(Mth::sqrt((x - oldX) * (x - oldX) + (y - oldY) * (y - oldY) + (z - oldZ) * (z - oldZ)) * 100.0f));
 		if (distance > 0)
 		{
-			int_t currentX = Mth::floor(x);
-			int_t currentY = Mth::floor(y);
-			int_t currentZ = Mth::floor(z);
-			if (!hasMinecartStart)
+			if (dynamic_cast<EntityMinecart *>(riding.get()) != nullptr)
 			{
-				hasMinecartStart = true;
-				minecartStartX = currentX;
-				minecartStartY = currentY;
-				minecartStartZ = currentZ;
+				addStat(*StatList::distanceByMinecartStat, distance);
+				int_t currentX = Mth::floor(x);
+				int_t currentY = Mth::floor(y);
+				int_t currentZ = Mth::floor(z);
+				if (!hasMinecartStart)
+				{
+					hasMinecartStart = true;
+					minecartStartX = currentX;
+					minecartStartY = currentY;
+					minecartStartZ = currentZ;
+				}
+				else
+				{
+					double dx = currentX - minecartStartX;
+					double dy = currentY - minecartStartY;
+					double dz = currentZ - minecartStartZ;
+					if (dx * dx + dy * dy + dz * dz >= 1000.0)
+						addStat(*AchievementList::onARail, 1);
+				}
 			}
-			else
-			{
-				double dx = currentX - minecartStartX;
-				double dy = currentY - minecartStartY;
-				double dz = currentZ - minecartStartZ;
-				if (dx * dx + dy * dy + dz * dz >= 1000.0)
-					addStat(*AchievementList::onARail, 1);
-			}
+			else if (dynamic_cast<EntityBoat *>(riding.get()) != nullptr)
+				addStat(*StatList::distanceByBoatStat, distance);
+			else if (dynamic_cast<Pig *>(riding.get()) != nullptr)
+				addStat(*StatList::distanceByPigStat, distance);
 		}
 	}
 }
@@ -336,6 +369,8 @@ void Player::attack(const std::shared_ptr<Entity> &entity)
 	int_t attackDamage = inventory.getAttackDamage(*entity);
 	if (attackDamage <= 0)
 		return;
+	if (yd < 0.0)
+		attackDamage++;
 
 	entity->hurt(this, attackDamage);
 	ItemInstance *selected = getSelectedItem();
@@ -345,6 +380,8 @@ void Player::attack(const std::shared_ptr<Entity> &entity)
 		if (selected->isEmpty())
 			removeSelectedItem();
 	}
+	if (dynamic_cast<Mob *>(entity.get()) != nullptr)
+		addStat(*StatList::damageDealtStat, attackDamage);
 }
 
 void Player::respawn()
@@ -382,6 +419,15 @@ void Player::readAdditionalSaveData(CompoundTag &tag)
 	auto inventoryTag = tag.getList(u"Inventory");
 	if (inventoryTag != nullptr)
 		inventory.load(*inventoryTag);
+	if (tag.contains(u"SpawnX") && tag.contains(u"SpawnY") && tag.contains(u"SpawnZ"))
+	{
+		playerSpawnPosition = std::make_unique<TilePos>(
+			tag.getInt(u"SpawnX"), tag.getInt(u"SpawnY"), tag.getInt(u"SpawnZ"));
+	}
+	else
+	{
+		playerSpawnPosition.reset();
+	}
 
 	sleeping = tag.getBoolean(u"Sleeping");
 	sleepTimer = tag.getShort(u"SleepTimer");
@@ -400,9 +446,28 @@ void Player::addAdditionalSaveData(CompoundTag &tag)
 	auto inventoryTag = std::make_shared<ListTag>();
 	inventory.save(*inventoryTag);
 	tag.put(u"Inventory", inventoryTag);
+	if (playerSpawnPosition != nullptr)
+	{
+		tag.putInt(u"SpawnX", playerSpawnPosition->x);
+		tag.putInt(u"SpawnY", playerSpawnPosition->y);
+		tag.putInt(u"SpawnZ", playerSpawnPosition->z);
+	}
 
 	tag.putBoolean(u"Sleeping", sleeping);
 	tag.putShort(u"SleepTimer", static_cast<short_t>(sleepTimer));
+}
+
+const TilePos *Player::getPlayerSpawnPosition() const
+{
+	return playerSpawnPosition.get();
+}
+
+void Player::setPlayerSpawnPosition(const TilePos *position)
+{
+	if (position == nullptr)
+		playerSpawnPosition.reset();
+	else
+		playerSpawnPosition = std::make_unique<TilePos>(*position);
 }
 
 float Player::getHeadHeight()
@@ -434,6 +499,7 @@ void Player::die(Entity *source)
 		zd = 0.0;
 	}
 	heightOffset = 0.1f;
+	addStat(*StatList::deathsStat, 1);
 }
 
 bool Player::hurt(Entity *source, int_t dmg)
@@ -442,8 +508,20 @@ bool Player::hurt(Entity *source, int_t dmg)
 
 	if (health <= 0)
 		return false;
+	if (dynamic_cast<Monster *>(source) != nullptr || dynamic_cast<EntityArrow *>(source) != nullptr)
+	{
+		if (level.difficulty == 0)
+			dmg = 0;
+		else if (level.difficulty == 1)
+			dmg = dmg / 3 + 1;
+		else if (level.difficulty == 3)
+			dmg = dmg * 3 / 2;
+	}
 
-	return dmg == 0 ? false : Mob::hurt(source, dmg);
+	if (dmg == 0)
+		return false;
+	addStat(*StatList::damageTakenStat, dmg);
+	return Mob::hurt(source, dmg);
 }
 
 void Player::actuallyHurt(int_t dmg)
@@ -489,9 +567,9 @@ void Player::removeSelectedItem()
 
 void Player::drop()
 {
-	auto selected = inventory.removeItem(inventory.currentItem, 1);
-	if (selected != nullptr)
-		drop(*selected, false);
+	ItemInstance selected = inventory.removeItem(inventory.currentItem, 1);
+	if (!selected.isEmpty())
+		drop(selected, false);
 }
 
 void Player::drop(ItemInstance &stack)
@@ -533,6 +611,7 @@ void Player::drop(ItemInstance &stack, bool randomSpread)
 	}
 
 	reallyDrop(itemEntity);
+	addStat(*StatList::dropStat, 1);
 }
 
 void Player::reallyDrop(std::shared_ptr<EntityItem> itemEntity)
@@ -543,6 +622,68 @@ void Player::reallyDrop(std::shared_ptr<EntityItem> itemEntity)
 void Player::awardKillScore(Entity &source, int_t score)
 {
 	Mob::awardKillScore(source, score);
+	if (dynamic_cast<Player *>(&source) != nullptr)
+		addStat(*StatList::playerKillsStat, 1);
+	else
+		addStat(*StatList::mobKillsStat, 1);
 	if (dynamic_cast<Monster *>(&source) != nullptr)
 		triggerAchievement(*AchievementList::killEnemy);
+}
+
+void Player::jumpFromGround()
+{
+	Mob::jumpFromGround();
+	addStat(*StatList::jumpStat, 1);
+}
+
+void Player::travel(float xInput, float zInput)
+{
+	double oldX = x;
+	double oldY = y;
+	double oldZ = z;
+	Mob::travel(xInput, zInput);
+
+	double dx = x - oldX;
+	double dy = y - oldY;
+	double dz = z - oldZ;
+	if (riding != nullptr)
+		return;
+
+	if (isUnderLiquid(Material::water))
+	{
+		int_t distance = static_cast<int_t>(std::round(Mth::sqrt(dx * dx + dy * dy + dz * dz) * 100.0f));
+		if (distance > 0)
+			addStat(*StatList::distanceDoveStat, distance);
+	}
+	else if (isInWater())
+	{
+		int_t distance = static_cast<int_t>(std::round(Mth::sqrt(dx * dx + dz * dz) * 100.0f));
+		if (distance > 0)
+			addStat(*StatList::distanceSwumStat, distance);
+	}
+	else if (onLadder())
+	{
+		if (dy > 0.0)
+			addStat(*StatList::distanceClimbedStat, static_cast<int_t>(std::round(dy * 100.0)));
+	}
+	else if (onGround)
+	{
+		int_t distance = static_cast<int_t>(std::round(Mth::sqrt(dx * dx + dz * dz) * 100.0f));
+		if (distance > 0)
+			addStat(*StatList::distanceWalkedStat, distance);
+	}
+	else
+	{
+		int_t distance = static_cast<int_t>(std::round(Mth::sqrt(dx * dx + dz * dz) * 100.0f));
+		if (distance > 25)
+			addStat(*StatList::distanceFlownStat, distance);
+	}
+}
+
+void Player::causeFallDamage(float distance)
+{
+	if (distance >= 2.0f)
+		addStat(*StatList::distanceFallenStat,
+			static_cast<int_t>(std::round(static_cast<double>(distance) * 100.0)));
+	Mob::causeFallDamage(distance);
 }

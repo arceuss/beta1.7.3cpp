@@ -74,6 +74,7 @@ void HumanoidMobRenderer::additionalRendering(Mob &mob, float a)
 	}
 
 	TileRenderer tileRenderer(false, false);
-	HeldItemRenderer::render(*entityRenderDispatcher.textures, tileRenderer, *item);
+	HeldItemRenderer::render(*entityRenderDispatcher.textures, tileRenderer, *item,
+		mob.getBrightness(1.0f));
 	glPopMatrix();
 }

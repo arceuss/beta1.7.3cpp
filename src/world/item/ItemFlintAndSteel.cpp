@@ -50,10 +50,10 @@ bool ItemFlintAndSteel::useOn(ItemInstance &stack, Player &player, Level &level,
 	if (fire != nullptr && level.getTile(x, y, z) == 0)
 	{
 		level.playSoundEffect((double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
-			u"fire.ignite", 1.0f, level.random.nextFloat() * 0.4f + 0.8f);
+			u"fire.ignite", 1.0f, itemRandom.nextFloat() * 0.4f + 0.8f);
 		level.setTile(x, y, z, fire->id);
 	}
 
-	stack.damageItem(1);
+	stack.damageItem(1, player);
 	return true;
 }

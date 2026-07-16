@@ -15,6 +15,7 @@
 #include "java/Random.h"
 #include "java/String.h"
 
+#include "network/DataWatcher.h"
 #include "util/Memory.h"
 
 class ItemInstance;
@@ -81,6 +82,7 @@ public:
 	float footSize = 0.0f;
 
 	bool noPhysics = false;
+	bool noCulling = false;
 	bool isInWeb = false;
 
 	float pushthrough = 0.0f;
@@ -113,7 +115,7 @@ public:
 
 protected:
 	bool fireImmune = false;
-	// TODO SynchedEntityData
+	DataWatcher dataWatcher;
 
 private:
 	static constexpr int_t DATA_SHARED_FLAGS_ID = 0;
@@ -127,11 +129,14 @@ public:
 	bool inChunk = false;
 	int_t xChunk = 0, yChunk = 0, zChunk = 0;
 
-	int_t xp = 0, yp = 0, zp = 0;
+	int_t serverPosX = 0, serverPosY = 0, serverPosZ = 0;
 
 	Entity(Level &level);
 
 	virtual ~Entity() {}
+
+	DataWatcher &getDataWatcher();
+	const DataWatcher &getDataWatcher() const;
 
 protected:
 	virtual void resetPos();
@@ -159,7 +164,7 @@ protected:
 public:
 	bool isFree(double xd, double yd, double zd, double skin);
 	bool isFree(double xd, double yd, double zd);
-	void move(double xd, double yd, double zd);
+	virtual void move(double xd, double yd, double zd);
 
 protected:
 	void checkFallDamage(double yd, bool onGround);
@@ -174,6 +179,8 @@ protected:
 
 public:
 	virtual bool isInWater();
+	virtual bool handleWaterMovement();
+	bool isWet();
 	bool isUnderLiquid(const Material &material);
 
 	virtual float getHeadHeight();
@@ -195,7 +202,7 @@ public:
 	virtual void playerTouch(Player &player);
 
 	void push(Entity &entity);
-	void push(double x, double y, double z);
+	virtual void push(double x, double y, double z);
 
 protected:
 	void markHurt();
@@ -227,7 +234,7 @@ protected:
 	virtual void addAdditionalSaveData(CompoundTag &tag);
 
 public:
-	float getShadowHeightOffs();
+	virtual float getShadowHeightOffs();
 
 	void spawnAtLocation(const ItemInstance &stack, float offset);
 
@@ -250,7 +257,7 @@ public:
 	virtual Vec3 *getLookAngle();
 
 	virtual void handleInsidePortal();
-	void lerpMotion(double x, double y, double z);
+	virtual void lerpMotion(double x, double y, double z);
 
 	virtual void handleEntityEvent(byte_t event);
 	virtual void animateHurt();
@@ -259,7 +266,7 @@ public:
 	// TODO
 	// getEquipmentSlots
 
-	void setEquippedSlot(int_t slot, int_t itemId, int_t auxValue);
+	virtual void setEquippedSlot(int_t slot, int_t itemId, int_t auxValue);
 
 	bool isOnFire();
 	bool isRiding();

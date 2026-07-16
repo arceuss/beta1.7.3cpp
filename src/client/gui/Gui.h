@@ -9,16 +9,20 @@ class Minecraft;
 class Gui : public GuiComponent
 {
 private:
-	static constexpr int_t MAX_MESSAGE_WIDTH = 320;
 
 	Random random;
 	int_t tickCount = 0;
 
 	jstring nowPlayingString = u"";
 	int_t nowPlayingTime = 0;
+	bool animateNowPlayingColor = false;
+	float prevVignetteBrightness = 1.0f;
 
 	Minecraft &minecraft;
 	void renderSlot(int_t slot, int_t x, int_t y, float a);
+	void renderPumpkinBlur(int_t width, int_t height);
+	void renderVignette(float brightness, int_t width, int_t height);
+	void renderPortalOverlay(float portalTime, int_t width, int_t height);
 public:
 	float progress = 0.0f;
 	float tbr = 1.0f;
@@ -27,4 +31,5 @@ public:
 	void render(float a, bool inScreen, int_t xm, int_t ym);
 
 	void tick();
+	void setRecordPlayingMessage(const jstring &name);
 };

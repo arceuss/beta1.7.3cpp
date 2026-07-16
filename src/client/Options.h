@@ -107,13 +107,17 @@ private:
 public:
 	int_t difficulty = 2;
 
+	bool hideGui = false;
 	bool thirdPersonView = false;
 	bool showDebugInfo = false;
+	bool smoothCamera = false;
 
+	jstring username = u"";
 	jstring lastMpIp = u"";
 
 	Options(Minecraft &minecraft);
 	void open(File *optionsFile);
+	void setUsername(const jstring &username);
 
 	jstring getKeyDescription(int_t i);
 	jstring getKeyMessage(int_t i);

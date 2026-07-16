@@ -5,14 +5,19 @@
 class Wolf : public Animal
 {
 private:
-	byte_t wolfFlags = 0;
-	jstring owner;
 	bool looksWithInterest = false;
 	float interestedAngle = 0.0f;
 	float interestedAngleOld = 0.0f;
+	bool wolfShaking = false;
+	bool shakeActive = false;
+	float shakeTime = 0.0f;
+	float shakeTimeOld = 0.0f;
+
+	void showHeartsOrSmokeFX(bool hearts);
 
 public:
 	Wolf(Level &level);
+	void tick() override;
 	jstring getEncodeId() const override { return u"Wolf"; }
 	jstring getTexture() override;
 	bool hurt(Entity *source, int_t damage) override;
@@ -30,6 +35,10 @@ public:
 	void setWolfOwner(const jstring &owner);
 	float getTailRotation() const;
 	float getInterestedAngle(float a) const;
+	bool getWolfShaking() const;
+	float getShadingWhileShaking(float a) const;
+	float getShakeAngle(float a, float offset) const;
+	void handleEntityEvent(byte_t event) override;
 
 protected:
 	void addAdditionalSaveData(CompoundTag &tag) override;

@@ -9,4 +9,5 @@ public:
 
 protected:
 	float getBob(Mob &mob, float a) override;
+	void prepareModel(Mob &mob, float time, float speed, float a) override;
 };

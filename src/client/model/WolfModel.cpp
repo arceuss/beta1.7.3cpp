@@ -1,5 +1,8 @@
 #include "client/model/WolfModel.h"
 
+#include "OpenGL.h"
+#include "world/entity/animal/Wolf.h"
+
 WolfModel::WolfModel()
 {
 	float y = 13.5f;
@@ -43,23 +46,18 @@ void WolfModel::render(float time, float r, float bob, float yRot, float xRot, f
 	mane.render(scale);
 }
 
-void WolfModel::setupAnim(float time, float r, float bob, float yRot, float xRot, float scale)
+// B173-JAVA-METHOD: net.minecraft.src.ModelWolf#setLivingAnimations(EntityLiving,float,float,float)
+void WolfModel::prepare(Wolf &wolf, float time, float speed, float a)
 {
-	(void)scale;
-	head.xRot = xRot / Mth::RADDEG;
-	head.yRot = yRot / Mth::RADDEG;
-	rightEar.xRot = leftEar.xRot = snout.xRot = head.xRot;
-	rightEar.yRot = leftEar.yRot = snout.yRot = head.yRot;
-	float headZ = interestedAngle;
-	head.zRot = rightEar.zRot = leftEar.zRot = snout.zRot = headZ;
-	if (angry)
+	if (wolf.isWolfAngry())
 		tail.yRot = 0.0f;
 	else
-		tail.yRot = Mth::cos(time * 0.6662f) * 1.4f * r;
-	if (sitting)
+		tail.yRot = Mth::cos(time * 0.6662f) * 1.4f * speed;
+	if (wolf.isWolfSitting())
 	{
 		mane.setPos(-1.0f, 16.0f, -3.0f);
 		mane.xRot = Mth::PI * 0.4f;
+		mane.yRot = 0.0f;
 		body.setPos(0.0f, 18.0f, 0.0f);
 		body.xRot = Mth::PI * 0.25f;
 		tail.setPos(-1.0f, 21.0f, 6.0f);
@@ -83,10 +81,39 @@ void WolfModel::setupAnim(float time, float r, float bob, float yRot, float xRot
 		leg2.setPos(0.5f, 16.0f, 7.0f);
 		leg3.setPos(-2.5f, 16.0f, -4.0f);
 		leg4.setPos(0.5f, 16.0f, -4.0f);
-		leg1.xRot = Mth::cos(time * 0.6662f) * 1.4f * r;
-		leg2.xRot = Mth::cos(time * 0.6662f + Mth::PI) * 1.4f * r;
-		leg3.xRot = Mth::cos(time * 0.6662f + Mth::PI) * 1.4f * r;
-		leg4.xRot = Mth::cos(time * 0.6662f) * 1.4f * r;
+		leg1.xRot = Mth::cos(time * 0.6662f) * 1.4f * speed;
+		leg2.xRot = Mth::cos(time * 0.6662f + Mth::PI) * 1.4f * speed;
+		leg3.xRot = Mth::cos(time * 0.6662f + Mth::PI) * 1.4f * speed;
+		leg4.xRot = Mth::cos(time * 0.6662f) * 1.4f * speed;
 	}
+
+	float headRoll = wolf.getInterestedAngle(a) + wolf.getShakeAngle(a, 0.0f);
+	head.zRot = headRoll;
+	rightEar.zRot = headRoll;
+	leftEar.zRot = headRoll;
+	snout.zRot = headRoll;
+	mane.zRot = wolf.getShakeAngle(a, -0.08f);
+	body.zRot = wolf.getShakeAngle(a, -0.16f);
+	tail.zRot = wolf.getShakeAngle(a, -0.2f);
+	if (wolf.getWolfShaking())
+	{
+		float shade = wolf.getBrightness(a) * wolf.getShadingWhileShaking(a);
+		glColor3f(shade, shade, shade);
+	}
+}
+
+void WolfModel::setupAnim(float time, float r, float bob, float yRot, float xRot, float scale)
+{
+	(void)time;
+	(void)r;
+	(void)scale;
+	head.xRot = xRot / Mth::RADDEG;
+	head.yRot = yRot / Mth::RADDEG;
+	rightEar.yRot = head.yRot;
+	rightEar.xRot = head.xRot;
+	leftEar.yRot = head.yRot;
+	leftEar.xRot = head.xRot;
+	snout.yRot = head.yRot;
+	snout.xRot = head.xRot;
 	tail.xRot = bob;
 }

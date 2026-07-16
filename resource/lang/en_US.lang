@@ -74,6 +74,7 @@ disconnect.overflow=Buffer overflow
 options.off=OFF
 options.on=ON
 options.title=Options
+options.username=Username
 options.controls=Controls...
 options.video=Video Settings...
 options.videoTitle=Video Settings

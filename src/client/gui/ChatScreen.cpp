@@ -2,7 +2,6 @@
 
 #include "SharedConstants.h"
 #include "client/Minecraft.h"
-#include "client/spc/SPCCommand.h"
 
 #include "lwjgl/Keyboard.h"
 
@@ -51,8 +50,8 @@ void ChatScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 	if (eventKey == lwjgl::Keyboard::KEY_RETURN)
 	{
 		jstring text = trimWhitespace(message);
-		if (!text.empty())
-			SPCCommand::execute(minecraft, text);
+		if (!text.empty() && minecraft.player != nullptr)
+			minecraft.player->sendChatMessage(text);
 		minecraft.setScreen(nullptr);
 		return;
 	}

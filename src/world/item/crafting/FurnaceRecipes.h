@@ -15,4 +15,5 @@ public:
 	static FurnaceRecipes &getInstance();
 
 	ItemInstance getResult(const ItemInstance &input) const;
+	const std::unordered_map<int_t, ItemInstance> &getRecipes() const { return recipes; }
 };

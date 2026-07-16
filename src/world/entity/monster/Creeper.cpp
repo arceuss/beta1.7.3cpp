@@ -7,16 +7,29 @@
 
 Creeper::Creeper(Level &level) : Monster(level)
 {
+	dataWatcher.addObject(16, static_cast<byte_t>(-1));
+	dataWatcher.addObject(17, static_cast<byte_t>(0));
 	textureName = u"/mob/creeper.png";
 }
 
 void Creeper::tick()
 {
 	oldSwell = swell;
+	if (level.isOnline)
+	{
+		int_t state = getCreeperState();
+		if (state > 0 && swell == 0)
+			level.playSoundAtEntity(*this, u"random.fuse", 1.0f, 0.5f);
+		swell += state;
+		if (swell < 0)
+			swell = 0;
+		if (swell >= 30)
+			swell = 30;
+	}
 	Monster::tick();
 	if (attackTarget == nullptr && swell > 0)
 	{
-		swellDir = -1;
+		setCreeperState(-1);
 		swell--;
 		if (swell < 0)
 			swell = 0;
@@ -30,26 +43,35 @@ float Creeper::getSwelling(float a) const
 
 bool Creeper::isPowered() const
 {
-	return powered;
+	return dataWatcher.getWatchableObjectByte(17) == 1;
 }
 
+int_t Creeper::getCreeperState() const
+{
+	return dataWatcher.getWatchableObjectByte(16);
+}
+
+void Creeper::setCreeperState(int_t state)
+{
+	dataWatcher.updateObject(16, static_cast<byte_t>(state));
+}
 
 void Creeper::onStruckByLightning(Entity &lightning)
 {
 	Entity::onStruckByLightning(lightning);
-	powered = true;
+	dataWatcher.updateObject(17, static_cast<byte_t>(1));
 }
 void Creeper::addAdditionalSaveData(CompoundTag &tag)
 {
 	Monster::addAdditionalSaveData(tag);
-	if (powered)
+	if (isPowered())
 		tag.putBoolean(u"powered", true);
 }
 
 void Creeper::readAdditionalSaveData(CompoundTag &tag)
 {
 	Monster::readAdditionalSaveData(tag);
-	powered = tag.getBoolean(u"powered");
+	dataWatcher.updateObject(17, static_cast<byte_t>(tag.getBoolean(u"powered") ? 1 : 0));
 }
 
 void Creeper::attackBlockedEntity(Entity &entity, float distance)
@@ -58,7 +80,7 @@ void Creeper::attackBlockedEntity(Entity &entity, float distance)
 	(void)distance;
 	if (!level.isOnline && swell > 0)
 	{
-		swellDir = -1;
+		setCreeperState(-1);
 		swell--;
 		if (swell < 0)
 			swell = 0;
@@ -70,22 +92,23 @@ void Creeper::checkHurtTarget(Entity &entity, float distance)
 	(void)entity;
 	if (level.isOnline)
 		return;
-	if ((swellDir <= 0 && distance < 3.0f) || (swellDir > 0 && distance < 7.0f))
+	int_t state = getCreeperState();
+	if ((state <= 0 && distance < 3.0f) || (state > 0 && distance < 7.0f))
 	{
 		if (swell == 0)
 			level.playSoundAtEntity(*this, u"random.fuse", 1.0f, 0.5f);
-		swellDir = 1;
+		setCreeperState(1);
 		swell++;
 		if (swell >= 30)
 		{
-			level.createExplosion(this, x, y, z, powered ? 6.0f : 3.0f);
+			level.createExplosion(this, x, y, z, isPowered() ? 6.0f : 3.0f);
 			remove();
 		}
 		holdGround = true;
 	}
 	else
 	{
-		swellDir = -1;
+		setCreeperState(-1);
 		swell--;
 		if (swell < 0)
 			swell = 0;

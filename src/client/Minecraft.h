@@ -2,6 +2,9 @@
 
 #include <string>
 #include <memory>
+#include <cstdint>
+#include <thread>
+#include <vector>
 
 #include "client/Options.h"
 #include "client/ProgressRenderer.h"
@@ -38,14 +41,18 @@
 
 class Minecraft
 {
+	friend class ConnectingScreen;
+
 public:
 	static constexpr bool FLYBY_MODE = false;
 	static const jstring VERSION_STRING;
 
 	std::shared_ptr<GameMode> gameMode;
+	std::shared_ptr<class NetClientHandler> connection;
 
 private:
 	bool fullscreen = false;
+	std::vector<std::thread> connectionThreads;
 	
 public:
 	int_t width = 0;
@@ -67,6 +74,8 @@ public:
 
 	std::unique_ptr<User> user;
 	jstring serverDomain;
+	std::string serverHost;
+	std::uint16_t serverPort = 25565;
 
 	volatile bool pause = false;
 	std::unique_ptr<Font> font;
@@ -195,7 +204,7 @@ public:
 	jstring gatherStats2();
 	jstring gatherStats4();
 	jstring gatherStats3();
-	void respawnPlayer();
+	void respawnPlayer(int_t dimension = 0);
 	static void start(const jstring *name, const jstring *sessionId);
 	static void startAndConnectTo(const jstring *name, const jstring *sessionId, const jstring *ip);
 	// public ClientConnection getConnection()

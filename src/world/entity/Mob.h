@@ -110,6 +110,7 @@ public:
 
 protected:
 	virtual void defineSynchedData();
+	void keepCurrentTarget(int_t ticks) { lookTime = ticks; }
 
 public:
 	bool canSee(Entity &entity);
@@ -138,7 +139,7 @@ protected:
 	virtual void setSize(float width, float height) override;
 
 public:
-	void heal(int_t heal);
+	virtual void heal(int_t heal);
 	virtual bool hurt(Entity *source, int_t dmg) override;
 	virtual void animateHurt() override;
 
@@ -209,5 +210,7 @@ public:
 	virtual int_t getMaxSpawnClusterSize();
 
 	virtual ItemInstance *getCarriedItem();
+	bool hasCurrentTarget() const;
+	std::shared_ptr<Entity> getCurrentTarget() const;
 	virtual void handleEntityEvent(byte_t event) override;
 };

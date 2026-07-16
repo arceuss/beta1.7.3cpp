@@ -15,7 +15,17 @@ int_t Entity::entityCounter = 0;
 Entity::Entity(Level &level) : level(level)
 {
 	setPos(0.0, 0.0, 0.0);
-	// TODO
+	dataWatcher.addObject(DATA_SHARED_FLAGS_ID, static_cast<byte_t>(0));
+}
+
+DataWatcher &Entity::getDataWatcher()
+{
+	return dataWatcher;
+}
+
+const DataWatcher &Entity::getDataWatcher() const
+{
+	return dataWatcher;
 }
 
 void Entity::resetPos()
@@ -116,7 +126,7 @@ void Entity::baseTick()
 	xRotO = xRot;
 
 	// Water check
-	if (isInWater())
+	if (handleWaterMovement())
 	{
 		if (!wasInWater && !firstTick)
 		{
@@ -484,7 +494,17 @@ void Entity::causeFallDamage(float distance)
 
 bool Entity::isInWater()
 {
+	return wasInWater;
+}
+
+bool Entity::handleWaterMovement()
+{
 	return level.handleMaterialAcceleration(*bb.grow(0.0, -0.4, 0.0)->grow(-0.001, -0.001, -0.001), Material::water, *this);
+}
+
+bool Entity::isWet()
+{
+	return wasInWater || level.canBlockBeRainedOn(Mth::floor(x), Mth::floor(y), Mth::floor(z));
 }
 
 bool Entity::isUnderLiquid(const Material &material)
@@ -940,7 +960,23 @@ void Entity::ride(std::shared_ptr<Entity> entity)
 
 void Entity::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
 {
+	(void)steps;
+	setPos(x, y, z);
+	setRot(yRot, xRot);
+	AABB *expanded = bb.grow(1.0 / 32.0, 0.0, 1.0 / 32.0);
+	const std::vector<AABB *> &collisions = level.getCubes(*this, *expanded);
+	if (!collisions.empty())
+	{
+		double highest = 0.0;
+		for (AABB *collision : collisions)
+		{
+			if (collision->y1 > highest)
+				highest = collision->y1;
+		}
 
+		y += highest - bb.y0;
+		setPos(x, y, z);
+	}
 }
 
 float Entity::getPickRadius()
@@ -960,7 +996,9 @@ void Entity::handleInsidePortal()
 
 void Entity::lerpMotion(double x, double y, double z)
 {
-
+	xd = x;
+	yd = y;
+	zd = z;
 }
 
 void Entity::handleEntityEvent(byte_t event)
@@ -998,20 +1036,24 @@ bool Entity::isRiding()
 
 bool Entity::isSneaking()
 {
-	return false;
+	return getSharedFlag(FLAG_SNEAKING);
 }
 
 void Entity::setSneaking(bool sneaking)
 {
-
+	setSharedFlag(FLAG_SNEAKING, sneaking);
 }
 
 bool Entity::getSharedFlag(int_t flag)
 {
-	return false;
+	return (dataWatcher.getWatchableObjectByte(DATA_SHARED_FLAGS_ID) & (1 << flag)) != 0;
 }
 
 void Entity::setSharedFlag(int_t flag, bool value)
 {
-
+	byte_t flags = dataWatcher.getWatchableObjectByte(DATA_SHARED_FLAGS_ID);
+	if (value)
+		dataWatcher.updateObject(DATA_SHARED_FLAGS_ID, static_cast<byte_t>(flags | (1 << flag)));
+	else
+		dataWatcher.updateObject(DATA_SHARED_FLAGS_ID, static_cast<byte_t>(flags & ~(1 << flag)));
 }

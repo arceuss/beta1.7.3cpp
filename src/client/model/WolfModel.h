@@ -3,6 +3,8 @@
 #include "client/model/Model.h"
 #include "client/model/Cube.h"
 
+class Wolf;
+
 class WolfModel : public Model
 {
 public:
@@ -17,11 +19,9 @@ public:
 	Cube snout = Cube(0, 10);
 	Cube tail = Cube(9, 18);
 	Cube mane = Cube(21, 0);
-	bool sitting = false;
-	bool angry = false;
-	float interestedAngle = 0.0f;
 
 	WolfModel();
+	void prepare(Wolf &wolf, float time, float speed, float a);
 	void render(float time, float r, float bob, float yRot, float xRot, float scale) override;
 	void setupAnim(float time, float r, float bob, float yRot, float xRot, float scale) override;
 };

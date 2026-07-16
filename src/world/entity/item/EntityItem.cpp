@@ -7,6 +7,7 @@
 #include "world/item/Item.h"
 #include "world/item/Items.h"
 #include "world/level/Level.h"
+#include "world/level/material/LiquidMaterial.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/TreeTile.h"
 #include "world/stats/AchievementList.h"
@@ -90,6 +91,11 @@ bool EntityItem::hurt(Entity *source, int_t dmg)
 bool EntityItem::shouldRenderAtSqrDistance(double distance)
 {
 	return distance < 64.0 * 64.0;
+}
+
+bool EntityItem::handleWaterMovement()
+{
+	return level.handleMaterialAcceleration(bb, Material::water, *this);
 }
 
 void EntityItem::addAdditionalSaveData(CompoundTag &tag)

@@ -4,9 +4,6 @@
 
 class Pig : public Animal
 {
-private:
-	bool saddled = false;
-
 public:
 	Pig(Level &level);
 	jstring getEncodeId() const override { return u"Pig"; }

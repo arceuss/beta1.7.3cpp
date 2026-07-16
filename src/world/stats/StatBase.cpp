@@ -16,14 +16,45 @@ namespace
 		return String::fromUTF8(stream.str());
 	}
 
-	jstring formatJavaDouble(double value)
+	jstring formatJavaSeconds(int_t ticks)
 	{
-		std::ostringstream stream;
-		stream.imbue(std::locale::classic());
-		stream << std::fixed << std::setprecision(2) << value;
-		std::string result = stream.str();
-		if (!result.empty() && result.back() == '0')
-			result.pop_back();
+		long_t signedTicks = ticks;
+		bool negative = signedTicks < 0;
+		ulong_t hundredths = static_cast<ulong_t>(negative ? -signedTicks : signedTicks) * 5;
+		ulong_t whole = hundredths / 100;
+		unsigned int fraction = static_cast<unsigned int>(hundredths % 100);
+		std::string wholeText = std::to_string(whole);
+		std::string result;
+
+		if (whole >= 10000000)
+		{
+			std::string digits = wholeText;
+			digits.push_back(static_cast<char>('0' + fraction / 10));
+			digits.push_back(static_cast<char>('0' + fraction % 10));
+			while (digits.size() > 1 && digits.back() == '0')
+				digits.pop_back();
+
+			result = digits.substr(0, 1) + ".";
+			result += digits.size() == 1 ? "0" : digits.substr(1);
+			result += "E" + std::to_string(wholeText.size() - 1);
+		}
+		else
+		{
+			result = wholeText + ".";
+			if (fraction == 0)
+				result += "0";
+			else
+			{
+				if (fraction < 10)
+					result += "0";
+				result += std::to_string(fraction);
+				if (result.back() == '0')
+					result.pop_back();
+			}
+		}
+
+		if (negative)
+			result.insert(result.begin(), '-');
 		return String::fromUTF8(result);
 	}
 
@@ -59,7 +90,7 @@ namespace
 			if (minutes > 0.5)
 				return formatDecimal(minutes) + u" m";
 
-			return formatJavaDouble(seconds) + u" s";
+			return formatJavaSeconds(value) + u" s";
 		}
 	};
 

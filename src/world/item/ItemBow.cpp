@@ -15,7 +15,7 @@ void ItemBow::use(ItemInstance &stack, Level &level, Player &player) const
 	(void)stack;
 	if (!player.inventory.consumeItem(Items::arrow->getShiftedIndex()))
 		return;
-	level.playSoundAtEntity(player, u"random.bow", 1.0f, 1.0f / (level.random.nextFloat() * 0.4f + 0.8f));
+	level.playSoundAtEntity(player, u"random.bow", 1.0f, 1.0f / (itemRandom.nextFloat() * 0.4f + 0.8f));
 	if (!level.isOnline)
 		level.addEntity(std::make_shared<EntityArrow>(level, player));
 }

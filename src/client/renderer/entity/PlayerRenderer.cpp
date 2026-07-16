@@ -2,15 +2,15 @@
 
 #include "client/renderer/Textures.h"
 #include "client/renderer/ItemInHandRenderer.h"
+#include "client/renderer/Tesselator.h"
 #include "client/renderer/entity/EntityRenderDispatcher.h"
-#include "java/String.h"
 #include "world/entity/player/Player.h"
 #include "world/item/Item.h"
 #include "world/item/ItemArmor.h"
+#include "world/item/Items.h"
 #include "util/Mth.h"
 
 #include <cmath>
-#include <iostream>
 
 #include "OpenGL.h"
 
@@ -39,17 +39,18 @@ void PlayerRenderer::render(Entity &entity, double x, double y, double z, float 
 	armorParts2->sneaking = humanoidModel->sneaking;
 
 	double yp = y - mob.heightOffset;
-	if (mob.isSneaking())
+	if (mob.isSneaking() && entityRenderDispatcher.player.get() != &mob)
 		yp -= 0.125;
 
 	if (mob.isAlive() && mob.sleeping)
 	{
-		MobRenderer::render(mob, x + mob.bedViewX, yp, z + mob.bedViewZ, rot, a);
+		MobRenderer::render(mob, x + mob.bedViewX, yp + mob.bedViewY, z + mob.bedViewZ, rot, a);
 	}
 	else
 	{
 		MobRenderer::render(mob, x, yp, z, rot, a);
 	}
+	renderName(mob, x, yp, z);
 
 	humanoidModel->holdingRightHand = false;
 	humanoidModel->sneaking = false;
@@ -59,6 +60,7 @@ void PlayerRenderer::render(Entity &entity, double x, double y, double z, float 
 	armorParts2->sneaking = false;
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.RenderPlayer#func_22017_a(EntityPlayer,float,float,float)
 void PlayerRenderer::setupRotations(Mob &mobBase, float bob, float bodyRot, float a)
 {
 	Player &mob = static_cast<Player &>(mobBase);
@@ -106,33 +108,70 @@ bool PlayerRenderer::prepareArmor(Mob &mobBase, int_t layer, float a)
 	return true;
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.RenderPlayer#func_186_b(EntityPlayer,float)
 void PlayerRenderer::scale(Mob &mob, float a)
 {
 	float s = 0.9375f;
 	glScalef(s, s, s);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.RenderPlayer#renderSpecials(EntityPlayer,float)
 void PlayerRenderer::additionalRendering(Mob &mobBase, float a)
 {
 	Player &mob = static_cast<Player &>(mobBase);
 	Textures *textures = entityRenderDispatcher.textures;
 	if (textures == nullptr)
 		return;
+	TileRenderer tileRenderer(false, false);
 
-	if (!mob.customTextureUrl2.empty())
+	ItemInstance &headItem = mob.inventory.armorInventory[3];
+	if (!headItem.isEmpty() && headItem.getItem()->getShiftedIndex() < 256)
 	{
-		int_t cloakId = textures->loadHttpTexture(mob.customTextureUrl2);
-		static jstring lastLoggedCloakUrl;
-		static int_t lastLoggedCloakId = -2;
-		if (lastLoggedCloakUrl != mob.customTextureUrl2 || lastLoggedCloakId != cloakId)
+		glPushMatrix();
+		humanoidModel->head.translateTo(1.0f / 16.0f);
+		Tile *tile = Tile::tiles[headItem.itemID];
+		if (TileRenderer::canRender(tile->getRenderShape()))
 		{
-			std::cerr << "[Cape] Render check url=" << String::toUTF8(mob.customTextureUrl2) << " textureId=" << cloakId << std::endl;
-			lastLoggedCloakUrl = mob.customTextureUrl2;
-			lastLoggedCloakId = cloakId;
+			float s = 0.625f;
+			glTranslatef(0.0f, -0.25f, 0.0f);
+			glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
+			glScalef(s, -s, s);
 		}
+		HeldItemRenderer::render(*textures, tileRenderer, headItem, mob.getBrightness(1.0f));
+		glPopMatrix();
+	}
+
+	if (mob.name == u"deadmau5" && !mob.customTextureUrl.empty())
+	{
+		int_t skinId = textures->loadHttpTexture(mob.customTextureUrl);
+		if (skinId >= 0)
+		{
+			textures->bind(skinId);
+			for (int_t ear = 0; ear < 2; ++ear)
+			{
+				float headYaw = mob.yRotO + (mob.yRot - mob.yRotO) * a - (mob.yBodyRotO + (mob.yBodyRot - mob.yBodyRotO) * a);
+				float headPitch = mob.xRotO + (mob.xRot - mob.xRotO) * a;
+				glPushMatrix();
+				glRotatef(headYaw, 0.0f, 1.0f, 0.0f);
+				glRotatef(headPitch, 1.0f, 0.0f, 0.0f);
+				glTranslatef(6.0f / 16.0f * (ear * 2 - 1), 0.0f, 0.0f);
+				glTranslatef(0.0f, -6.0f / 16.0f, 0.0f);
+				glRotatef(-headPitch, 1.0f, 0.0f, 0.0f);
+				glRotatef(-headYaw, 0.0f, 1.0f, 0.0f);
+				float s = 4.0f / 3.0f;
+				glScalef(s, s, s);
+				humanoidModel->renderEars(1.0f / 16.0f);
+				glPopMatrix();
+			}
+		}
+	}
+
+	if (!mob.cloakTexture.empty())
+	{
+		int_t cloakId = textures->loadHttpTexture(mob.cloakTexture);
 		if (cloakId >= 0)
 		{
-			glBindTexture(GL_TEXTURE_2D, cloakId);
+			textures->bind(cloakId);
 			glPushMatrix();
 			glTranslatef(0.0f, 0.0f, 2.0f / 16.0f);
 
@@ -165,10 +204,16 @@ void PlayerRenderer::additionalRendering(Mob &mobBase, float a)
 	ItemInstance *item = mob.inventory.getSelected();
 	if (item == nullptr)
 		return;
+	ItemInstance fishingStick;
 
 	glPushMatrix();
 	humanoidModel->arm0.translateTo(1.0f / 16.0f);
 	glTranslatef(-1.0f / 16.0f, 7.0f / 16.0f, 1.0f / 16.0f);
+	if (mob.fishEntity != nullptr)
+	{
+		fishingStick = ItemInstance(Items::stick->getShiftedIndex());
+		item = &fishingStick;
+	}
 
 	Tile *tile = item->itemID >= 0 && item->itemID < static_cast<int_t>(Tile::tiles.size()) ? Tile::tiles[item->itemID] : nullptr;
 	if (tile != nullptr && TileRenderer::canRender(tile->getRenderShape()))
@@ -203,8 +248,101 @@ void PlayerRenderer::additionalRendering(Mob &mobBase, float a)
 		glRotatef(20.0f, 0.0f, 0.0f, 1.0f);
 	}
 
-	TileRenderer tileRenderer(false, false);
-	HeldItemRenderer::render(*textures, tileRenderer, *item);
+	HeldItemRenderer::render(*textures, tileRenderer, *item, mob.getBrightness(1.0f));
+	glPopMatrix();
+}
+
+// B173-JAVA-METHOD: net.minecraft.src.RenderPlayer#renderName(EntityPlayer,double,double,double)
+void PlayerRenderer::renderName(Player &player, double x, double y, double z)
+{
+	if (entityRenderDispatcher.options == nullptr || entityRenderDispatcher.options->hideGui ||
+		entityRenderDispatcher.player == nullptr || entityRenderDispatcher.player.get() == &player)
+		return;
+
+	float distance = player.distanceTo(*entityRenderDispatcher.player);
+	float maxDistance = player.isSneaking() ? 32.0f : 64.0f;
+	if (distance >= maxDistance)
+		return;
+
+	if (!player.isSneaking())
+	{
+		if (player.sleeping)
+			renderLivingLabel(player, player.name, x, y - 1.5, z, 64);
+		else
+			renderLivingLabel(player, player.name, x, y, z, 64);
+		return;
+	}
+
+	Font &font = getFont();
+	float scale = (1.0f / 60.0f) * 1.6f;
+	glPushMatrix();
+	glTranslatef(static_cast<float>(x), static_cast<float>(y) + 2.3f, static_cast<float>(z));
+	glNormal3f(0.0f, 1.0f, 0.0f);
+	glRotatef(-entityRenderDispatcher.playerRotY, 0.0f, 1.0f, 0.0f);
+	glRotatef(entityRenderDispatcher.playerRotX, 1.0f, 0.0f, 0.0f);
+	glScalef(-scale, -scale, scale);
+	glDisable(GL_LIGHTING);
+	glTranslatef(0.0f, 0.25f / scale, 0.0f);
+	glDepthMask(GL_FALSE);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	Tesselator &t = Tesselator::instance;
+	glDisable(GL_TEXTURE_2D);
+	t.begin();
+	int_t halfWidth = font.width(player.name) / 2;
+	t.color(0.0f, 0.0f, 0.0f, 0.25f);
+	t.vertex(-halfWidth - 1, -1.0, 0.0);
+	t.vertex(-halfWidth - 1, 8.0, 0.0);
+	t.vertex(halfWidth + 1, 8.0, 0.0);
+	t.vertex(halfWidth + 1, -1.0, 0.0);
+	t.end();
+	glEnable(GL_TEXTURE_2D);
+	glDepthMask(GL_TRUE);
+	font.draw(player.name, -font.width(player.name) / 2, 0, 553648127);
+	glEnable(GL_LIGHTING);
+	glDisable(GL_BLEND);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glPopMatrix();
+}
+
+// B173-JAVA-METHOD: net.minecraft.src.RenderLiving#renderLivingLabel(EntityLiving,String,double,double,double,int)
+void PlayerRenderer::renderLivingLabel(Player &player, const jstring &name, double x, double y, double z, int_t maxDistance)
+{
+	if (entityRenderDispatcher.player == nullptr || player.distanceTo(*entityRenderDispatcher.player) > maxDistance)
+		return;
+
+	Font &font = getFont();
+	float scale = (1.0f / 60.0f) * 1.6f;
+	glPushMatrix();
+	glTranslatef(static_cast<float>(x), static_cast<float>(y) + 2.3f, static_cast<float>(z));
+	glNormal3f(0.0f, 1.0f, 0.0f);
+	glRotatef(-entityRenderDispatcher.playerRotY, 0.0f, 1.0f, 0.0f);
+	glRotatef(entityRenderDispatcher.playerRotX, 1.0f, 0.0f, 0.0f);
+	glScalef(-scale, -scale, scale);
+	glDisable(GL_LIGHTING);
+	glDepthMask(GL_FALSE);
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	int_t yOffset = name == u"deadmau5" ? -10 : 0;
+	Tesselator &t = Tesselator::instance;
+	glDisable(GL_TEXTURE_2D);
+	t.begin();
+	int_t halfWidth = font.width(name) / 2;
+	t.color(0.0f, 0.0f, 0.0f, 0.25f);
+	t.vertex(-halfWidth - 1, -1 + yOffset, 0.0);
+	t.vertex(-halfWidth - 1, 8 + yOffset, 0.0);
+	t.vertex(halfWidth + 1, 8 + yOffset, 0.0);
+	t.vertex(halfWidth + 1, -1 + yOffset, 0.0);
+	t.end();
+	glEnable(GL_TEXTURE_2D);
+	font.draw(name, -font.width(name) / 2, yOffset, 553648127);
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+	font.draw(name, -font.width(name) / 2, yOffset, -1);
+	glEnable(GL_LIGHTING);
+	glDisable(GL_BLEND);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	glPopMatrix();
 }
 

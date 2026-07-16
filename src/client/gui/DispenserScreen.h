@@ -2,16 +2,18 @@
 
 #include <memory>
 
-#include "client/gui/Screen.h"
+#include "client/gui/ContainerScreen.h"
 #include "world/item/ItemInstance.h"
 
 class Minecraft;
 class DispenserTileEntity;
+class Container;
 
-class DispenserScreen : public Screen
+class DispenserScreen : public ContainerScreen
 {
 private:
 	std::shared_ptr<DispenserTileEntity> dispenser;
+	std::shared_ptr<Container> containerMenu;
 	int_t hoveredSlot = -1;
 	int_t hoveredSlotX = 0;
 	int_t hoveredSlotY = 0;
@@ -38,9 +40,9 @@ private:
 public:
 	DispenserScreen(Minecraft &minecraft, std::shared_ptr<DispenserTileEntity> dispenser);
 
-	void tick() override;
 	void render(int_t xm, int_t ym, float a) override;
 	void keyPressed(char_t eventCharacter, int_t eventKey) override;
 	void mouseClicked(int_t x, int_t y, int_t buttonNum) override;
 	bool isPauseScreen() override;
+	void removed() override;
 };

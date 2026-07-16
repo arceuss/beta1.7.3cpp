@@ -33,24 +33,42 @@ ItemInstance *InventoryPlayer::getSelected()
 
 ItemInstance *InventoryPlayer::getItem(int_t slot)
 {
-	if (slot >= 0 && slot < static_cast<int_t>(mainInventory.size()))
-	{
-		ItemInstance &item = mainInventory[slot];
-		if (!item.isEmpty())
-			return &item;
-	}
-	return nullptr;
+	if (slot < 0 || slot >= getContainerSize())
+		return nullptr;
+	ItemInstance &item = slot < static_cast<int_t>(mainInventory.size())
+		? mainInventory[slot]
+		: armorInventory[slot - static_cast<int_t>(mainInventory.size())];
+	return item.isEmpty() ? nullptr : &item;
 }
 
-std::unique_ptr<ItemInstance> InventoryPlayer::removeItem(int_t slot, int_t count)
+const ItemInstance *InventoryPlayer::getItem(int_t slot) const
 {
-	if (slot < 0 || slot >= static_cast<int_t>(mainInventory.size()) || mainInventory[slot].isEmpty())
+	if (slot < 0 || slot >= getContainerSize())
 		return nullptr;
+	const ItemInstance &item = slot < static_cast<int_t>(mainInventory.size())
+		? mainInventory[slot]
+		: armorInventory[slot - static_cast<int_t>(mainInventory.size())];
+	return item.isEmpty() ? nullptr : &item;
+}
 
-	ItemInstance removed = mainInventory[slot].remove(count);
-	if (mainInventory[slot].stackSize <= 0)
-		mainInventory[slot] = ItemInstance();
-	return std::make_unique<ItemInstance>(removed);
+ItemInstance InventoryPlayer::removeItem(int_t slot, int_t count)
+{
+	ItemInstance *item = getItem(slot);
+	if (item == nullptr)
+		return ItemInstance();
+	ItemInstance removed;
+	if (item->stackSize <= count)
+	{
+		removed = *item;
+		setItem(slot, ItemInstance());
+	}
+	else
+	{
+		removed = item->remove(count);
+		if (item->stackSize == 0)
+			setItem(slot, ItemInstance());
+	}
+	return removed;
 }
 
 ItemInstance *InventoryPlayer::getCarried()
@@ -75,11 +93,38 @@ void InventoryPlayer::setCarriedNull()
 	carried = ItemInstance();
 }
 
+int_t InventoryPlayer::getContainerSize() const
+{
+	return static_cast<int_t>(mainInventory.size() + armorInventory.size());
+}
+
+jstring InventoryPlayer::getName() const
+{
+	return u"Inventory";
+}
+
+void InventoryPlayer::setChanged()
+{
+	inventoryChanged = true;
+}
+
+bool InventoryPlayer::canUse(Player &other) const
+{
+	return player != nullptr && !player->removed && other.distanceToSqr(*player) <= 64.0;
+}
+
+Player &InventoryPlayer::getPlayer() const
+{
+	return *player;
+}
+
 
 void InventoryPlayer::setItem(int_t slot, const ItemInstance &item)
 {
 	if (slot >= 0 && slot < static_cast<int_t>(mainInventory.size()))
 		mainInventory[slot] = item;
+	else if (slot >= static_cast<int_t>(mainInventory.size()) && slot < getContainerSize())
+		armorInventory[slot - static_cast<int_t>(mainInventory.size())] = item;
 }
 
 void InventoryPlayer::changeCurrentItem(int_t direction)
@@ -282,7 +327,7 @@ void InventoryPlayer::hurtArmor(int_t damage)
 		if (armorItem == nullptr)
 			continue;
 
-		armor.damageItem(damage);
+		armor.damageItem(damage, *player);
 		if (armor.stackSize == 0)
 			armorInventory[i] = ItemInstance();
 	}

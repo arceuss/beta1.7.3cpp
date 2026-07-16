@@ -1,6 +1,6 @@
 #pragma once
 
-#include <array>
+#include <vector>
 
 #include "world/level/levelgen/synth/PerlinSimplexNoise.h"
 
@@ -41,6 +41,9 @@ struct BiomeInfo
 	int_t deadBushCount = 0;
 	int_t cactusCount = 0;
 	bool prefersFern = false;
+	bool enableRain = true;
+
+	bool canSpawnLightningBolt() const { return !enableSnow && enableRain; }
 };
 
 class BiomeSource
@@ -51,10 +54,10 @@ private:
 	PerlinSimplexNoise noiseMap;
 
 public:
-	std::array<double, 16 * 16> temperatures = {};
-	std::array<double, 16 * 16> downfalls = {};
-	std::array<double, 16 * 16> noises = {};
-	std::array<BiomeId, 16 * 16> biomes = {};
+	std::vector<double> temperatures = std::vector<double>(16 * 16);
+	std::vector<double> downfalls = std::vector<double>(16 * 16);
+	std::vector<double> noises = std::vector<double>(16 * 16);
+	std::vector<BiomeId> biomes = std::vector<BiomeId>(16 * 16);
 
 private:
 	static constexpr float zoom = 2.0f;

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <unordered_set>
 #include <vector>
 #include "java/Type.h"
 #include "java/Random.h"
@@ -19,7 +18,7 @@ public:
 	Entity *exploder = nullptr;
 	double explosionX = 0.0, explosionY = 0.0, explosionZ = 0.0;
 	float explosionSize = 0.0f;
-	std::unordered_set<TilePos> destroyedBlockPositions;
+	JavaTilePosSet destroyedBlockPositions;
 
 	Explosion(Level &level, Entity *exploder, double x, double y, double z, float size);
 	void doExplosionA();

@@ -14,6 +14,18 @@ EntityFireball::EntityFireball(Level &level) : Entity(level)
 	setSize(1.0f, 1.0f);
 }
 
+EntityFireball::EntityFireball(Level &level, double x, double y, double z,
+	double xPower, double yPower, double zPower) : Entity(level)
+{
+	setSize(1.0f, 1.0f);
+	moveTo(x, y, z, yRot, xRot);
+	setPos(x, y, z);
+	double power = Mth::sqrt(xPower * xPower + yPower * yPower + zPower * zPower);
+	accelX = xPower / power * 0.1;
+	accelY = yPower / power * 0.1;
+	accelZ = zPower / power * 0.1;
+}
+
 EntityFireball::EntityFireball(Level &level, Mob &owner, double xPower, double yPower, double zPower)
 	: Entity(level)
 {

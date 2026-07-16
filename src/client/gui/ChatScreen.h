@@ -14,7 +14,9 @@ public:
 	void keyPressed(char_t eventCharacter, int_t eventKey) override;
 	bool isPauseScreen() override;
 
-private:
+protected:
 	jstring message;
+
+private:
 	int_t frame = 0;
 };

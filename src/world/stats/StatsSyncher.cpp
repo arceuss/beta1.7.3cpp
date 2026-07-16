@@ -79,7 +79,10 @@ std::unique_ptr<StatMap> StatsSyncher::readMap(const File &primary, const File &
 		std::unique_ptr<std::istream> stream(source->toStreamIn());
 		if (stream == nullptr)
 			throw std::runtime_error("Unable to open stats file for reading");
-		std::string json((std::istreambuf_iterator<char>(*stream)), std::istreambuf_iterator<char>());
+		std::string json;
+		for (char c; stream->get(c);)
+			if (c != '\r' && c != '\n')
+				json.push_back(c);
 		return StatFileWriter::parse(json);
 	}
 	catch (const std::exception &e)
@@ -114,7 +117,18 @@ void StatsSyncher::startReceive()
 	receiving = true;
 	receiveFuture = std::async(std::launch::async, [this]
 	{
-		return readMap(*statsFile, *statsTempFile, *statsOldFile);
+		std::unique_ptr<StatMap> stats;
+		try
+		{
+			if (statsFile->exists())
+				stats = readMap(*statsFile, *statsTempFile, *statsOldFile);
+		}
+		catch (const std::exception &e)
+		{
+			std::cerr << e.what() << std::endl;
+		}
+		busy = false;
+		return stats;
 	});
 }
 
@@ -132,7 +146,15 @@ void StatsSyncher::startSave(const StatMap &stats)
 	sending = true;
 	sendFuture = std::async(std::launch::async, [this, stats]
 	{
-		writeMap(stats, *unsentFile, *unsentTempFile, *unsentOldFile);
+		try
+		{
+			writeMap(stats, *unsentFile, *unsentTempFile, *unsentOldFile);
+		}
+		catch (const std::exception &e)
+		{
+			std::cerr << e.what() << std::endl;
+		}
+		busy = false;
 	});
 }
 
@@ -167,19 +189,10 @@ void StatsSyncher::tick()
 		if (stats)
 			writer.mergeLoadedTotal(*stats);
 		receiving = false;
-		busy = false;
 	}
 	if (sending && sendFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
 	{
-		try
-		{
-			sendFuture.get();
-		}
-		catch (const std::exception &e)
-		{
-			std::cerr << e.what() << std::endl;
-		}
+		sendFuture.get();
 		sending = false;
-		busy = false;
 	}
 }

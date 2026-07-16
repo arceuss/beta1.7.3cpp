@@ -25,6 +25,7 @@
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/item/EntityBoat.h"
 #include "world/entity/item/EntityMinecart.h"
+#include "world/entity/item/EntityPainting.h"
 #include "world/entity/item/FallingTile.h"
 #include "world/entity/PrimedTNT.h"
 namespace EntityIO
@@ -47,6 +48,23 @@ std::shared_ptr<Entity> newEntity(const jstring &name, Level &level)
 	auto it = idClassMap.find(name);
 	if (it == idClassMap.end())
 		return nullptr;
+	return it->second(level);
+}
+
+std::shared_ptr<Entity> newEntity(int_t id, Level &level)
+{
+	if (id == 48)
+	{
+		// Beta registers abstract EntityLiving for this ID; reflective construction fails.
+		std::cout << "Skipping Entity with id " << id << '\n';
+		return nullptr;
+	}
+	auto it = numClassMap.find(id);
+	if (it == numClassMap.end())
+	{
+		std::cout << "Skipping Entity with id " << id << '\n';
+		return nullptr;
+	}
 	return it->second(level);
 }
 

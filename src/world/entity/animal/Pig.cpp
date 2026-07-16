@@ -10,13 +10,14 @@
 
 Pig::Pig(Level &level) : Animal(level)
 {
+	dataWatcher.addObject(16, static_cast<byte_t>(0));
 	textureName = u"/mob/pig.png";
 	setSize(0.9f, 0.9f);
 }
 
 bool Pig::interact(Player &player)
 {
-	if (!saddled || level.isOnline || (rider != nullptr && rider.get() != &player))
+	if (!isSaddled() || level.isOnline || (rider != nullptr && rider.get() != &player))
 		return false;
 	auto self = level.getEntityRef(*this);
 	if (self == nullptr)
@@ -49,13 +50,13 @@ void Pig::causeFallDamage(float distance)
 void Pig::addAdditionalSaveData(CompoundTag &tag)
 {
 	Animal::addAdditionalSaveData(tag);
-	tag.putBoolean(u"Saddle", saddled);
+	tag.putBoolean(u"Saddle", isSaddled());
 }
 
 void Pig::readAdditionalSaveData(CompoundTag &tag)
 {
 	Animal::readAdditionalSaveData(tag);
-	saddled = tag.getBoolean(u"Saddle");
+	setSaddled(tag.getBoolean(u"Saddle"));
 }
 
 jstring Pig::getAmbientSound()
@@ -80,10 +81,10 @@ int_t Pig::getDeathLoot()
 
 bool Pig::isSaddled() const
 {
-	return saddled;
+	return (dataWatcher.getWatchableObjectByte(16) & 1) != 0;
 }
 
 void Pig::setSaddled(bool saddled)
 {
-	this->saddled = saddled;
+	dataWatcher.updateObject(16, static_cast<byte_t>(saddled ? 1 : 0));
 }

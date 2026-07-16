@@ -29,6 +29,8 @@
 #include "world/item/ItemCake.h"
 #include "world/item/ItemSnowball.h"
 #include "world/item/ItemEgg.h"
+#include "world/item/ItemFishingRod.h"
+#include "world/item/ItemPainting.h"
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/CakeTile.h"
@@ -58,6 +60,7 @@ namespace Items
 	Item *cookie = nullptr;
 	Item *porkchopRaw = nullptr;
 	Item *porkchopCooked = nullptr;
+	Item *painting = nullptr;
 	Item *appleGold = nullptr;
 	Item *reed = nullptr;
 	Item *doorWood = nullptr;
@@ -72,6 +75,7 @@ namespace Items
 	Item *egg = nullptr;
 	Item *saddle = nullptr;
 	Item *compass = nullptr;
+	Item *fishingRod = nullptr;
 	Item *clock = nullptr;
 	Item *record13 = nullptr;
 	Item *recordCat = nullptr;
@@ -307,6 +311,9 @@ namespace Items
 		porkchopCooked = new ItemFood(64, 8, true);
 		porkchopCooked->setIconIndex(88).setDescriptionId(u"item.porkchopCooked");
 
+		painting = new ItemPainting(65);
+		painting->setIconIndex(26).setDescriptionId(u"item.painting");
+
 		appleGold = new ItemFood(66, 42, false);
 		appleGold->setIconIndex(11).setDescriptionId(u"item.appleGold");
 
@@ -314,7 +321,7 @@ namespace Items
 		flint->setIconIndex(6).setDescriptionId(u"item.flint");
 
 		reed = new Item(82);
-		reed->setIconIndex(27).setDescriptionId(u"item.reed");
+		reed->setIconIndex(27).setDescriptionId(u"item.reeds");
 
 		doorWood = new ItemDoor(68, Tile::doorWood);
 		doorWood->setIconIndex(43).setDescriptionId(u"item.doorWood");
@@ -326,7 +333,7 @@ namespace Items
 		minecart->setIconIndex(135).setDescriptionId(u"item.minecart");
 
 		minecartPowered = new ItemMinecart(87, 2);
-		minecartPowered->setIconIndex(167).setDescriptionId(u"item.minecartPowered");
+		minecartPowered->setIconIndex(167).setDescriptionId(u"item.minecartFurnace");
 
 		minecartChest = new ItemMinecart(86, 1);
 		minecartChest->setIconIndex(151).setDescriptionId(u"item.minecartChest");
@@ -336,6 +343,9 @@ namespace Items
 
 		compass = new Item(89);
 		compass->setIconIndex(54).setDescriptionId(u"item.compass");
+
+		fishingRod = new ItemFishingRod(90);
+		fishingRod->setIconIndex(69).setDescriptionId(u"item.fishingRod");
 
 		clock = new Item(91);
 		clock->setIconIndex(70).setDescriptionId(u"item.clock");
@@ -350,7 +360,7 @@ namespace Items
 		coal->setIconIndex(7).setDescriptionId(u"item.coal");
 
 		diamond = new Item(8);
-		diamond->setIconIndex(55).setDescriptionId(u"item.diamond");
+		diamond->setIconIndex(55).setDescriptionId(u"item.emerald");
 
 		redstone = new ItemRedStone(75);
 		redstone->setIconIndex(56).setDescriptionId(u"item.redstone");
@@ -380,13 +390,13 @@ namespace Items
 		bucketEmpty->setIconIndex(74).setDescriptionId(u"item.bucket");
 
 		bucketWater = new ItemBucket(70, Tile::water.id);
-		bucketWater->setIconIndex(75).setDescriptionId(u"item.bucketWater");
+		bucketWater->setIconIndex(75).setDescriptionId(u"item.bucketWater").setContainerItem(*bucketEmpty);
 
 		bucketLava = new ItemBucket(71, Tile::lava.id);
-		bucketLava->setIconIndex(76).setDescriptionId(u"item.bucketLava");
+		bucketLava->setIconIndex(76).setDescriptionId(u"item.bucketLava").setContainerItem(*bucketEmpty);
 
 		bucketMilk = new ItemBucket(79, -1);
-		bucketMilk->setIconIndex(77).setDescriptionId(u"item.milk");
+		bucketMilk->setIconIndex(77).setDescriptionId(u"item.milk").setContainerItem(*bucketEmpty);
 
 		brick = new Item(80);
 		brick->setIconIndex(22).setDescriptionId(u"item.brick");

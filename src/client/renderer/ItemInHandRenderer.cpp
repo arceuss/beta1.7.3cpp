@@ -10,10 +10,12 @@
 
 #include "util/Mth.h"
 
+#include "world/item/Item.h"
 #include "world/item/ItemMap.h"
 #include "world/item/Items.h"
 #include "world/level/MapData.h"
 #include "world/level/material/LiquidMaterial.h"
+#include "world/level/tile/FireTile.h"
 
 ItemInHandRenderer::ItemInHandRenderer(Minecraft &mc) : mc(mc)
 {
@@ -104,7 +106,7 @@ void ItemInHandRenderer::renderMapFirstPerson(float a, float h)
 
 namespace HeldItemRenderer
 {
-	void render(Textures &textures, TileRenderer &tileRenderer, ItemInstance &item)
+	void render(Textures &textures, TileRenderer &tileRenderer, ItemInstance &item, float brightness)
 	{
 		Tile *tile = item.itemID >= 0 && item.itemID < static_cast<int_t>(Tile::tiles.size()) ? Tile::tiles[item.itemID] : nullptr;
 		bool renderedAsBlock = false;
@@ -112,19 +114,14 @@ namespace HeldItemRenderer
 		{
 			glBindTexture(GL_TEXTURE_2D, textures.loadTexture(u"/terrain.png"));
 			int_t tileColor = tile->getItemColor(item.getAuxValue());
-			bool useColorMaterial = tileColor != 0xFFFFFF;
-			if (useColorMaterial)
-			{
-				glEnable(GL_COLOR_MATERIAL);
-				glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-				float tr = static_cast<float>((tileColor >> 16) & 255) / 255.0f;
-				float tg = static_cast<float>((tileColor >> 8) & 255) / 255.0f;
-				float tb = static_cast<float>(tileColor & 255) / 255.0f;
-				glColor4f(tr, tg, tb, 1.0f);
-			}
+			glEnable(GL_COLOR_MATERIAL);
+			glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+			float tr = static_cast<float>((tileColor >> 16) & 255) / 255.0f;
+			float tg = static_cast<float>((tileColor >> 8) & 255) / 255.0f;
+			float tb = static_cast<float>(tileColor & 255) / 255.0f;
+			glColor4f(tr * brightness, tg * brightness, tb * brightness, 1.0f);
 			tileRenderer.renderTile(*tile, item.getAuxValue());
-			if (useColorMaterial)
-				glDisable(GL_COLOR_MATERIAL);
+			glDisable(GL_COLOR_MATERIAL);
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 			renderedAsBlock = true;
 		}
@@ -230,10 +227,10 @@ namespace HeldItemRenderer
 	}
 }
 
-void ItemInHandRenderer::renderItem(ItemInstance &item)
+void ItemInHandRenderer::renderItem(ItemInstance &item, float brightness)
 {
 	glPushMatrix();
-	HeldItemRenderer::render(mc.textures, tileRenderer, item);
+	HeldItemRenderer::render(mc.textures, tileRenderer, item, brightness);
 	glPopMatrix();
 }
 
@@ -277,7 +274,10 @@ void ItemInHandRenderer::render(float a)
 			glRotatef(-swing2 * 80.0f, 1.0f, 0.0f, 0.0f);
 			float scale = 0.4f;
 			glScalef(scale, scale, scale);
-			renderItem(item);
+			Item *itemType = item.getItem();
+			if (itemType != nullptr && itemType->shouldRotateAroundWhenRendering())
+				glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
+			renderItem(item, localPlayer.getBrightness(1.0f));
 			glDisable(GL_RESCALE_NORMAL);
 		}
 		glPopMatrix();
@@ -317,6 +317,7 @@ void ItemInHandRenderer::render(float a)
 	Lighting::turnOff();
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.ItemRenderer#renderOverlays(float)
 void ItemInHandRenderer::renderScreenEffect(float a)
 {
 	glDisable(GL_ALPHA_TEST);
@@ -337,6 +338,25 @@ void ItemInHandRenderer::renderScreenEffect(float a)
 		int_t id = mc.textures.loadTexture(u"/terrain.png");
 		glBindTexture(GL_TEXTURE_2D, id);
 		int_t tile = mc.level->getTile(x, y, z);
+		if (mc.level->isBlockNormalCube(x, y, z))
+		{
+			renderTex(a, Tile::tiles[tile]->getTexture(Facing::NORTH));
+		}
+		else
+		{
+			for (int_t i = 0; i < 8; i++)
+			{
+				float xo = ((i >> 0) % 2 - 0.5f) * mc.player->bbWidth * 0.9f;
+				float yo = ((i >> 1) % 2 - 0.5f) * mc.player->bbHeight * 0.2f;
+				float zo = ((i >> 2) % 2 - 0.5f) * mc.player->bbWidth * 0.9f;
+				int_t tx = Mth::floor(static_cast<float>(x) + xo);
+				int_t ty = Mth::floor(static_cast<float>(y) + yo);
+				int_t tz = Mth::floor(static_cast<float>(z) + zo);
+				if (mc.level->isBlockNormalCube(tx, ty, tz))
+					tile = mc.level->getTile(tx, ty, tz);
+			}
+		}
+
 		if (Tile::tiles[tile] != nullptr)
 			renderTex(a, Tile::tiles[tile]->getTexture(Facing::NORTH));
 	}
@@ -350,11 +370,29 @@ void ItemInHandRenderer::renderScreenEffect(float a)
 	glEnable(GL_ALPHA_TEST);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.ItemRenderer#renderInsideOfBlock(float,int)
 void ItemInHandRenderer::renderTex(float a, int_t tex)
 {
-	// TODO
+	Tesselator &t = Tesselator::instance;
+	float brightness = mc.player->getBrightness(a);
+	brightness = 0.1f;
+	glColor4f(brightness, brightness, brightness, 0.5f);
+	glPushMatrix();
+	float u0 = tex % 16 / 256.0f - 0.0078125f;
+	float u1 = (tex % 16 + 15.99f) / 256.0f + 0.0078125f;
+	float v0 = tex / 16 / 256.0f - 0.0078125f;
+	float v1 = (tex / 16 + 15.99f) / 256.0f + 0.0078125f;
+	t.begin();
+	t.vertexUV(-1.0, -1.0, -0.5, u1, v1);
+	t.vertexUV(1.0, -1.0, -0.5, u0, v1);
+	t.vertexUV(1.0, 1.0, -0.5, u0, v0);
+	t.vertexUV(-1.0, 1.0, -0.5, u1, v0);
+	t.end();
+	glPopMatrix();
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.ItemRenderer#renderWarpedTextureOverlay(float)
 void ItemInHandRenderer::renderWater(float a)
 {
 	Tesselator &t = Tesselator::instance;
@@ -382,9 +420,43 @@ void ItemInHandRenderer::renderWater(float a)
 	glDisable(GL_BLEND);
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.ItemRenderer#renderFireInFirstPerson(float)
 void ItemInHandRenderer::renderFire(float a)
 {
-	// TODO
+	Tesselator &t = Tesselator::instance;
+	glColor4f(1.0f, 1.0f, 1.0f, 0.9f);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	float size = 1.0f;
+
+	for (int_t i = 0; i < 2; i++)
+	{
+		glPushMatrix();
+		int_t tex = Tile::fire.tex + i * 16;
+		int_t tx = (tex & 15) << 4;
+		int_t ty = tex & 240;
+		float u0 = tx / 256.0f;
+		float u1 = (tx + 15.99f) / 256.0f;
+		float v0 = ty / 256.0f;
+		float v1 = (ty + 15.99f) / 256.0f;
+		float x0 = (0.0f - size) / 2.0f;
+		float x1 = x0 + size;
+		float y0 = 0.0f - size / 2.0f;
+		float y1 = y0 + size;
+		float z = -0.5f;
+		glTranslatef(-(i * 2 - 1) * 0.24f, -0.3f, 0.0f);
+		glRotatef((i * 2 - 1) * 10.0f, 0.0f, 1.0f, 0.0f);
+		t.begin();
+		t.vertexUV(x0, y0, z, u1, v1);
+		t.vertexUV(x1, y0, z, u0, v1);
+		t.vertexUV(x1, y1, z, u0, v0);
+		t.vertexUV(x0, y1, z, u1, v0);
+		t.end();
+		glPopMatrix();
+	}
+
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glDisable(GL_BLEND);
 }
 
 void ItemInHandRenderer::tick()
@@ -393,9 +465,12 @@ void ItemInHandRenderer::tick()
 
 	auto &localPlayer = *mc.player;
 	ItemInstance *selected = localPlayer.inventory.getSelected();
+	std::shared_ptr<const ItemInstanceReference> selectedReference =
+		selected == nullptr ? nullptr : selected->retainReference();
 	bool selectedEmpty = selected == nullptr;
 	bool selectedItemEmpty = selectedItem.isEmpty();
-	bool matches = lastSlot == localPlayer.inventory.currentItem;
+	bool matches = lastSlot == localPlayer.inventory.currentItem &&
+		selectedReference == selectedItemReference;
 
 	if (selectedEmpty && selectedItemEmpty)
 	{
@@ -403,12 +478,17 @@ void ItemInHandRenderer::tick()
 	}
 	else if (!selectedEmpty && !selectedItemEmpty)
 	{
-		// Java keeps the selected slot's ItemInstance reference; with value storage we preserve
-		// that behavior by treating same-id replacements as the same held item and refreshing the copy.
-		matches = matches && selected->itemID == selectedItem.itemID;
-		if (selected->itemID == selectedItem.itemID)
+		if (selectedReference == selectedItemReference)
 		{
 			selectedItem = *selected;
+		}
+		else if (selected->itemID.load(std::memory_order_relaxed) ==
+			selectedItem.itemID.load(std::memory_order_relaxed) &&
+			selected->itemDamage.load(std::memory_order_relaxed) ==
+			selectedItem.itemDamage.load(std::memory_order_relaxed))
+		{
+			selectedItem = *selected;
+			selectedItemReference = selectedReference;
 			matches = true;
 		}
 	}
@@ -426,9 +506,15 @@ void ItemInHandRenderer::tick()
 	if (height < 0.1f)
 	{
 		if (selected != nullptr)
+		{
 			selectedItem = *selected;
+			selectedItemReference = selectedReference;
+		}
 		else
+		{
 			selectedItem = ItemInstance();
+			selectedItemReference.reset();
+		}
 		lastSlot = localPlayer.inventory.currentItem;
 	}
 }
