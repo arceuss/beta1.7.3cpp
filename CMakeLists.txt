@@ -568,6 +568,7 @@ set(McBetaCpp_SOURCES
 	"src/world/level/Explosion.h"
 	"src/world/level/Level.cpp"
 	"src/world/level/Level.h"
+	"src/world/level/SpawnerAnimals.h"
 	"src/world/level/MapCoord.cpp"
 	"src/world/level/MapCoord.h"
 	"src/world/level/MapData.cpp"
@@ -620,6 +621,10 @@ set(McBetaCpp_SOURCES
 
 	"src/world/level/dimension/Dimension.cpp"
 	"src/world/level/dimension/Dimension.h"
+	"src/world/level/dimension/HellDimension.cpp"
+	"src/world/level/dimension/HellDimension.h"
+	"src/world/level/Teleporter.cpp"
+	"src/world/level/Teleporter.h"
 	
 	"src/world/level/levelgen/feature/CaveFeature.cpp"
 	"src/world/level/levelgen/feature/CaveFeature.h"
@@ -668,6 +673,12 @@ set(McBetaCpp_SOURCES
 	"src/world/level/levelgen/synth/Synth.cpp"
 	"src/world/level/levelgen/synth/Synth.h"
 	
+	"src/world/level/levelgen/HellCaveFeature.cpp"
+	"src/world/level/levelgen/HellCaveFeature.h"
+	"src/world/level/levelgen/HellRandomLevelSource.cpp"
+	"src/world/level/levelgen/HellRandomLevelSource.h"
+	"src/world/level/levelgen/feature/HellFeatures.cpp"
+	"src/world/level/levelgen/feature/HellFeatures.h"
 	"src/world/level/levelgen/LargeCaveFeature.cpp"
 	"src/world/level/levelgen/LargeCaveFeature.h"
 	"src/world/level/levelgen/LargeFeature.cpp"

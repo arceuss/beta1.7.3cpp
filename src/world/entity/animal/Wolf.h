@@ -45,6 +45,7 @@ protected:
 	void readAdditionalSaveData(CompoundTag &tag) override;
 	bool canDespawn() override;
 	bool isMovementCeased() override;
+	int_t getMaxHeadXRot() override;
 	std::shared_ptr<Entity> findAttackTarget() override;
 	void checkHurtTarget(Entity &entity, float distance) override;
 	void updateAi() override;

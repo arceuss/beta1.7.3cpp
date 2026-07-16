@@ -86,8 +86,8 @@ void TrapDoorTile::updateDefaultShape()
 
 bool TrapDoorTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
-	(void)player;
 	level.setData(x, y, z, level.getData(x, y, z) ^ 4);
+	level.levelEvent(&player, 1003, x, y, z, 0);
 	return true;
 }
 
@@ -118,12 +118,13 @@ void TrapDoorTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_
 
 	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
 	{
-		bool powered = level.isBlockIndirectlyGettingPowered(x, y, z);
+		bool powered = level.hasNeighborSignal(x, y, z);
 		int_t data = level.getData(x, y, z);
 		bool isOpen = (data & 4) != 0;
 		if (isOpen != powered)
 		{
 			level.setData(x, y, z, data ^ 4);
+			level.levelEvent(nullptr, 1003, x, y, z, 0);
 		}
 	}
 }

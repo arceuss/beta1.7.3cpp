@@ -119,10 +119,9 @@ void Ghast::updateAi()
 
 void Ghast::travel(float x, float z)
 {
-	(void)x;
-	(void)z;
 	if (isInWater())
 	{
+		moveRelative(x, z, 0.02f);
 		move(xd, yd, zd);
 		xd *= 0.8f;
 		yd *= 0.8f;
@@ -130,10 +129,11 @@ void Ghast::travel(float x, float z)
 	}
 	else if (isInLava())
 	{
+		moveRelative(x, z, 0.02f);
 		move(xd, yd, zd);
-		xd *= 0.5f;
-		yd *= 0.5f;
-		zd *= 0.5f;
+		xd *= 0.5;
+		yd *= 0.5;
+		zd *= 0.5;
 	}
 	else
 	{
@@ -141,15 +141,40 @@ void Ghast::travel(float x, float z)
 		if (onGround)
 		{
 			friction = 0.546f;
-			int_t tile = level.getTile(Mth::floor(x), Mth::floor(bb.y0) - 1, Mth::floor(z));
+			int_t tile = level.getTile(Mth::floor(this->x), Mth::floor(bb.y0) - 1, Mth::floor(this->z));
 			if (tile > 0)
 				friction = Tile::tiles[tile]->friction * 0.91f;
 		}
+
+		float acceleration = 0.16277136f / (friction * friction * friction);
+		moveRelative(x, z, onGround ? (0.1f * acceleration) : 0.02f);
+
+		friction = 0.91f;
+		if (onGround)
+		{
+			friction = 0.546f;
+			int_t tile = level.getTile(Mth::floor(this->x), Mth::floor(bb.y0) - 1, Mth::floor(this->z));
+			if (tile > 0)
+				friction = Tile::tiles[tile]->friction * 0.91f;
+		}
+
 		move(xd, yd, zd);
 		xd *= friction;
 		yd *= friction;
 		zd *= friction;
 	}
+
+	walkAnimSpeedO = walkAnimSpeed;
+	double fdx = this->x - this->xo;
+	double fdz = this->z - this->zo;
+	float targetWalkAnimSpeed = Mth::sqrt(fdx * fdx + fdz * fdz) * 4.0f;
+	if (targetWalkAnimSpeed > 1.0f) targetWalkAnimSpeed = 1.0f;
+	walkAnimSpeed += (targetWalkAnimSpeed - walkAnimSpeed) * 0.4f;
+	walkAnimPos += walkAnimSpeed;
+}
+
+void Ghast::causeFallDamage(float distance)
+{
 }
 
 bool Ghast::canSpawn()
@@ -170,8 +195,6 @@ float Ghast::getSoundVolume() { return 10.0f; }
 
 bool Ghast::isCourseTraversable(double x, double y, double z, double distance)
 {
-	if (distance <= 0.0)
-		return false;
 	double stepX = (x - this->x) / distance;
 	double stepY = (y - this->y) / distance;
 	double stepZ = (z - this->z) / distance;

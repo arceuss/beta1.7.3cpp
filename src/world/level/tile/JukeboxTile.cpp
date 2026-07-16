@@ -40,6 +40,8 @@ bool JukeboxTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 
 void JukeboxTile::insertRecord(Level &level, int_t x, int_t y, int_t z, int_t recordId)
 {
+	if (level.isOnline)
+		return;
 	auto jukebox = std::dynamic_pointer_cast<RecordPlayerTileEntity>(level.getTileEntity(x, y, z));
 	if (jukebox == nullptr)
 		return;
@@ -50,6 +52,8 @@ void JukeboxTile::insertRecord(Level &level, int_t x, int_t y, int_t z, int_t re
 
 void JukeboxTile::ejectRecord(Level &level, int_t x, int_t y, int_t z)
 {
+	if (level.isOnline)
+		return;
 	auto jukebox = std::dynamic_pointer_cast<RecordPlayerTileEntity>(level.getTileEntity(x, y, z));
 	if (jukebox == nullptr || jukebox->record == 0)
 		return;

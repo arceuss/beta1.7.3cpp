@@ -361,9 +361,9 @@ public:
 	virtual void updateDefaultShape();
 	virtual bool mayPlace(Level &level, int_t x, int_t y, int_t z);
 
-	virtual bool isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir);
+	virtual bool getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir);
 	virtual bool isSignalSource() { return false; }
-	virtual bool isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir);
+	virtual bool getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir);
 	virtual int_t getItemColor(int_t data);
 
 	jstring descriptionId;

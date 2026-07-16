@@ -23,6 +23,8 @@ void NoteTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 bool NoteTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
 	(void)player;
+	if (level.isOnline)
+		return true;
 	auto noteEntity = std::dynamic_pointer_cast<NoteTileEntity>(level.getTileEntity(x, y, z));
 	if (noteEntity == nullptr)
 		return false;
@@ -43,7 +45,7 @@ void NoteTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t ti
 {
 	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
 	{
-		bool powered = level.isBlockGettingPowered(x, y, z);
+		bool powered = level.hasDirectSignal(x, y, z);
 		auto noteEntity = std::dynamic_pointer_cast<NoteTileEntity>(level.getTileEntity(x, y, z));
 		if (noteEntity != nullptr && noteEntity->previousRedstoneState != powered)
 		{

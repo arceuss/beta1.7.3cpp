@@ -17,8 +17,8 @@ public:
 	AABB *getAABB(Level &level, int_t x, int_t y, int_t z) override { return nullptr; }
 	int_t getTickDelay() override { return 20; }
 
-	bool isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
-	bool isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
+	bool getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
+	bool getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
 	bool isSignalSource() override { return true; }
 
 	void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;

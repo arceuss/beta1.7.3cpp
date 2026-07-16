@@ -104,13 +104,13 @@ void PressurePlateTile::setStateIfMobInteractsWithPlate(Level &level, int_t x, i
 		level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
 }
 
-bool PressurePlateTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool PressurePlateTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	(void)dir;
 	return level.getData(x, y, z) > 0;
 }
 
-bool PressurePlateTile::isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool PressurePlateTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	return level.getData(x, y, z) > 0 && dir == 1;
 }

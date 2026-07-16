@@ -130,6 +130,8 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateTorchInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_STAIRS)
 		return tesselateStairsInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_FENCE)
+		return tesselateFenceInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_FIRE)
 		return tesselateFireInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_LADDER)
@@ -2334,6 +2336,75 @@ bool TileRenderer::tesselateTorchInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	else
 		tesselateTorch(tt, static_cast<double>(x), static_cast<double>(y), static_cast<double>(z), 0.0, 0.0);
 	return true;
+}
+
+// RenderBlocks.renderBlockFence
+bool TileRenderer::tesselateFenceInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	bool changed = false;
+
+	float postLo = 6.0f / 16.0f;
+	float postHi = 10.0f / 16.0f;
+	tt.setShape(postLo, 0.0f, postLo, postHi, 1.0f, postHi);
+	tesselateBlockInWorld(tt, x, y, z);
+	changed = true;
+
+	bool connectX = false;
+	bool connectZ = false;
+	if (level->getTile(x - 1, y, z) == tt.id || level->getTile(x + 1, y, z) == tt.id)
+		connectX = true;
+	if (level->getTile(x, y, z - 1) == tt.id || level->getTile(x, y, z + 1) == tt.id)
+		connectZ = true;
+
+	bool west = level->getTile(x - 1, y, z) == tt.id;
+	bool east = level->getTile(x + 1, y, z) == tt.id;
+	bool north = level->getTile(x, y, z - 1) == tt.id;
+	bool south = level->getTile(x, y, z + 1) == tt.id;
+	if (!connectX && !connectZ)
+		connectX = true;
+
+	float railLo = 7.0f / 16.0f;
+	float railHi = 9.0f / 16.0f;
+	float railBottom = 12.0f / 16.0f;
+	float railTop = 15.0f / 16.0f;
+	float x0 = west ? 0.0f : railLo;
+	float x1 = east ? 1.0f : railHi;
+	float z0 = north ? 0.0f : railLo;
+	float z1 = south ? 1.0f : railHi;
+
+	if (connectX)
+	{
+		tt.setShape(x0, railBottom, railLo, x1, railTop, railHi);
+		tesselateBlockInWorld(tt, x, y, z);
+		changed = true;
+	}
+
+	if (connectZ)
+	{
+		tt.setShape(railLo, railBottom, z0, railHi, railTop, z1);
+		tesselateBlockInWorld(tt, x, y, z);
+		changed = true;
+	}
+
+	railBottom = 6.0f / 16.0f;
+	railTop = 9.0f / 16.0f;
+
+	if (connectX)
+	{
+		tt.setShape(x0, railBottom, railLo, x1, railTop, railHi);
+		tesselateBlockInWorld(tt, x, y, z);
+		changed = true;
+	}
+
+	if (connectZ)
+	{
+		tt.setShape(railLo, railBottom, z0, railHi, railTop, z1);
+		tesselateBlockInWorld(tt, x, y, z);
+		changed = true;
+	}
+
+	tt.setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+	return changed;
 }
 
 bool TileRenderer::tesselateStairsInWorld(Tile &tt, int_t x, int_t y, int_t z)

@@ -92,6 +92,8 @@ void FurnaceTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 
 bool FurnaceTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
+	if (level.isOnline)
+		return true;
 	LocalPlayer *localPlayer = dynamic_cast<LocalPlayer *>(&player);
 	if (localPlayer == nullptr)
 		return false;

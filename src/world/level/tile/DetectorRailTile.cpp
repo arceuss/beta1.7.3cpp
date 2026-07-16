@@ -9,13 +9,13 @@ DetectorRailTile::DetectorRailTile(int_t id, int_t tex) : RailTile(id, tex, true
 	setTicking(true);
 }
 
-bool DetectorRailTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool DetectorRailTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	(void)dir;
 	return (level.getData(x, y, z) & 8) != 0;
 }
 
-bool DetectorRailTile::isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool DetectorRailTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	return (level.getData(x, y, z) & 8) != 0 && dir == 1;
 }

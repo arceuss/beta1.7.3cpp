@@ -115,6 +115,10 @@ protected:
 	float rainingStrength = 0.0f;
 	float previousThunderingStrength = 0.0f;
 	float thunderingStrength = 0.0f;
+	bool raining = false;
+	int_t rainTime = 0;
+	bool thundering = false;
+	int_t thunderTime = 0;
 	int_t randValue = Random().nextInt();
 	int_t addend = 1013904223;
 
@@ -269,6 +273,7 @@ public:
 
 	bool canSeeSky(int_t x, int_t y, int_t z);
 
+	int_t getFullBrightness(int_t x, int_t y, int_t z);
 	int_t getRawBrightness(int_t x, int_t y, int_t z);
 	int_t getRawBrightness(int_t x, int_t y, int_t z, bool neighbors);
 
@@ -287,6 +292,7 @@ public:
 	HitResult clip(Vec3 &from, Vec3 &to);
 	HitResult clip(Vec3 &from, Vec3 &to, bool canPickLiquid);
 	std::shared_ptr<Player> getNearestPlayer(Entity &entity, double radius);
+	std::shared_ptr<Player> getNearestPlayer(double x, double y, double z, double radius);
 	std::unique_ptr<PathEntity> getPathToEntity(Entity &entity, Entity &target, float distance);
 	std::unique_ptr<PathEntity> getEntityPathToXYZ(Entity &entity, int_t x, int_t y, int_t z, float distance);
 	std::shared_ptr<Entity> getEntityRef(Entity &entity);
@@ -394,10 +400,10 @@ public:
 	void broadcastEntityEvent(std::shared_ptr<Entity> entity, byte_t event);
 
 	bool isBlockNormalCube(int_t x, int_t y, int_t z);
-	bool isBlockProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir);
-	bool isBlockGettingPowered(int_t x, int_t y, int_t z);
-	bool isBlockIndirectlyProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir);
-	bool isBlockIndirectlyGettingPowered(int_t x, int_t y, int_t z);
+	bool getDirectSignal(int_t x, int_t y, int_t z, int_t dir);
+	bool hasDirectSignal(int_t x, int_t y, int_t z);
+	bool getSignal(int_t x, int_t y, int_t z, int_t dir);
+	bool hasNeighborSignal(int_t x, int_t y, int_t z);
 	void notifyBlocksOfNeighborChange(int_t x, int_t y, int_t z, int_t tileId);
 	virtual void scheduleBlockUpdate(int_t x, int_t y, int_t z, int_t tileId, int_t delay);
 	Explosion createExplosion(Entity *entity, double x, double y, double z, float size);
@@ -406,8 +412,16 @@ public:
 	std::shared_ptr<ChunkSource> getChunkSource();
 
 	virtual bool isRaining();
+	virtual bool isThundering();
 	virtual float getRainStrength(float a) const;
 	virtual float getThunderStrength(float a) const;
+	void setWeather(bool rain, bool thunder);
+
+protected:
+	virtual void updateWeather();
+	void stopPrecipitation();
+
+public:
 	virtual void setRainStrength(float strength);
 	bool canBlockBeRainedOn(int_t x, int_t y, int_t z);
 
@@ -421,4 +435,5 @@ public:
 	void updateAllPlayersSleepingFlag();
 	void wakeUpAllPlayers();
 	bool isAllPlayersFullyAsleep();
+	bool performSleepSpawning();
 };

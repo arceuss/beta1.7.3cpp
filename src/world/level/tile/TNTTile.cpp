@@ -25,7 +25,7 @@ int_t TNTTile::getTexture(Facing face, int_t data)
 
 void TNTTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (level.isBlockIndirectlyGettingPowered(x, y, z))
+	if (level.hasNeighborSignal(x, y, z))
 	{
 		level.setTile(x, y, z, 0);
 		onBlockDestroyedByExplosion(level, x, y, z);
@@ -35,7 +35,7 @@ void TNTTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 void TNTTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
 	(void)tile;
-	if (level.isBlockIndirectlyGettingPowered(x, y, z))
+	if (level.hasNeighborSignal(x, y, z))
 	{
 		level.setTile(x, y, z, 0);
 		onBlockDestroyedByExplosion(level, x, y, z);

@@ -872,12 +872,12 @@ void Tile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z,
 
 
 
-bool Tile::isDirectSignalTo(Level &, int_t, int_t, int_t, int_t)
+bool Tile::getSignal(Level &, int_t, int_t, int_t, int_t)
 {
 	return false;
 }
 
-bool Tile::isIndirectSignalTo(Level &, int_t, int_t, int_t, int_t)
+bool Tile::getDirectSignal(Level &, int_t, int_t, int_t, int_t)
 {
 	return false;
 }

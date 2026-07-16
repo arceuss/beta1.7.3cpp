@@ -101,10 +101,6 @@ void ChestTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 
 bool ChestTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
-	auto chest = std::dynamic_pointer_cast<ChestTileEntity>(level.getTileEntity(x, y, z));
-	if (chest == nullptr)
-		return false;
-
 	if (isBlockedChest(level, x, y, z)
 		|| (level.getTile(x - 1, y, z) == id && isBlockedChest(level, x - 1, y, z))
 		|| (level.getTile(x + 1, y, z) == id && isBlockedChest(level, x + 1, y, z))
@@ -114,11 +110,15 @@ bool ChestTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 		return true;
 	}
 
+	// vanilla checks the online case before touching the tile entity - client
+	// chunks from packets have no chest tile entities, but use must still
+	// return true so the arm swings; the server opens the container
 	if (level.isOnline)
-	{
-		// TODO: container sync for online chest interaction
 		return true;
-	}
+
+	auto chest = std::dynamic_pointer_cast<ChestTileEntity>(level.getTileEntity(x, y, z));
+	if (chest == nullptr)
+		return false;
 
 	LocalPlayer *localPlayer = dynamic_cast<LocalPlayer *>(&player);
 	if (localPlayer == nullptr)

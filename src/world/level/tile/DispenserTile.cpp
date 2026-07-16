@@ -85,6 +85,8 @@ void DispenserTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 
 bool DispenserTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
+	if (level.isOnline)
+		return true;
 	LocalPlayer *localPlayer = dynamic_cast<LocalPlayer *>(&player);
 	if (localPlayer == nullptr)
 		return false;
@@ -153,7 +155,7 @@ void DispenserTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int
 {
 	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
 	{
-		bool powered = level.isBlockIndirectlyGettingPowered(x, y, z) || level.isBlockIndirectlyGettingPowered(x, y + 1, z);
+		bool powered = level.hasNeighborSignal(x, y, z) || level.hasNeighborSignal(x, y + 1, z);
 		if (powered)
 			level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
 	}
@@ -161,6 +163,6 @@ void DispenserTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int
 
 void DispenserTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 {
-	if (level.isBlockIndirectlyGettingPowered(x, y, z) || level.isBlockIndirectlyGettingPowered(x, y + 1, z))
+	if (level.hasNeighborSignal(x, y, z) || level.hasNeighborSignal(x, y + 1, z))
 		fireItem(level, x, y, z, random);
 }

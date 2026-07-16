@@ -1,6 +1,9 @@
 #include "world/level/Level.h"
+#include "world/level/SpawnerAnimals.h"
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <set>
 #include <stdexcept>
 
@@ -23,8 +26,11 @@
 #include "world/entity/monster/Spider.h"
 #include "world/entity/monster/Zombie.h"
 #include "world/entity/monster/Slime.h"
+#include "world/entity/monster/Ghast.h"
+#include "world/entity/monster/PigZombie.h"
 #include "world/level/biome/BiomeSource.h"
 #include "world/level/material/Material.h"
+#include "world/level/material/LiquidMaterial.h"
 #include "world/level/pathfinder/PathEntity.h"
 #include "world/level/material/GasMaterial.h"
 
@@ -33,6 +39,10 @@
 
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/FireTile.h"
+#include "world/level/tile/BedTile.h"
+#include "world/level/tile/SnowTile.h"
+#include "world/level/tile/IceTile.h"
+#include "world/entity/EntityLightningBolt.h"
 #include "world/level/Explosion.h"
 #include "util/Mth.h"
 
@@ -245,8 +255,8 @@ Level::Level(const jstring &name, int_t dimension, long_t seed, bool initializeC
 Level::Level(Level &level, int_t dimension)
 {
 	this->sessionId = level.sessionId;
-	this->workDir = std::move(level.workDir);
-	this->dir = std::move(level.dir);
+	this->workDir = level.workDir;
+	this->dir = level.dir;
 	this->name = level.name;
 	this->levelName = level.levelName;
 	this->seed = level.seed;
@@ -306,6 +316,18 @@ Level::Level(File *workingDirectory, const jstring &name, const jstring &levelNa
 		this->levelName = data->contains(u"LevelName") ? data->getString(u"LevelName") : name;
 		if (this->levelName.empty())
 			this->levelName = name;
+
+		rainTime = data->getInt(u"rainTime");
+		raining = data->getBoolean(u"raining");
+		thunderTime = data->getInt(u"thunderTime");
+		thundering = data->getBoolean(u"thundering");
+		// World.func_27163_E - snap strengths when loading into active weather
+		if (raining)
+		{
+			rainingStrength = 1.0f;
+			if (thundering)
+				thunderingStrength = 1.0f;
+		}
 
 		if (data->contains(u"Player"))
 		{
@@ -502,6 +524,10 @@ void Level::saveLevelData()
 	data->putLong(u"LastPlayed", System::currentTimeMillis());
 	data->putString(u"LevelName", levelName);
 	data->putInt(u"version", 19132);
+	data->putInt(u"rainTime", rainTime);
+	data->putBoolean(u"raining", raining);
+	data->putInt(u"thunderTime", thunderTime);
+	data->putBoolean(u"thundering", thundering);
 
 	std::shared_ptr<Player> player;
 	if (!players.empty())
@@ -752,7 +778,9 @@ bool Level::isBlockNormalCube(int_t x, int_t y, int_t z)
 	return t->material.isSolid() && t->isCubeShaped();
 }
 
-bool Level::isBlockProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir)
+// b1.2 Level.getDirectSignal - the strong query (MCP misnames this pair
+// isBlockProvidingPowerTo -> isIndirectlyPoweringTo)
+bool Level::getDirectSignal(int_t x, int_t y, int_t z, int_t dir)
 {
 	int_t id = getTile(x, y, z);
 	if (id == 0)
@@ -760,40 +788,42 @@ bool Level::isBlockProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir)
 	Tile *t = Tile::tiles[id];
 	if (t == nullptr)
 		return false;
-	return t->isDirectSignalTo(*this, x, y, z, dir);
+	return t->getDirectSignal(*this, x, y, z, dir);
 }
 
-bool Level::isBlockGettingPowered(int_t x, int_t y, int_t z)
+bool Level::hasDirectSignal(int_t x, int_t y, int_t z)
 {
-	return isBlockProvidingPowerTo(x, y - 1, z, 0)
-		|| isBlockProvidingPowerTo(x, y + 1, z, 1)
-		|| isBlockProvidingPowerTo(x, y, z - 1, 2)
-		|| isBlockProvidingPowerTo(x, y, z + 1, 3)
-		|| isBlockProvidingPowerTo(x - 1, y, z, 4)
-		|| isBlockProvidingPowerTo(x + 1, y, z, 5);
+	return getDirectSignal(x, y - 1, z, 0)
+		|| getDirectSignal(x, y + 1, z, 1)
+		|| getDirectSignal(x, y, z - 1, 2)
+		|| getDirectSignal(x, y, z + 1, 3)
+		|| getDirectSignal(x - 1, y, z, 4)
+		|| getDirectSignal(x + 1, y, z, 5);
 }
 
-bool Level::isBlockIndirectlyProvidingPowerTo(int_t x, int_t y, int_t z, int_t dir)
+// b1.2 Level.getSignal - the weak query (MCP misnames this pair
+// isBlockIndirectlyProvidingPowerTo -> isPoweringTo)
+bool Level::getSignal(int_t x, int_t y, int_t z, int_t dir)
 {
 	if (isBlockNormalCube(x, y, z))
-		return isBlockGettingPowered(x, y, z);
+		return hasDirectSignal(x, y, z);
 	int_t id = getTile(x, y, z);
 	if (id == 0)
 		return false;
 	Tile *t = Tile::tiles[id];
 	if (t == nullptr)
 		return false;
-	return t->isDirectSignalTo(*this, x, y, z, dir);
+	return t->getSignal(*this, x, y, z, dir);
 }
 
-bool Level::isBlockIndirectlyGettingPowered(int_t x, int_t y, int_t z)
+bool Level::hasNeighborSignal(int_t x, int_t y, int_t z)
 {
-	return isBlockIndirectlyProvidingPowerTo(x, y - 1, z, 0)
-		|| isBlockIndirectlyProvidingPowerTo(x, y + 1, z, 1)
-		|| isBlockIndirectlyProvidingPowerTo(x, y, z - 1, 2)
-		|| isBlockIndirectlyProvidingPowerTo(x, y, z + 1, 3)
-		|| isBlockIndirectlyProvidingPowerTo(x - 1, y, z, 4)
-		|| isBlockIndirectlyProvidingPowerTo(x + 1, y, z, 5);
+	return getSignal(x, y - 1, z, 0)
+		|| getSignal(x, y + 1, z, 1)
+		|| getSignal(x, y, z - 1, 2)
+		|| getSignal(x, y, z + 1, 3)
+		|| getSignal(x - 1, y, z, 4)
+		|| getSignal(x + 1, y, z, 5);
 }
 
 void Level::notifyBlocksOfNeighborChange(int_t x, int_t y, int_t z, int_t tileId)
@@ -863,6 +893,15 @@ void Level::playNoteAt(int_t x, int_t y, int_t z, int_t type, int_t data)
 bool Level::canSeeSky(int_t x, int_t y, int_t z)
 {
 	return getChunk(x >> 4, z >> 4)->isSkyLit(x & 0xF, y, z & 0xF);
+}
+
+int_t Level::getFullBrightness(int_t x, int_t y, int_t z)
+{
+	if (y < 0)
+		return 0;
+	if (y >= DEPTH)
+		y = DEPTH - 1;
+	return getChunk(x >> 4, z >> 4)->getRawBrightness(x & 0xF, y, z & 0xF, 0);
 }
 
 int_t Level::getRawBrightness(int_t x, int_t y, int_t z)
@@ -1135,6 +1174,26 @@ std::shared_ptr<Player> Level::getNearestPlayer(Entity &entity, double radius)
 		if (player == nullptr)
 			continue;
 		double distance = player->distanceToSqr(entity);
+		if ((radius < 0.0 || distance < radius * radius) && (bestDistance == -1.0 || distance < bestDistance))
+		{
+			bestDistance = distance;
+			nearest = player;
+		}
+	}
+
+	return nearest;
+}
+
+std::shared_ptr<Player> Level::getNearestPlayer(double x, double y, double z, double radius)
+{
+	double bestDistance = -1.0;
+	std::shared_ptr<Player> nearest;
+	for (const auto &player : players)
+	{
+		double dx = player->x - x;
+		double dy = player->y - y;
+		double dz = player->z - z;
+		double distance = dx * dx + dy * dy + dz * dz;
 		if ((radius < 0.0 || distance < radius * radius) && (bestDistance == -1.0 || distance < bestDistance))
 		{
 			bestDistance = distance;
@@ -2055,161 +2114,427 @@ void Level::updateSkyBrightness()
 
 namespace
 {
-	bool isAnimalEntity(Entity &entity)
+	int_t javaIntFromBits(uint_t value)
+	{
+		int_t result;
+		std::memcpy(&result, &value, sizeof(result));
+		return result;
+	}
+
+	uint_t javaIntBits(int_t value)
+	{
+		uint_t result;
+		std::memcpy(&result, &value, sizeof(result));
+		return result;
+	}
+
+	int_t javaIntAdd(int_t a, int_t b)
+	{
+		return javaIntFromBits(javaIntBits(a) + javaIntBits(b));
+	}
+
+	int_t javaIntSubtract(int_t a, int_t b)
+	{
+		return javaIntFromBits(javaIntBits(a) - javaIntBits(b));
+	}
+
+	int_t javaIntMultiply(int_t a, int_t b)
+	{
+		return javaIntFromBits(javaIntBits(a) * javaIntBits(b));
+	}
+
+	struct NaturalSpawnChunk
+	{
+		int_t x;
+		int_t z;
+
+		bool operator==(const NaturalSpawnChunk &other) const
+		{
+			return x == other.x && z == other.z;
+		}
+	};
+
+	class JavaNaturalSpawnChunkSet
+	{
+	private:
+		struct Entry
+		{
+			uint_t hash;
+			NaturalSpawnChunk value;
+			int_t next;
+		};
+
+		std::vector<Entry> entries;
+		std::vector<int_t> bucketHeads = std::vector<int_t>(16, -1);
+		int_t resizeThreshold = 12;
+
+		static uint_t hash(const NaturalSpawnChunk &chunk)
+		{
+			uint_t value = (chunk.x < 0 ? 0x80000000u : 0u)
+				| ((javaIntBits(chunk.x) & 0x7fffu) << 16)
+				| (chunk.z < 0 ? 0x8000u : 0u)
+				| (javaIntBits(chunk.z) & 0x7fffu);
+			value ^= (value >> 20) ^ (value >> 12);
+			return value ^ (value >> 7) ^ (value >> 4);
+		}
+
+		int_t findEntry(const NaturalSpawnChunk &chunk) const
+		{
+			uint_t chunkHash = hash(chunk);
+			int_t entryIndex = bucketHeads[chunkHash & (bucketHeads.size() - 1)];
+			while (entryIndex >= 0)
+			{
+				const Entry &entry = entries[static_cast<size_t>(entryIndex)];
+				if (entry.hash == chunkHash && entry.value == chunk)
+					return entryIndex;
+				entryIndex = entry.next;
+			}
+			return -1;
+		}
+
+		void resize(int_t capacity)
+		{
+			std::vector<int_t> newBucketHeads(static_cast<size_t>(capacity), -1);
+			for (int_t bucketHead : bucketHeads)
+			{
+				int_t entryIndex = bucketHead;
+				while (entryIndex >= 0)
+				{
+					Entry &entry = entries[static_cast<size_t>(entryIndex)];
+					int_t next = entry.next;
+					int_t bucket = static_cast<int_t>(entry.hash & (newBucketHeads.size() - 1));
+					entry.next = newBucketHeads[static_cast<size_t>(bucket)];
+					newBucketHeads[static_cast<size_t>(bucket)] = entryIndex;
+					entryIndex = next;
+				}
+			}
+			bucketHeads = std::move(newBucketHeads);
+			resizeThreshold = capacity * 3 / 4;
+		}
+
+	public:
+		void clear()
+		{
+			entries.clear();
+			std::fill(bucketHeads.begin(), bucketHeads.end(), -1);
+		}
+
+		void add(int_t x, int_t z)
+		{
+			NaturalSpawnChunk chunk{x, z};
+			if (findEntry(chunk) >= 0)
+				return;
+
+			uint_t chunkHash = hash(chunk);
+			int_t bucket = static_cast<int_t>(chunkHash & (bucketHeads.size() - 1));
+			int_t sizeBefore = static_cast<int_t>(entries.size());
+			entries.push_back({chunkHash, chunk, bucketHeads[static_cast<size_t>(bucket)]});
+			bucketHeads[static_cast<size_t>(bucket)] = sizeBefore;
+			if (sizeBefore >= resizeThreshold)
+				resize(static_cast<int_t>(bucketHeads.size() * 2));
+		}
+
+		int_t size() const
+		{
+			return static_cast<int_t>(entries.size());
+		}
+
+		std::vector<NaturalSpawnChunk> orderedValues() const
+		{
+			std::vector<NaturalSpawnChunk> values;
+			values.reserve(entries.size());
+			for (int_t bucketHead : bucketHeads)
+			{
+				int_t entryIndex = bucketHead;
+				while (entryIndex >= 0)
+				{
+					const Entry &entry = entries[static_cast<size_t>(entryIndex)];
+					values.push_back(entry.value);
+					entryIndex = entry.next;
+				}
+			}
+			return values;
+		}
+	};
+
+	enum class NaturalCreatureCategory
+	{
+		Monster,
+		Creature,
+		WaterCreature,
+	};
+
+	bool isCreatureEntity(Entity &entity)
 	{
 		return dynamic_cast<Animal *>(&entity) != nullptr && dynamic_cast<Squid *>(&entity) == nullptr;
 	}
 
-	bool isWaterAnimalEntity(Entity &entity)
+	bool isWaterCreatureEntity(Entity &entity)
 	{
 		return dynamic_cast<Squid *>(&entity) != nullptr;
 	}
 
 	bool isMonsterEntity(Entity &entity)
 	{
-		return dynamic_cast<Monster *>(&entity) != nullptr || dynamic_cast<Slime *>(&entity) != nullptr;
+		return dynamic_cast<Monster *>(&entity) != nullptr || dynamic_cast<Slime *>(&entity) != nullptr
+			|| dynamic_cast<Ghast *>(&entity) != nullptr;
 	}
 
-	std::shared_ptr<Animal> createRandomAnimal(Level &level, BiomeId biome)
+	struct NaturalCreatureType
 	{
-		int_t weightTotal = 0;
-		int_t sheepWeight = 12;
-		int_t pigWeight = 10;
-		int_t chickenWeight = 10;
-		int_t cowWeight = 8;
-		int_t wolfWeight = (biome == BiomeId::Forest || biome == BiomeId::Taiga) ? 2 : 0;
-		weightTotal += sheepWeight + pigWeight + chickenWeight + cowWeight + wolfWeight;
-		int_t value = level.random.nextInt(weightTotal);
-		if ((value -= sheepWeight) < 0) return std::make_shared<Sheep>(level);
-		if ((value -= pigWeight) < 0) return std::make_shared<Pig>(level);
-		if ((value -= chickenWeight) < 0) return std::make_shared<Chicken>(level);
-		if ((value -= cowWeight) < 0) return std::make_shared<Cow>(level);
-		return std::make_shared<Wolf>(level);
+		NaturalCreatureCategory category;
+		int_t maxNumberOfCreature;
+		const Material *creatureMaterial;
+		bool peacefulCreature;
+		bool (*countPredicate)(Entity &);
+	};
+
+	const std::array<NaturalCreatureType, 3> &getNaturalCreatureTypes()
+	{
+		static const std::array<NaturalCreatureType, 3> types = {{
+			{ NaturalCreatureCategory::Monster, 70, &Material::air, false, isMonsterEntity },
+			{ NaturalCreatureCategory::Creature, 15, &Material::air, true, isCreatureEntity },
+			{ NaturalCreatureCategory::WaterCreature, 5, &Material::water, true, isWaterCreatureEntity },
+		}};
+		return types;
 	}
 
-	std::shared_ptr<Squid> createRandomWaterAnimal(Level &level, BiomeId biome)
+	enum class NaturalSpawnEntity
 	{
-		(void)biome;
-		return std::make_shared<Squid>(level);
+		Spider,
+		Zombie,
+		Skeleton,
+		Creeper,
+		Slime,
+		Sheep,
+		Pig,
+		Chicken,
+		Cow,
+		Wolf,
+		Squid,
+		Ghast,
+		PigZombie,
+	};
+
+	struct NaturalSpawnEntry
+	{
+		NaturalSpawnEntity entityClass;
+		int_t spawnRarityRate;
+	};
+
+	const std::vector<NaturalSpawnEntry> &getNaturalSpawnList(BiomeId biome, NaturalCreatureCategory category)
+	{
+		static const std::vector<NaturalSpawnEntry> empty;
+		static const std::vector<NaturalSpawnEntry> monsters = {
+			{ NaturalSpawnEntity::Spider, 10 },
+			{ NaturalSpawnEntity::Zombie, 10 },
+			{ NaturalSpawnEntity::Skeleton, 10 },
+			{ NaturalSpawnEntity::Creeper, 10 },
+			{ NaturalSpawnEntity::Slime, 10 },
+		};
+		static const std::vector<NaturalSpawnEntry> creatures = {
+			{ NaturalSpawnEntity::Sheep, 12 },
+			{ NaturalSpawnEntity::Pig, 10 },
+			{ NaturalSpawnEntity::Chicken, 10 },
+			{ NaturalSpawnEntity::Cow, 8 },
+		};
+		static const std::vector<NaturalSpawnEntry> forestCreatures = {
+			{ NaturalSpawnEntity::Sheep, 12 },
+			{ NaturalSpawnEntity::Pig, 10 },
+			{ NaturalSpawnEntity::Chicken, 10 },
+			{ NaturalSpawnEntity::Cow, 8 },
+			{ NaturalSpawnEntity::Wolf, 2 },
+		};
+		static const std::vector<NaturalSpawnEntry> waterCreatures = {
+			{ NaturalSpawnEntity::Squid, 10 },
+		};
+		static const std::vector<NaturalSpawnEntry> hellMonsters = {
+			{ NaturalSpawnEntity::Ghast, 10 },
+			{ NaturalSpawnEntity::PigZombie, 10 },
+		};
+
+		if (biome == BiomeId::Hell)
+			return category == NaturalCreatureCategory::Monster ? hellMonsters : empty;
+		if (category == NaturalCreatureCategory::Monster)
+			return monsters;
+		if (category == NaturalCreatureCategory::WaterCreature)
+			return waterCreatures;
+		if (biome == BiomeId::Forest || biome == BiomeId::Taiga)
+			return forestCreatures;
+		return creatures;
 	}
 
-	std::shared_ptr<Mob> createRandomMonster(Level &level, BiomeId biome)
+	std::shared_ptr<Mob> createNaturalSpawnEntity(Level &level, NaturalSpawnEntity entityClass)
 	{
-		int_t weightTotal = 0;
-		int_t spiderWeight = 10;
-		int_t zombieWeight = 10;
-		int_t skeletonWeight = 10;
-		int_t creeperWeight = 10;
-		int_t slimeWeight = 10;
-		weightTotal += spiderWeight + zombieWeight + skeletonWeight + creeperWeight + slimeWeight;
-		int_t value = level.random.nextInt(weightTotal);
-		if ((value -= spiderWeight) < 0) return std::make_shared<Spider>(level);
-		if ((value -= zombieWeight) < 0) return std::make_shared<Zombie>(level);
-		if ((value -= skeletonWeight) < 0) return std::make_shared<Skeleton>(level);
-		if ((value -= creeperWeight) < 0) return std::make_shared<Creeper>(level);
-		(void)biome;
-		return std::make_shared<Slime>(level);
+		switch (entityClass)
+		{
+		case NaturalSpawnEntity::Spider: return std::make_shared<Spider>(level);
+		case NaturalSpawnEntity::Zombie: return std::make_shared<Zombie>(level);
+		case NaturalSpawnEntity::Skeleton: return std::make_shared<Skeleton>(level);
+		case NaturalSpawnEntity::Creeper: return std::make_shared<Creeper>(level);
+		case NaturalSpawnEntity::Slime: return std::make_shared<Slime>(level);
+		case NaturalSpawnEntity::Sheep: return std::make_shared<Sheep>(level);
+		case NaturalSpawnEntity::Pig: return std::make_shared<Pig>(level);
+		case NaturalSpawnEntity::Chicken: return std::make_shared<Chicken>(level);
+		case NaturalSpawnEntity::Cow: return std::make_shared<Cow>(level);
+		case NaturalSpawnEntity::Wolf: return std::make_shared<Wolf>(level);
+		case NaturalSpawnEntity::Squid: return std::make_shared<Squid>(level);
+		case NaturalSpawnEntity::Ghast: return std::make_shared<Ghast>(level);
+		case NaturalSpawnEntity::PigZombie: return std::make_shared<PigZombie>(level);
+		}
+		return nullptr;
 	}
 
 	bool canCreatureTypeSpawnAtLocation(Level &level, bool waterCreature, int_t x, int_t y, int_t z)
 	{
 		if (waterCreature)
-			return level.getMaterial(x, y, z).isLiquid() && !level.isSolidTile(x, y + 1, z);
-		return level.isSolidTile(x, y - 1, z) && !level.isSolidTile(x, y, z) && !level.getMaterial(x, y, z).isLiquid() && !level.isSolidTile(x, y + 1, z);
+			return level.getMaterial(x, y, z).isLiquid() && !level.isBlockNormalCube(x, y + 1, z);
+		return level.isBlockNormalCube(x, y - 1, z) && !level.isBlockNormalCube(x, y, z)
+			&& !level.getMaterial(x, y, z).isLiquid() && !level.isBlockNormalCube(x, y + 1, z);
 	}
 
-	template <typename TEntity, typename TFactory, typename TCountPredicate>
-	void spawnNaturalCategory(Level &level, bool enabled, TCountPredicate countPredicate, int_t maxPer256Chunks, bool waterCreature, TFactory createEntity)
+	void naturalSpawnSpecificInit(const std::shared_ptr<Mob> &entity, Level &level, float x, float y, float z)
 	{
-		if (!enabled || level.players.empty())
-			return;
-		constexpr int_t chunkRadius = 8;
-		int_t eligibleChunks = static_cast<int_t>(level.players.size()) * ((chunkRadius * 2 + 1) * (chunkRadius * 2 + 1));
-		if (level.countConditionOf(countPredicate) > maxPer256Chunks * eligibleChunks / 256)
-			return;
-		for (const auto &player : level.players)
+		std::shared_ptr<Spider> spider = std::dynamic_pointer_cast<Spider>(entity);
+		if (spider != nullptr)
 		{
-			if (player == nullptr || player->removed)
-				continue;
-			int_t chunkX = Mth::floor(player->x / 16.0);
-			int_t chunkZ = Mth::floor(player->z / 16.0);
-			int_t selectedChunkX = chunkX + level.random.nextInt(chunkRadius * 2 + 1) - chunkRadius;
-			int_t selectedChunkZ = chunkZ + level.random.nextInt(chunkRadius * 2 + 1) - chunkRadius;
-			int_t baseX = selectedChunkX * 16 + level.random.nextInt(16);
-			int_t baseY = level.random.nextInt(Level::DEPTH);
-			int_t baseZ = selectedChunkZ * 16 + level.random.nextInt(16);
-			if (!level.hasChunksAt(baseX, baseY, baseZ, 8))
-				continue;
-			if (!canCreatureTypeSpawnAtLocation(level, waterCreature, baseX, baseY, baseZ))
-				continue;
-			BiomeId biome = level.getBiomeSource().getBiome(baseX, baseZ);
-			int_t packSize = 0;
-			for (int_t outer = 0; outer < 3; ++outer)
+			if (level.random.nextInt(100) == 0)
 			{
-				int_t x = baseX;
-				int_t y = baseY;
-				int_t z = baseZ;
-				for (int_t inner = 0; inner < 4; ++inner)
-				{
-					x += level.random.nextInt(6) - level.random.nextInt(6);
-					y += level.random.nextInt(1) - level.random.nextInt(1);
-					z += level.random.nextInt(6) - level.random.nextInt(6);
-					if (!level.hasChunksAt(x, y, z, 8))
-						continue;
-					if (!canCreatureTypeSpawnAtLocation(level, waterCreature, x, y, z))
-						continue;
-					double spawnX = x + 0.5;
-					double spawnY = y;
-					double spawnZ = z + 0.5;
-					Entity playerProbe(level);
-					playerProbe.moveTo(spawnX, spawnY, spawnZ, 0.0f, 0.0f);
-					if (level.getNearestPlayer(playerProbe, 24.0) != nullptr)
-						continue;
-					double dx = spawnX - (level.xSpawn + 0.5);
-					double dy = spawnY - level.ySpawn;
-					double dz = spawnZ - (level.zSpawn + 0.5);
-					if (dx * dx + dy * dy + dz * dz < 576.0)
-						continue;
-					auto entity = createEntity(level, biome);
-					if (entity == nullptr)
-						continue;
-					entity->moveTo(spawnX, spawnY, spawnZ, level.random.nextFloat() * 360.0f, 0.0f);
-					if (!entity->canSpawn())
-						continue;
-					if (auto sheep = std::dynamic_pointer_cast<Sheep>(entity))
-						sheep->setFleeceColor(Sheep::getRandomFleeceColor(level.random));
-					if (!level.addEntity(entity))
-						continue;
-					++packSize;
-					if (packSize >= entity->getMaxSpawnClusterSize())
-						return;
-				}
+				std::shared_ptr<Skeleton> skeleton = std::make_shared<Skeleton>(level);
+				skeleton->moveTo(x, y, z, entity->yRot, 0.0f);
+				level.addEntity(skeleton);
+				skeleton->ride(entity);
 			}
+		}
+		else
+		{
+			std::shared_ptr<Sheep> sheep = std::dynamic_pointer_cast<Sheep>(entity);
+			if (sheep != nullptr)
+				sheep->setFleeceColor(Sheep::getRandomFleeceColor(level.random));
 		}
 	}
 
-	void spawnNaturalAnimals(Level &level)
+	// B173-JAVA-METHOD: net.minecraft.src.SpawnerAnimals#performSpawning(World,boolean,boolean)
+	int_t performNaturalSpawningImpl(Level &level, bool spawnHostileMobs, bool spawnPeacefulMobs)
 	{
-		spawnNaturalCategory<Animal>(level, level.isDay(), isAnimalEntity, 15, false,
-			[](Level &spawnLevel, BiomeId biome) -> std::shared_ptr<Animal>
-			{
-				return createRandomAnimal(spawnLevel, biome);
-			});
-		spawnNaturalCategory<Squid>(level, true, isWaterAnimalEntity, 5, true,
-			[](Level &spawnLevel, BiomeId biome) -> std::shared_ptr<Squid>
-			{
-				return createRandomWaterAnimal(spawnLevel, biome);
-			});
-	}
+		if (!spawnHostileMobs && !spawnPeacefulMobs)
+			return 0;
 
-	void spawnNaturalMonsters(Level &level)
-	{
-		spawnNaturalCategory<Mob>(level, true, isMonsterEntity, 70, false,
-			[](Level &spawnLevel, BiomeId biome) -> std::shared_ptr<Mob>
+		static JavaNaturalSpawnChunkSet eligibleChunksForSpawning;
+		eligibleChunksForSpawning.clear();
+		for (const auto &player : level.players)
+		{
+			int_t playerChunkX = Mth::floor(player->x / 16.0);
+			int_t playerChunkZ = Mth::floor(player->z / 16.0);
+			constexpr int_t chunkRadius = 8;
+			for (int_t x = -chunkRadius; x <= chunkRadius; ++x)
 			{
-				return createRandomMonster(spawnLevel, biome);
-			});
+				for (int_t z = -chunkRadius; z <= chunkRadius; ++z)
+				{
+					eligibleChunksForSpawning.add(javaIntAdd(x, playerChunkX), javaIntAdd(z, playerChunkZ));
+				}
+			}
+		}
+
+		int_t totalSpawns = 0;
+		std::vector<NaturalSpawnChunk> orderedChunks = eligibleChunksForSpawning.orderedValues();
+		for (const NaturalCreatureType &creatureType : getNaturalCreatureTypes())
+		{
+			if ((creatureType.peacefulCreature && !spawnPeacefulMobs)
+				|| (!creatureType.peacefulCreature && !spawnHostileMobs)
+				|| level.countConditionOf(creatureType.countPredicate) > javaIntMultiply(
+					creatureType.maxNumberOfCreature, eligibleChunksForSpawning.size()) / 256)
+				continue;
+
+			for (const NaturalSpawnChunk &chunk : orderedChunks)
+			{
+				int_t chunkBlockX = javaIntMultiply(chunk.x, 16);
+				int_t chunkBlockZ = javaIntMultiply(chunk.z, 16);
+				BiomeId biome = level.getBiomeSource().getBiome(chunkBlockX, chunkBlockZ);
+				const std::vector<NaturalSpawnEntry> &spawnList = getNaturalSpawnList(biome, creatureType.category);
+				if (spawnList.empty())
+					continue;
+
+				int_t totalWeight = 0;
+				for (const NaturalSpawnEntry &entry : spawnList)
+					totalWeight = javaIntAdd(totalWeight, entry.spawnRarityRate);
+				int_t selectedWeight = level.random.nextInt(totalWeight);
+				const NaturalSpawnEntry *selectedEntry = &spawnList.front();
+				for (const NaturalSpawnEntry &entry : spawnList)
+				{
+					selectedWeight = javaIntSubtract(selectedWeight, entry.spawnRarityRate);
+					if (selectedWeight < 0)
+					{
+						selectedEntry = &entry;
+						break;
+					}
+				}
+
+				int_t baseX = javaIntAdd(chunkBlockX, level.random.nextInt(16));
+				int_t baseY = level.random.nextInt(128);
+				int_t baseZ = javaIntAdd(chunkBlockZ, level.random.nextInt(16));
+				if (level.isBlockNormalCube(baseX, baseY, baseZ)
+					|| &level.getMaterial(baseX, baseY, baseZ) != creatureType.creatureMaterial)
+					continue;
+
+				int_t packSize = 0;
+				bool nextChunk = false;
+				for (int_t outer = 0; outer < 3 && !nextChunk; ++outer)
+				{
+					int_t x = baseX;
+					int_t y = baseY;
+					int_t z = baseZ;
+					constexpr int_t spawnDistance = 6;
+					for (int_t inner = 0; inner < 4; ++inner)
+					{
+						x = javaIntAdd(x, javaIntSubtract(level.random.nextInt(spawnDistance), level.random.nextInt(spawnDistance)));
+						y = javaIntAdd(y, javaIntSubtract(level.random.nextInt(1), level.random.nextInt(1)));
+						z = javaIntAdd(z, javaIntSubtract(level.random.nextInt(spawnDistance), level.random.nextInt(spawnDistance)));
+						bool waterCreature = creatureType.creatureMaterial == &Material::water;
+						if (!canCreatureTypeSpawnAtLocation(level, waterCreature, x, y, z))
+							continue;
+
+						float spawnX = static_cast<float>(x) + 0.5f;
+						float spawnY = static_cast<float>(y);
+						float spawnZ = static_cast<float>(z) + 0.5f;
+						if (level.getNearestPlayer(spawnX, spawnY, spawnZ, 24.0) != nullptr)
+							continue;
+
+						float dx = spawnX - static_cast<float>(level.xSpawn);
+						float dy = spawnY - static_cast<float>(level.ySpawn);
+						float dz = spawnZ - static_cast<float>(level.zSpawn);
+						float distanceToSpawn = dx * dx + dy * dy + dz * dz;
+						if (distanceToSpawn < 576.0f)
+							continue;
+
+						std::shared_ptr<Mob> entity = createNaturalSpawnEntity(level, selectedEntry->entityClass);
+						if (entity == nullptr)
+							return totalSpawns;
+						entity->moveTo(spawnX, spawnY, spawnZ, level.random.nextFloat() * 360.0f, 0.0f);
+						if (entity->canSpawn())
+						{
+							packSize = javaIntAdd(packSize, 1);
+							level.addEntity(entity);
+							naturalSpawnSpecificInit(entity, level, spawnX, spawnY, spawnZ);
+							if (packSize >= entity->getMaxSpawnClusterSize())
+							{
+								nextChunk = true;
+								break;
+							}
+						}
+						totalSpawns = javaIntAdd(totalSpawns, packSize);
+					}
+				}
+			}
+		}
+
+		return totalSpawns;
 	}
+}
+
+int_t SpawnerAnimals::performSpawning(Level &level, bool spawnHostileMobs, bool spawnPeacefulMobs)
+{
+	return performNaturalSpawningImpl(level, spawnHostileMobs, spawnPeacefulMobs);
 }
 
 void Level::setSpawnSettings(bool spawnEnemies, bool spawnFriendlies)
@@ -2220,13 +2545,29 @@ void Level::setSpawnSettings(bool spawnEnemies, bool spawnFriendlies)
 
 void Level::tick()
 {
-	if (!isOnline && time % 20 == 0)
+	updateWeather();
+
+	if (allPlayersSleeping && !isOnline)
 	{
-		if (spawnFriendlies)
-			spawnNaturalAnimals(*this);
-		if (spawnEnemies)
-			spawnNaturalMonsters(*this);
+		if (isAllPlayersFullyAsleep())
+		{
+			// vanilla first tries to spawn a hostile mob beside a sleeping
+			// player; only if that fails does the night skip to the next dawn
+			bool interrupted = false;
+			if (spawnEnemies && difficulty >= 1)
+				interrupted = performSleepSpawning();
+
+			if (!interrupted)
+			{
+				long_t newTime = time + 24000LL;
+				setTime(newTime - newTime % 24000LL);
+				wakeUpAllPlayers();
+			}
+		}
 	}
+
+	if (!isOnline)
+		SpawnerAnimals::performSpawning(*this, spawnEnemies, spawnFriendlies);
 	chunkSource->tick();
 
 	int_t newDarken = getSkyDarken(1.0f);
@@ -2235,16 +2576,6 @@ void Level::tick()
 		skyDarken = newDarken;
 		for (auto &l : listeners)
 			l->skyColorChanged();
-	}
-
-	if (allPlayersSleeping && !isOnline)
-	{
-		if (isAllPlayersFullyAsleep())
-		{
-			wakeUpAllPlayers();
-			setTime(0);
-			setSpawnSettings(true, true);
-		}
 	}
 
 	time++;
@@ -2276,6 +2607,85 @@ void Level::wakeUpAllPlayers()
 		if (p->isPlayerSleeping())
 			p->wakeUpPlayer(false, false, true);
 	}
+	stopPrecipitation();
+}
+
+// SpawnerAnimals.performSleepSpawning - try to spawn a night monster with a
+// path to a sleeping player; on success it is placed beside the bed and the
+// player is woken
+bool Level::performSleepSpawning()
+{
+	bool spawned = false;
+
+	for (const auto &player : players)
+	{
+		bool interrupted = false;
+		for (int_t attempt = 0; attempt < 20 && !interrupted; attempt++)
+		{
+			int_t sx = Mth::floor(player->x) + random.nextInt(32) - random.nextInt(32);
+			int_t sz = Mth::floor(player->z) + random.nextInt(32) - random.nextInt(32);
+			int_t sy = Mth::floor(player->y) + random.nextInt(16) - random.nextInt(16);
+			if (sy < 1)
+				sy = 1;
+			else if (sy > 128)
+				sy = 128;
+
+			int_t typeIndex = random.nextInt(3);
+			int_t y = sy;
+
+			while (y > 2 && !isBlockNormalCube(sx, y - 1, sz))
+				y--;
+
+			while (!canCreatureTypeSpawnAtLocation(*this, false, sx, y, sz) && y < sy + 16 && y < 128)
+				y++;
+
+			if (y >= sy + 16 || y >= 128)
+				continue;
+
+			float spawnX = sx + 0.5f;
+			float spawnY = static_cast<float>(y);
+			float spawnZ = sz + 0.5f;
+
+			std::shared_ptr<Mob> mob;
+			if (typeIndex == 0)
+				mob = std::make_shared<Spider>(*this);
+			else if (typeIndex == 1)
+				mob = std::make_shared<Zombie>(*this);
+			else
+				mob = std::make_shared<Skeleton>(*this);
+
+			mob->moveTo(spawnX, spawnY, spawnZ, random.nextFloat() * 360.0f, 0.0f);
+			if (!mob->canSpawn())
+				continue;
+
+			std::unique_ptr<PathEntity> path = getPathToEntity(*mob, *player, 32.0f);
+			if (path == nullptr || path->pathLength <= 1)
+				continue;
+
+			const PathPoint *end = path->getEndPoint();
+			if (end == nullptr)
+				continue;
+			if (Mth::abs(static_cast<float>(end->xCoord - player->x)) >= 1.5f
+				|| Mth::abs(static_cast<float>(end->zCoord - player->z)) >= 1.5f
+				|| Mth::abs(static_cast<float>(end->yCoord - player->y)) >= 1.5f)
+				continue;
+
+			int_t spotX = sx;
+			int_t spotY = y + 1;
+			int_t spotZ = sz;
+			BedTile::getNearestEmptySpot(*this, Mth::floor(player->x), Mth::floor(player->y),
+				Mth::floor(player->z), 1, spotX, spotY, spotZ);
+
+			mob->moveTo(spotX + 0.5f, static_cast<float>(spotY), spotZ + 0.5f, 0.0f, 0.0f);
+			addEntity(mob);
+			player->wakeUpPlayer(true, false, false);
+			mob->playAmbientSound();
+			spawned = true;
+			interrupted = true;
+		}
+	}
+
+	return spawned;
 }
 
 bool Level::isAllPlayersFullyAsleep()
@@ -2387,6 +2797,49 @@ void Level::tickTiles()
 		std::shared_ptr<LevelChunk> chunk = getChunk(chunkPos.first, chunkPos.second);
 		if (chunk == nullptr)
 			continue;
+
+		int_t baseX = chunkPos.first * 16;
+		int_t baseZ = chunkPos.second * 16;
+
+		// World.updateBlocksAndPlayCaveSounds - lightning strikes during thunderstorms
+		if (random.nextInt(100000) == 0 && isRaining() && isThundering())
+		{
+			randValue = randValue * 3 + addend;
+			int_t value = randValue >> 2;
+			int_t boltX = baseX + (value & 15);
+			int_t boltZ = baseZ + ((value >> 8) & 15);
+			int_t boltY = getTopSolidBlock(boltX, boltZ);
+			if (canBlockBeRainedOn(boltX, boltY, boltZ))
+			{
+				addWeatherEffect(std::make_shared<EntityLightningBolt>(*this, boltX, boltY, boltZ));
+				lastLightningBolt = 2;
+			}
+		}
+
+		// snow layer / ice formation while it rains in snowy biomes
+		if (random.nextInt(16) == 0)
+		{
+			randValue = randValue * 3 + addend;
+			int_t value = randValue >> 2;
+			int_t localX = value & 15;
+			int_t localZ = (value >> 8) & 15;
+			int_t topY = getTopSolidBlock(localX + baseX, localZ + baseZ);
+			if (getBiomeSource().getBiomeInfo(getBiomeSource().getBiome(localX + baseX, localZ + baseZ)).enableSnow
+				&& topY >= 0 && topY < DEPTH
+				&& chunk->getBrightness(LightLayer::Block, localX, topY, localZ) < 10)
+			{
+				int_t below = chunk->getTile(localX, topY - 1, localZ);
+				int_t at = chunk->getTile(localX, topY, localZ);
+				if (isRaining() && at == 0 && Tile::snow.mayPlace(*this, localX + baseX, topY, localZ + baseZ)
+					&& below != 0 && below != Tile::ice.id && Tile::tiles[below]->material.blocksMotion())
+				{
+					setTile(localX + baseX, topY, localZ + baseZ, Tile::snow.id);
+				}
+
+				if (below == Tile::calmWater.id && chunk->getData(localX, topY - 1, localZ) == 0)
+					setTile(localX + baseX, topY - 1, localZ + baseZ, Tile::ice.id);
+			}
+		}
 
 		for (int_t i = 0; i < randomTicksPerChunk; ++i)
 		{
@@ -2578,6 +3031,91 @@ std::shared_ptr<ChunkSource> Level::getChunkSource()
 bool Level::isRaining()
 {
 	return getRainStrength(1.0f) > 0.2f;
+}
+
+// World.func_27160_B
+bool Level::isThundering()
+{
+	return getThunderStrength(1.0f) > 0.9f;
+}
+
+// World.updateWeather
+void Level::updateWeather()
+{
+	if (dimension != nullptr && dimension->foggy)
+		return;
+
+	if (lastLightningBolt > 0)
+		lastLightningBolt--;
+
+	if (thunderTime <= 0)
+	{
+		if (thundering)
+			thunderTime = random.nextInt(12000) + 3600;
+		else
+			thunderTime = random.nextInt(168000) + 12000;
+	}
+	else
+	{
+		thunderTime--;
+		if (thunderTime <= 0)
+			thundering = !thundering;
+	}
+
+	if (rainTime <= 0)
+	{
+		if (raining)
+			rainTime = random.nextInt(12000) + 12000;
+		else
+			rainTime = random.nextInt(168000) + 12000;
+	}
+	else
+	{
+		rainTime--;
+		if (rainTime <= 0)
+			raining = !raining;
+	}
+
+	previousRainingStrength = rainingStrength;
+	if (raining)
+		rainingStrength = static_cast<float>(rainingStrength + 0.01);
+	else
+		rainingStrength = static_cast<float>(rainingStrength - 0.01);
+
+	if (rainingStrength < 0.0f)
+		rainingStrength = 0.0f;
+	if (rainingStrength > 1.0f)
+		rainingStrength = 1.0f;
+
+	previousThunderingStrength = thunderingStrength;
+	if (thundering)
+		thunderingStrength = static_cast<float>(thunderingStrength + 0.01);
+	else
+		thunderingStrength = static_cast<float>(thunderingStrength - 0.01);
+
+	if (thunderingStrength < 0.0f)
+		thunderingStrength = 0.0f;
+	if (thunderingStrength > 1.0f)
+		thunderingStrength = 1.0f;
+}
+
+// World.stopPrecipitation
+void Level::stopPrecipitation()
+{
+	rainTime = 0;
+	raining = false;
+	thunderTime = 0;
+	thundering = false;
+}
+
+// command/debug helper: force a weather phase with the same duration
+// updateWeather would roll for it; strengths ramp naturally at 0.01/tick
+void Level::setWeather(bool rain, bool thunder)
+{
+	raining = rain;
+	rainTime = rain ? random.nextInt(12000) + 12000 : 0;
+	thundering = thunder;
+	thunderTime = thunder ? random.nextInt(12000) + 3600 : 0;
 }
 
 // B173-JAVA-METHOD: net.minecraft.src.World#func_27162_g(float)

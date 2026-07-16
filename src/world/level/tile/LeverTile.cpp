@@ -169,27 +169,28 @@ void LeverTile::attack(Level &level, int_t x, int_t y, int_t z, Player &player)
 	use(level, x, y, z, player);
 }
 
-bool LeverTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool LeverTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	(void)dir;
 	// b173: isPoweringTo - powered bit set
 	return (level.getData(x, y, z) & 8) > 0;
 }
 
-bool LeverTile::isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool LeverTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	// b173: isIndirectlyPoweringTo - powered and direction matches orientation
 	int_t data = level.getData(x, y, z);
 	if ((data & 8) == 0)
 		return false;
 
+	// b1.2 LeverTile.getDirectSignal - orient 6 (second floor orientation)
+	// intentionally provides no strong signal, a vanilla quirk
 	int_t orient = data & 7;
-	if (orient == 1 && dir == 5) return true;  // east wall → powers east
-	if (orient == 2 && dir == 4) return true;  // west wall → powers west
-	if (orient == 3 && dir == 3) return true;  // south wall → powers south
-	if (orient == 4 && dir == 2) return true;  // north wall → powers north
-	if (orient == 5 && dir == 1) return true;  // ceiling → powers up
-	if (orient == 6 && dir == 1) return true;  // ceiling → powers up
+	if (orient == 5 && dir == 1) return true;
+	if (orient == 4 && dir == 2) return true;
+	if (orient == 3 && dir == 3) return true;
+	if (orient == 2 && dir == 4) return true;
+	if (orient == 1 && dir == 5) return true;
 	return false;
 }
 

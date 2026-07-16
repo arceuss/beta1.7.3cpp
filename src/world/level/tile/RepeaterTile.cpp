@@ -73,12 +73,12 @@ bool RepeaterTile::shouldRenderFace(LevelSource &level, int_t x, int_t y, int_t 
 	return Tile::shouldRenderFace(level, x, y, z, face);
 }
 
-bool RepeaterTile::isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool RepeaterTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
-	return isDirectSignalTo(level, x, y, z, dir);
+	return getSignal(level, x, y, z, dir);
 }
 
-bool RepeaterTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool RepeaterTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	if (!repeaterPowered)
 		return false;
@@ -114,16 +114,16 @@ bool RepeaterTile::hasInputSignal(Level &level, int_t x, int_t y, int_t z, int_t
 	switch (data & 3)
 	{
 	case 0:
-		return level.isBlockIndirectlyProvidingPowerTo(x, y, z + 1, 3)
+		return level.getSignal(x, y, z + 1, 3)
 			|| (level.getTile(x, y, z + 1) == Tile::redstoneWire.id && level.getData(x, y, z + 1) > 0);
 	case 1:
-		return level.isBlockIndirectlyProvidingPowerTo(x - 1, y, z, 4)
+		return level.getSignal(x - 1, y, z, 4)
 			|| (level.getTile(x - 1, y, z) == Tile::redstoneWire.id && level.getData(x - 1, y, z) > 0);
 	case 2:
-		return level.isBlockIndirectlyProvidingPowerTo(x, y, z - 1, 2)
+		return level.getSignal(x, y, z - 1, 2)
 			|| (level.getTile(x, y, z - 1) == Tile::redstoneWire.id && level.getData(x, y, z - 1) > 0);
 	case 3:
-		return level.isBlockIndirectlyProvidingPowerTo(x + 1, y, z, 5)
+		return level.getSignal(x + 1, y, z, 5)
 			|| (level.getTile(x + 1, y, z) == Tile::redstoneWire.id && level.getData(x + 1, y, z) > 0);
 	default:
 		return false;

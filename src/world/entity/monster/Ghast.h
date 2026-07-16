@@ -25,6 +25,7 @@ public:
 	void tick() override;
 	void updateAi() override;
 	void travel(float x, float z) override;
+	void causeFallDamage(float distance) override;
 	bool canSpawn() override;
 	int_t getMaxSpawnClusterSize() override;
 

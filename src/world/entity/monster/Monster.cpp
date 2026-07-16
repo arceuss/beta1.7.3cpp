@@ -67,5 +67,13 @@ bool Monster::canSpawn()
 	int_t z = Mth::floor(this->z);
 	if (level.getBrightness(LightLayer::Sky, x, y, z) > random.nextInt(32))
 		return false;
-	return level.getBrightness(LightLayer::Block, x, y, z) <= random.nextInt(8) && PathfinderMob::canSpawn();
+	int_t light = level.getRawBrightness(x, y, z);
+	if (level.isThundering())
+	{
+		int_t oldDarken = level.skyDarken;
+		level.skyDarken = 10;
+		light = level.getRawBrightness(x, y, z);
+		level.skyDarken = oldDarken;
+	}
+	return light <= random.nextInt(8) && PathfinderMob::canSpawn();
 }

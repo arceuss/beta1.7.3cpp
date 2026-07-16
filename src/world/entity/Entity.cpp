@@ -839,9 +839,13 @@ AABB *Entity::getCollideAgainstBox(Entity &entity)
 
 void Entity::rideTick()
 {
-	if (riding == nullptr || riding->removed)
+	if (riding == nullptr)
+		return;
+	// vanilla updateRidden just nulls the field when the vehicle died - no
+	// dismount position snap
+	if (riding->removed)
 	{
-		ride(nullptr);
+		riding = nullptr;
 		return;
 	}
 

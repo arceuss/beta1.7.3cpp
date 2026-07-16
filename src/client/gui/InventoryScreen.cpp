@@ -525,10 +525,10 @@ const ItemInstance *InventoryScreen::getSlotItem(int_t slot) const
 {
 	if (slot == SLOT_RESULT)
 		return craftingResult.isEmpty() ? nullptr : &craftingResult;
-	if (slot >= SLOT_CRAFTING_BASE)
+	if (slot >= SLOT_CRAFTING_BASE && slot < SLOT_CRAFTING_BASE + static_cast<int_t>(craftingSlots.size()))
 	{
 		int_t craftingSlot = slot - SLOT_CRAFTING_BASE;
-		if (craftingSlot >= 0 && craftingSlot < static_cast<int_t>(craftingSlots.size()) && !craftingSlots[craftingSlot].isEmpty())
+		if (!craftingSlots[craftingSlot].isEmpty())
 			return &craftingSlots[craftingSlot];
 		return nullptr;
 	}

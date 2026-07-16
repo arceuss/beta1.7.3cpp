@@ -17,6 +17,7 @@ public:
 	float getSwelling(float a) const;
 	bool isPowered() const;
 	void onStruckByLightning(Entity &lightning) override;
+	void die(Entity *source) override;
 
 protected:
 	void addAdditionalSaveData(CompoundTag &tag) override;

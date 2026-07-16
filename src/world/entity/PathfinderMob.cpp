@@ -98,7 +98,7 @@ void PathfinderMob::updateAi()
 		}
 
 		if (attackTarget != nullptr)
-			lookAt(*attackTarget, 30.0f);
+			lookAt(*attackTarget, 30.0f, 30.0f);
 		if (horizontalCollision && !hasPath())
 			jumping = true;
 		if (random.nextFloat() < 0.8f && (inWater || inLava))

@@ -9,4 +9,5 @@ public:
 
 	int_t getIcon(const ItemInstance &stack) const override;
 	jstring getDescriptionId(const ItemInstance &stack) const;
+	void saddleEntity(ItemInstance &stack, Mob &target) const override;
 };

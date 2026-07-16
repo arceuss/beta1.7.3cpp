@@ -26,6 +26,7 @@ public:
 	Squid(Level &level);
 	jstring getEncodeId() const override { return u"Squid"; }
 	bool isInWater() override;
+	bool isWaterMob() override;
 	void aiStep() override;
 	void travel(float var1, float var2) override;
 	bool canSpawn() override;

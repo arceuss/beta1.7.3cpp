@@ -131,26 +131,25 @@ void ButtonTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"random.click", 0.3f, 0.5f);
 }
 
-bool ButtonTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool ButtonTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	(void)dir;
 	return (level.getData(x, y, z) & 8) != 0;
 }
 
-bool ButtonTile::isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool ButtonTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	int_t data = level.getData(x, y, z);
 	if ((data & 8) == 0)
 		return false;
 
+	// b1.2 ButtonTile.getDirectSignal - strong signal toward the attached wall
 	int_t orient = data & 7;
-	// Signal goes toward the wall the button is attached to
-	// orient 1 → east wall (dir 5 = EAST), orient 2 → west wall (dir 4 = WEST)
-	// orient 3 → south wall (dir 3 = SOUTH), orient 4 → north wall (dir 2 = NORTH)
-	if (orient == 1 && dir == 5) return true;
-	if (orient == 2 && dir == 4) return true;
-	if (orient == 3 && dir == 3) return true;
+	if (orient == 5 && dir == 1) return true;
 	if (orient == 4 && dir == 2) return true;
+	if (orient == 3 && dir == 3) return true;
+	if (orient == 2 && dir == 4) return true;
+	if (orient == 1 && dir == 5) return true;
 	return false;
 }
 

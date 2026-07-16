@@ -48,7 +48,7 @@ void Skeleton::checkHurtTarget(Entity &entity, float distance)
 	{
 		auto arrow = std::make_shared<EntityArrow>(level, *this);
 		arrow->y += 1.4f;
-		double dy = entity.y + entity.getHeadHeight() - 0.2 - arrow->y;
+		double dy = entity.y + entity.getHeadHeight() - 0.2f - arrow->y;
 		float flat = Mth::sqrt(dx * dx + dz * dz) * 0.2f;
 		level.playSoundAtEntity(*this, u"random.bow", 1.0f, 1.0f / (random.nextFloat() * 0.4f + 0.8f));
 		level.addEntity(arrow);

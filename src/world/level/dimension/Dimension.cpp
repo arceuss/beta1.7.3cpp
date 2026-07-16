@@ -1,5 +1,6 @@
 #include "world/level/dimension/Dimension.h"
 
+#include "world/level/dimension/HellDimension.h"
 #include "world/level/Level.h"
 
 #include "world/level/tile/Tile.h"
@@ -117,9 +118,9 @@ bool Dimension::mayRespawn()
 
 Dimension *Dimension::getNew(Level &level, int_t id)
 {
-	if (id == 0)
-		return new Dimension(level);
-	// if (id == -1)
-	// 	return new HellDimension(level);
-	return nullptr;
+	if (id == -1)
+		return new HellDimension(level);
+	// unknown ids fall back to the overworld so a bad dimension byte from a
+	// server can never leave a Level with a null dimension
+	return new Dimension(level);
 }

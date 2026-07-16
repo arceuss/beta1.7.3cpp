@@ -12,8 +12,8 @@ public:
 
 	int_t getTickDelay() override { return 20; }
 	bool isSignalSource() override { return true; }
-	bool isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
-	bool isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
+	bool getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
+	bool getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
 	void entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity) override;
 	void tick(Level &level, int_t x, int_t y, int_t z, Random &random) override;
 };

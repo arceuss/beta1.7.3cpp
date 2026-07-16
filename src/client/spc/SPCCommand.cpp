@@ -9,6 +9,7 @@
 #include "client/Minecraft.h"
 #include "client/gui/ChatLine.h"
 #include "client/gui/Font.h"
+#include "client/locale/Language.h"
 #include "java/String.h"
 #include "java/System.h"
 #include "util/Mth.h"
@@ -32,6 +33,7 @@
 #include "world/entity/item/EntityItem.h"
 #include "world/entity/player/InventoryPlayer.h"
 #include "world/item/Item.h"
+#include "world/item/ItemArmor.h"
 #include "world/item/ItemInstance.h"
 #include "world/item/ItemPickaxe.h"
 #include "world/item/Items.h"
@@ -225,10 +227,30 @@ const std::map<jstring, int_t> &itemAliases()
 		return aliases;
 	initialized = true;
 
+	// SPC populates ITEMNAMES from the translated display names (lowercased),
+	// so "Golden Apple" resolves as goldenapple; description ids also resolve
+	Language &language = Language::getInstance();
 	for (Item *item : Item::items)
 	{
-		if (item != nullptr && !item->getDescriptionId().empty())
-			addAlias(aliases, item->getDescriptionId(), item->getShiftedIndex());
+		if (item == nullptr || item->getDescriptionId().empty())
+			continue;
+		addAlias(aliases, item->getDescriptionId(), item->getShiftedIndex());
+		jstring displayName = language.getElementName(item->getDescriptionId());
+		if (!displayName.empty())
+			addAlias(aliases, displayName, item->getShiftedIndex());
+	}
+
+	for (int_t tileId = 1; tileId < static_cast<int_t>(Tile::tiles.size()) && tileId < 256; ++tileId)
+	{
+		Tile *tile = Tile::tiles[tileId];
+		if (tile == nullptr || tile->descriptionId.empty())
+			continue;
+		jstring descAlias = normalizeName(tile->descriptionId);
+		if (!descAlias.empty() && aliases.find(descAlias) == aliases.end())
+			aliases[descAlias] = tileId;
+		jstring displayName = normalizeName(language.getElementName(tile->descriptionId));
+		if (!displayName.empty() && aliases.find(displayName) == aliases.end())
+			aliases[displayName] = tileId;
 	}
 
 	addItemAliases(aliases, Items::flintAndSteel, {u"flintsteel", u"flintandsteel"});
@@ -283,6 +305,64 @@ const std::map<jstring, int_t> &itemAliases()
 	addItemAliases(aliases, Items::axeGold, {u"goldaxe", u"goldenaxe"});
 	addItemAliases(aliases, Items::hoeGold, {u"goldhoe", u"goldenhoe"});
 
+	addItemAliases(aliases, Items::apple);
+	addItemAliases(aliases, Items::appleGold, {u"goldapple", u"goldenapple"});
+	addItemAliases(aliases, Items::bow);
+	addItemAliases(aliases, Items::arrow, {u"arrows"});
+	addItemAliases(aliases, Items::cookie);
+	addItemAliases(aliases, Items::porkchopRaw, {u"pork", u"rawpork", u"porkchop"});
+	addItemAliases(aliases, Items::porkchopCooked, {u"cookedpork", u"grilledpork", u"cookedporkchop"});
+	addItemAliases(aliases, Items::fishRaw, {u"fish", u"rawfish"});
+	addItemAliases(aliases, Items::fishCooked, {u"cookedfish"});
+	addItemAliases(aliases, Items::bowlSoup, {u"soup", u"mushroomsoup", u"mushroomstew", u"stew"});
+	addItemAliases(aliases, Items::cake);
+	addItemAliases(aliases, Items::egg, {u"eggs"});
+	addItemAliases(aliases, Items::painting);
+	addItemAliases(aliases, Items::sign);
+	addItemAliases(aliases, Items::doorWood, {u"door", u"woodendoor", u"wooddoor"});
+	addItemAliases(aliases, Items::doorIron, {u"irondoor"});
+	addItemAliases(aliases, Items::bed);
+	addItemAliases(aliases, Items::map);
+	addItemAliases(aliases, Items::minecart, {u"cart"});
+	addItemAliases(aliases, Items::minecartPowered, {u"poweredminecart", u"furnacecart", u"furnaceminecart"});
+	addItemAliases(aliases, Items::minecartChest, {u"chestcart", u"chestminecart", u"storageminecart"});
+	addItemAliases(aliases, Items::boat);
+	addItemAliases(aliases, Items::saddle);
+	addItemAliases(aliases, Items::fishingRod, {u"rod", u"fishingpole"});
+	addItemAliases(aliases, Items::shears, {u"shear"});
+	addItemAliases(aliases, Items::snowball, {u"snowballs"});
+	addItemAliases(aliases, Items::slimeball, {u"slime"});
+	addItemAliases(aliases, Items::bone, {u"bones"});
+	addItemAliases(aliases, Items::glowstoneDust, {u"glowdust", u"lightstonedust"});
+	addItemAliases(aliases, Items::redstoneRepeater, {u"repeater", u"diode"});
+	addItemAliases(aliases, Items::bucketEmpty, {u"bucket"});
+	addItemAliases(aliases, Items::bucketWater, {u"waterbucket"});
+	addItemAliases(aliases, Items::bucketLava, {u"lavabucket"});
+	addItemAliases(aliases, Items::bucketMilk, {u"milkbucket", u"milk"});
+	addItemAliases(aliases, Items::record13, {u"record", u"gold13record", u"goldrecord"});
+	addItemAliases(aliases, Items::recordCat, {u"catrecord", u"greenrecord"});
+
+	addItemAliases(aliases, Items::helmetLeather, {u"leatherhelmet", u"leathercap"});
+	addItemAliases(aliases, Items::plateLeather, {u"leatherchestplate", u"leathertunic"});
+	addItemAliases(aliases, Items::legsLeather, {u"leatherleggings", u"leatherpants"});
+	addItemAliases(aliases, Items::bootsLeather, {u"leatherboots"});
+	addItemAliases(aliases, Items::helmetChain, {u"chainhelmet", u"chainmailhelmet"});
+	addItemAliases(aliases, Items::plateChain, {u"chainchestplate", u"chainmailchestplate"});
+	addItemAliases(aliases, Items::legsChain, {u"chainleggings", u"chainmailleggings"});
+	addItemAliases(aliases, Items::bootsChain, {u"chainboots", u"chainmailboots"});
+	addItemAliases(aliases, Items::helmetIron, {u"ironhelmet"});
+	addItemAliases(aliases, Items::plateIron, {u"ironchestplate", u"ironplate"});
+	addItemAliases(aliases, Items::legsIron, {u"ironleggings", u"ironpants"});
+	addItemAliases(aliases, Items::bootsIron, {u"ironboots"});
+	addItemAliases(aliases, Items::helmetDiamond, {u"diamondhelmet"});
+	addItemAliases(aliases, Items::plateDiamond, {u"diamondchestplate", u"diamondplate"});
+	addItemAliases(aliases, Items::legsDiamond, {u"diamondleggings", u"diamondpants"});
+	addItemAliases(aliases, Items::bootsDiamond, {u"diamondboots"});
+	addItemAliases(aliases, Items::helmetGold, {u"goldhelmet", u"goldenhelmet"});
+	addItemAliases(aliases, Items::plateGold, {u"goldchestplate", u"goldenchestplate"});
+	addItemAliases(aliases, Items::legsGold, {u"goldleggings", u"goldenleggings"});
+	addItemAliases(aliases, Items::bootsGold, {u"goldboots", u"goldenboots"});
+
 	addTileAliases(aliases, 1, {u"stone"});
 	addTileAliases(aliases, 2, {u"grass"});
 	addTileAliases(aliases, 3, {u"dirt"});
@@ -321,6 +401,46 @@ const std::map<jstring, int_t> &itemAliases()
 	addTileAliases(aliases, 83, {u"reedblock"});
 	addTileAliases(aliases, 86, {u"pumpkin"});
 	addTileAliases(aliases, 50, {u"torch"});
+	addTileAliases(aliases, 6, {u"sapling"});
+	addTileAliases(aliases, 19, {u"sponge"});
+	addTileAliases(aliases, 20, {u"glass"});
+	addTileAliases(aliases, 22, {u"lapisblock", u"lapislazuliblock"});
+	addTileAliases(aliases, 23, {u"dispenser"});
+	addTileAliases(aliases, 25, {u"noteblock", u"note"});
+	addTileAliases(aliases, 27, {u"poweredrail", u"goldenrail", u"boosterrail", u"booster"});
+	addTileAliases(aliases, 28, {u"detectorrail", u"detector"});
+	addTileAliases(aliases, 29, {u"stickypiston"});
+	addTileAliases(aliases, 30, {u"web", u"cobweb"});
+	addTileAliases(aliases, 31, {u"tallgrass", u"longgrass"});
+	addTileAliases(aliases, 32, {u"deadbush", u"deadshrub"});
+	addTileAliases(aliases, 33, {u"piston"});
+	addTileAliases(aliases, 35, {u"wool", u"cloth", u"whitewool"});
+	addTileAliases(aliases, 41, {u"goldblock", u"blockofgold"});
+	addTileAliases(aliases, 42, {u"ironblock", u"blockofiron"});
+	addTileAliases(aliases, 45, {u"brick", u"bricks", u"brickblock"});
+	addTileAliases(aliases, 46, {u"tnt"});
+	addTileAliases(aliases, 47, {u"bookshelf", u"bookcase"});
+	addTileAliases(aliases, 52, {u"mobspawner", u"spawner"});
+	addTileAliases(aliases, 53, {u"woodstairs", u"woodenstairs", u"stairs"});
+	addTileAliases(aliases, 54, {u"chest"});
+	addTileAliases(aliases, 57, {u"diamondblock", u"blockofdiamond"});
+	addTileAliases(aliases, 65, {u"ladder"});
+	addTileAliases(aliases, 66, {u"rail", u"rails", u"track", u"tracks", u"minecarttrack"});
+	addTileAliases(aliases, 67, {u"cobblestairs", u"cobblestonestairs", u"stonestairs"});
+	addTileAliases(aliases, 69, {u"lever", u"switch"});
+	addTileAliases(aliases, 70, {u"stoneplate", u"stonepressureplate", u"pressureplate"});
+	addTileAliases(aliases, 72, {u"woodplate", u"woodenpressureplate", u"woodpressureplate"});
+	addTileAliases(aliases, 76, {u"redstonetorch", u"redtorch"});
+	addTileAliases(aliases, 77, {u"button", u"stonebutton"});
+	addTileAliases(aliases, 80, {u"snowblock"});
+	addTileAliases(aliases, 84, {u"jukebox"});
+	addTileAliases(aliases, 85, {u"fence", u"woodfence", u"woodenfence"});
+	addTileAliases(aliases, 87, {u"netherrack", u"netherstone", u"hellrock", u"bloodstone"});
+	addTileAliases(aliases, 88, {u"soulsand", u"slowsand"});
+	addTileAliases(aliases, 89, {u"glowstone", u"lightstone", u"glowstoneblock"});
+	addTileAliases(aliases, 91, {u"jackolantern", u"pumpkinlantern"});
+	addTileAliases(aliases, 95, {u"lockedchest", u"aprilchest"});
+	addTileAliases(aliases, 96, {u"trapdoor", u"hatch"});
 	return aliases;
 }
 
@@ -740,6 +860,46 @@ void SPCCommand::execute(Minecraft &mc, const jstring &input)
 		noclip = !noclip;
 		mc.player->noPhysics = flying || noclip;
 		announceToggle(u"Noclip", noclip);
+		return;
+	}
+
+	if (cmd == u"weather")
+	{
+		if (!requireLevel(mc))
+			return;
+		if (mc.isOnline())
+		{
+			sendError(u"weather is singleplayer only");
+			return;
+		}
+		if (parts.size() == 1)
+		{
+			jstring state = mc.level->isRaining()
+				? (mc.level->isThundering() ? jstring(u"thunderstorm") : jstring(u"rain"))
+				: jstring(u"clear");
+			addMessage(u"00a77Weather: " + state);
+			return;
+		}
+		jstring mode = lowerAscii(parts[1]);
+		if (matches(mode, {u"clear", u"off", u"sun"}))
+		{
+			mc.level->setWeather(false, false);
+			addMessage(u"00a77Weather cleared");
+			return;
+		}
+		if (matches(mode, {u"rain", u"on"}))
+		{
+			mc.level->setWeather(true, false);
+			addMessage(u"00a77Rain started");
+			return;
+		}
+		if (matches(mode, {u"thunder", u"storm", u"lightning"}))
+		{
+			mc.level->setWeather(true, true);
+			addMessage(u"00a77Thunderstorm started");
+			return;
+		}
+		sendError(u"Usage: weather [clear|rain|thunder]");
 		return;
 	}
 
@@ -1404,7 +1564,7 @@ void SPCCommand::execute(Minecraft &mc, const jstring &input)
 	{
 		addMessage(u"\u00a76--- SPC Commands ---");
 		addMessage(u"\u00a7e give/i/item, tele/t, pos/p, set/s, goto, rem, listwaypoints/l");
-		addMessage(u"\u00a7e home, return, heal, health, hurt, kill, seed, time, difficulty");
+		addMessage(u"\u00a7e home, return, heal, health, hurt, kill, seed, time, weather, difficulty");
 		addMessage(u"\u00a7e fly, noclip, instantmine, longer, extinguish/ext, setspawn/spawnpoint");
 		addMessage(u"\u00a7e repair, destroy, duplicate/dupe, refill, itemname, itemstack, search");
 		addMessage(u"\u00a7e ascend, descend, jump, removedrops, platform, reset, output");
@@ -1420,7 +1580,7 @@ void SPCCommand::execute(Minecraft &mc, const jstring &input)
 		u"light", u"macro", u"maxstack", u"move", u"music", u"nozzle", u"path", u"portal", u"redstone",
 		u"refkill", u"remote", u"ride", u"shrink", u"sl", u"sprint", u"stacksize", u"startup",
 		u"superheat", u"superpunch", u"temp", u"timeschedule", u"toggleedit", u"toggledropgive",
-		u"togglepickaxe", u"weather", u"world"}))
+		u"togglepickaxe", u"world"}))
 	{
 		sendError(u"Not implemented yet: " + cmd);
 		return;

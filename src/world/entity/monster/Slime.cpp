@@ -13,8 +13,9 @@ Slime::Slime(Level &level) : Mob(level)
 	dataWatcher.addObject(16, static_cast<byte_t>(1));
 	textureName = u"/mob/slime.png";
 	renderOffset = 0.0f;
+	int_t size = 1 << random.nextInt(3);
 	slimeJumpDelay = random.nextInt(20) + 10;
-	setSlimeSize(1 << random.nextInt(3));
+	setSlimeSize(size);
 }
 
 void Slime::setSlimeSize(int_t size)
@@ -70,7 +71,7 @@ bool Slime::canSpawn()
 	int_t chunkX = Mth::floor(x) >> 4;
 	int_t chunkZ = Mth::floor(z) >> 4;
 	Random chunkRandom(level.seed + chunkX * chunkX * 4987142 + chunkX * 5947611 + chunkZ * chunkZ * 4392871LL + chunkZ * 389711 ^ 987234911L);
-	return (getSlimeSize() == 1 || level.difficulty > 0) && random.nextInt(10) == 0 && chunkRandom.nextInt(10) == 0 && y < 16.0 && Mob::canSpawn();
+	return (getSlimeSize() == 1 || level.difficulty > 0) && random.nextInt(10) == 0 && chunkRandom.nextInt(10) == 0 && y < 16.0;
 }
 
 void Slime::addAdditionalSaveData(CompoundTag &tag)
@@ -92,7 +93,7 @@ void Slime::updateAi()
 	if (nearest != nullptr)
 		target = nearest.get();
 	if (target != nullptr)
-		lookAt(*target, 10.0f);
+		lookAt(*target, 10.0f, 20.0f);
 	if (onGround && slimeJumpDelay-- <= 0)
 	{
 		slimeJumpDelay = random.nextInt(20) + 10;

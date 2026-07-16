@@ -349,27 +349,27 @@ bool PistonBaseTile::doExtend(Level &level, int_t x, int_t y, int_t z, int_t dir
 
 bool PistonBaseTile::isIndirectlyPowered(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
-	if (dir != 0 && level.isBlockIndirectlyProvidingPowerTo(x, y - 1, z, 0))
+	if (dir != 0 && level.getSignal(x, y - 1, z, 0))
 		return true;
-	if (dir != 1 && level.isBlockIndirectlyProvidingPowerTo(x, y + 1, z, 1))
+	if (dir != 1 && level.getSignal(x, y + 1, z, 1))
 		return true;
-	if (dir != 2 && level.isBlockIndirectlyProvidingPowerTo(x, y, z - 1, 2))
+	if (dir != 2 && level.getSignal(x, y, z - 1, 2))
 		return true;
-	if (dir != 3 && level.isBlockIndirectlyProvidingPowerTo(x, y, z + 1, 3))
+	if (dir != 3 && level.getSignal(x, y, z + 1, 3))
 		return true;
-	if (dir != 5 && level.isBlockIndirectlyProvidingPowerTo(x + 1, y, z, 5))
+	if (dir != 5 && level.getSignal(x + 1, y, z, 5))
 		return true;
-	if (dir != 4 && level.isBlockIndirectlyProvidingPowerTo(x - 1, y, z, 4))
+	if (dir != 4 && level.getSignal(x - 1, y, z, 4))
 		return true;
-	if (level.isBlockIndirectlyProvidingPowerTo(x, y, z, 0))
+	if (level.getSignal(x, y, z, 0))
 		return true;
-	if (level.isBlockIndirectlyProvidingPowerTo(x, y + 2, z, 1))
+	if (level.getSignal(x, y + 2, z, 1))
 		return true;
-	if (level.isBlockIndirectlyProvidingPowerTo(x, y + 1, z - 1, 2))
+	if (level.getSignal(x, y + 1, z - 1, 2))
 		return true;
-	if (level.isBlockIndirectlyProvidingPowerTo(x, y + 1, z + 1, 3))
+	if (level.getSignal(x, y + 1, z + 1, 3))
 		return true;
-	if (level.isBlockIndirectlyProvidingPowerTo(x - 1, y + 1, z, 4))
+	if (level.getSignal(x - 1, y + 1, z, 4))
 		return true;
-	return level.isBlockIndirectlyProvidingPowerTo(x + 1, y + 1, z, 5);
+	return level.getSignal(x + 1, y + 1, z, 5);
 }
