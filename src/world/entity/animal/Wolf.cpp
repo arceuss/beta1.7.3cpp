@@ -16,6 +16,22 @@ namespace
 	constexpr byte_t WOLF_SITTING = 1;
 	constexpr byte_t WOLF_ANGRY = 2;
 	constexpr byte_t WOLF_TAMED = 4;
+
+	bool equalsIgnoreCase(const jstring &left, const jstring &right)
+	{
+		if (left.size() != right.size())
+			return false;
+		for (size_t i = 0; i < left.size(); ++i)
+		{
+			char16_t l = left[i];
+			char16_t r = right[i];
+			if (l >= u'A' && l <= u'Z') l += u'a' - u'A';
+			if (r >= u'A' && r <= u'Z') r += u'a' - u'A';
+			if (l != r)
+				return false;
+		}
+		return true;
+	}
 }
 
 Wolf::Wolf(Level &level) : Animal(level)
@@ -27,6 +43,7 @@ Wolf::Wolf(Level &level) : Animal(level)
 	setSize(0.8f, 0.8f);
 	runSpeed = 1.1f;
 	health = 8;
+	makeStepSound = false;
 }
 
 void Wolf::tick()
@@ -116,10 +133,40 @@ bool Wolf::hurt(Entity *source, int_t damage)
 		damage = (damage + 1) / 2;
 	if (!Animal::hurt(source, damage))
 		return false;
-	if (source != nullptr && source != this)
+	if (!isWolfTamed() && !isWolfAngry())
 	{
-		if (!isWolfTamed() && !isWolfAngry() && dynamic_cast<Player *>(source) != nullptr)
+		if (dynamic_cast<Player *>(source) != nullptr)
+		{
 			setWolfAngry(true);
+			setTarget(level.getEntityRef(*source));
+		}
+
+		if (EntityArrow *arrow = dynamic_cast<EntityArrow *>(source))
+		{
+			if (auto arrowOwner = arrow->owner.lock())
+				source = arrowOwner.get();
+		}
+
+		if (dynamic_cast<Mob *>(source) != nullptr)
+		{
+			AABB *aabb = AABB::newTemp(x, y, z, x + 1.0, y + 1.0, z + 1.0)->grow(16.0, 4.0, 16.0);
+			for (const auto &entity : level.getEntities(nullptr, *aabb))
+			{
+				Wolf *wolf = dynamic_cast<Wolf *>(entity.get());
+				if (wolf != nullptr && !wolf->isWolfTamed() && wolf->getTarget() == nullptr)
+				{
+					wolf->setTarget(level.getEntityRef(*source));
+					if (dynamic_cast<Player *>(source) != nullptr)
+						wolf->setWolfAngry(true);
+				}
+			}
+		}
+	}
+	else if (source != this && source != nullptr)
+	{
+		Player *sourcePlayer = dynamic_cast<Player *>(source);
+		if (isWolfTamed() && sourcePlayer != nullptr && equalsIgnoreCase(sourcePlayer->name, getWolfOwner()))
+			return true;
 		setTarget(level.getEntityRef(*source));
 	}
 	return true;
@@ -166,17 +213,21 @@ bool Wolf::interact(Player &player)
 			if (food->isWolfsFavoriteMeat() && dataWatcher.getWatchableObjectInt(18) < 20)
 			{
 				selected->remove(1);
-				health += food->getHealAmount();
-				if (health > 20)
-					health = 20;
+				if (selected->stackSize <= 0)
+					player.inventory.setItem(player.inventory.currentItem, ItemInstance());
+				heal(static_cast<ItemFood *>(Items::porkchopRaw)->getHealAmount());
 				return true;
 			}
 		}
 	}
-	if (player.name == getWolfOwner())
+	if (equalsIgnoreCase(player.name, getWolfOwner()))
 	{
-		setWolfSitting(!isWolfSitting());
-		setTarget(nullptr);
+		if (!level.isOnline)
+		{
+			setWolfSitting(!isWolfSitting());
+			jumping = false;
+			setPath(nullptr);
+		}
 		return true;
 	}
 	return false;
@@ -305,6 +356,11 @@ bool Wolf::isMovementCeased()
 	return isWolfSitting() || shakeActive;
 }
 
+int_t Wolf::getMaxHeadXRot()
+{
+	return isWolfSitting() ? 20 : Animal::getMaxHeadXRot();
+}
+
 std::shared_ptr<Entity> Wolf::findAttackTarget()
 {
 	if (isWolfAngry())
@@ -314,18 +370,31 @@ std::shared_ptr<Entity> Wolf::findAttackTarget()
 
 void Wolf::checkHurtTarget(Entity &entity, float distance)
 {
-	if (attackTime <= 0 && distance < 1.5f && entity.bb.y1 > bb.y0 && entity.bb.y0 < bb.y1)
+	if (!(distance > 2.0f) || !(distance < 6.0f) || random.nextInt(10) != 0)
 	{
-		attackTime = 20;
-		entity.hurt(this, isWolfTamed() ? 4 : 2);
+		if (distance < 1.5f && entity.bb.y1 > bb.y0 && entity.bb.y0 < bb.y1)
+		{
+			attackTime = 20;
+			entity.hurt(this, isWolfTamed() ? 4 : 2);
+		}
+	}
+	else if (onGround)
+	{
+		double dx = entity.x - x;
+		double dz = entity.z - z;
+		float flatDistance = Mth::sqrt(dx * dx + dz * dz);
+		xd = dx / flatDistance * 0.5 * 0.8f + xd * 0.2f;
+		zd = dz / flatDistance * 0.5 * 0.8f + zd * 0.2f;
+		yd = 0.4f;
 	}
 }
 
 void Wolf::updateAi()
 {
-	std::shared_ptr<Player> ownerPlayer;
-	if (isWolfTamed() && !getWolfOwner().empty())
+	Animal::updateAi();
+	if (!holdGround && !hasPath() && isWolfTamed() && riding == nullptr)
 	{
+		std::shared_ptr<Player> ownerPlayer;
 		for (const auto &player : level.players)
 		{
 			if (player != nullptr && player->name == getWolfOwner())
@@ -334,30 +403,29 @@ void Wolf::updateAi()
 				break;
 			}
 		}
-	}
-	if (!getTarget() && !hasPath() && isWolfTamed() && riding == nullptr)
-	{
 		if (ownerPlayer != nullptr)
 		{
 			float ownerDistance = distanceTo(*ownerPlayer);
 			if (ownerDistance > 5.0f)
-				setPath(level.getPathToEntity(*this, *ownerPlayer, 16.0f));
-			if (!hasPath() && ownerDistance > 12.0f)
 			{
-				int_t baseX = Mth::floor(ownerPlayer->x) - 2;
-				int_t baseZ = Mth::floor(ownerPlayer->z) - 2;
-				int_t baseY = Mth::floor(ownerPlayer->bb.y0);
-				for (int_t x = 0; x <= 4; ++x)
+				setPath(level.getPathToEntity(*this, *ownerPlayer, 16.0f));
+				if (!hasPath() && ownerDistance > 12.0f)
 				{
-					for (int_t z = 0; z <= 4; ++z)
+					int_t baseX = Mth::floor(ownerPlayer->x) - 2;
+					int_t baseZ = Mth::floor(ownerPlayer->z) - 2;
+					int_t baseY = Mth::floor(ownerPlayer->bb.y0);
+					for (int_t x = 0; x <= 4; ++x)
 					{
-						if ((x < 1 || z < 1 || x > 3 || z > 3)
-							&& level.isSolidTile(baseX + x, baseY - 1, baseZ + z)
-							&& !level.isSolidTile(baseX + x, baseY, baseZ + z)
-							&& !level.isSolidTile(baseX + x, baseY + 1, baseZ + z))
+						for (int_t z = 0; z <= 4; ++z)
 						{
-							moveTo(baseX + x + 0.5f, baseY, baseZ + z + 0.5f, yRot, xRot);
-							goto wolf_follow_done;
+							if ((x < 1 || z < 1 || x > 3 || z > 3)
+								&& level.isSolidTile(baseX + x, baseY - 1, baseZ + z)
+								&& !level.isSolidTile(baseX + x, baseY, baseZ + z)
+								&& !level.isSolidTile(baseX + x, baseY + 1, baseZ + z))
+							{
+								moveTo(baseX + x + 0.5f, baseY, baseZ + z + 0.5f, yRot, xRot);
+								goto wolf_follow_done;
+							}
 						}
 					}
 				}
@@ -370,20 +438,18 @@ void Wolf::updateAi()
 	}
 	else if (getTarget() == nullptr && !hasPath() && !isWolfTamed() && level.random.nextInt(100) == 0)
 	{
-		AABB *huntBox = bb.grow(16.0, 4.0, 16.0);
-		const auto &nearby = level.getEntities(this, *huntBox);
-		for (const auto &entity : nearby)
+		AABB *huntBox = AABB::newTemp(x, y, z, x + 1.0, y + 1.0, z + 1.0)->grow(16.0, 4.0, 16.0);
+		std::vector<std::shared_ptr<Entity>> sheep;
+		for (const auto &entity : level.getEntities(this, *huntBox))
 		{
 			if (dynamic_cast<Sheep *>(entity.get()) != nullptr)
-			{
-				setTarget(entity);
-				break;
-			}
+				sheep.push_back(entity);
 		}
+		if (!sheep.empty())
+			setTarget(sheep[level.random.nextInt(static_cast<int_t>(sheep.size()))]);
 	}
 
 wolf_follow_done:
-	Animal::updateAi();
 	if (isInWater())
 		setWolfSitting(false);
 	if (!level.isOnline)

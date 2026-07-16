@@ -71,8 +71,11 @@ void MultiplayerLevel::tick()
 	if (newDarken != skyDarken)
 	{
 		skyDarken = newDarken;
+		// b1.2 MultiPlayerLevel.tick: mark sky-lit chunks dirty - allChanged()
+		// tears down every renderer and made the whole world visibly reload on
+		// each dusk/dawn skylight step
 		for (LevelListener *listener : listeners)
-			listener->allChanged();
+			listener->skyColorChanged();
 	}
 
 	for (int_t i = 0; i < 10 && !pendingEntities.empty(); ++i)
@@ -82,8 +85,14 @@ void MultiplayerLevel::tick()
 			addEntity(entity);
 	}
 
+	// a dimension-change respawn packet swaps the handler's level while we are
+	// inside this frame - keep *this alive until the very end of tick()
+	std::shared_ptr<MultiplayerLevel> keepAlive;
 	if (networkHandler != nullptr)
+	{
+		keepAlive = networkHandler->getLevel();
 		networkHandler->processReadPackets();
+	}
 
 	for (auto it = pendingBlockChanges.begin(); it != pendingBlockChanges.end();)
 	{

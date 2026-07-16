@@ -138,7 +138,12 @@ void Squid::updateAi()
 	}
 }
 
+bool Squid::isWaterMob()
+{
+	return true;
+}
+
 bool Squid::canSpawn()
 {
-	return y > 45.0 && y < 63.0 && level.isUnobstructed(bb) && level.getCubes(*this, bb).empty() && level.isMaterialInBB(bb, Material::water);
+	return level.isUnobstructed(bb);
 }

@@ -41,7 +41,9 @@ bool BedTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 		int_t hz = z + headBlockToFootBlockMap[dir][1];
 		if (level.getTile(hx, y, hz) == id)
 			level.setTile(hx, y, hz, 0);
-		(void)level.createExplosion(nullptr, x + 0.5f, y + 0.5f, z + 0.5f, 5.0f, true);
+		// vanilla mutates its coordinates while clearing the two halves, so the
+		// explosion is centered on the head part
+		(void)level.createExplosion(nullptr, hx + 0.5f, y + 0.5f, hz + 0.5f, 5.0f, true);
 		return true;
 	}
 
@@ -161,6 +163,36 @@ void BedTile::setBedOccupied(Level &level, int_t x, int_t y, int_t z, bool occup
 	else
 		data &= ~4;
 	level.setData(x, y, z, data);
+}
+
+bool BedTile::getNearestEmptySpot(Level &level, int_t x, int_t y, int_t z, int_t skip, int_t &outX, int_t &outY, int_t &outZ)
+{
+	int_t dir = getDirectionFromMetadata(level.getData(x, y, z));
+	for (int_t step = 0; step <= 1; step++)
+	{
+		int_t x0 = x - headBlockToFootBlockMap[dir][0] * step - 1;
+		int_t z0 = z - headBlockToFootBlockMap[dir][1] * step - 1;
+		int_t x1 = x0 + 2;
+		int_t z1 = z0 + 2;
+		for (int_t cx = x0; cx <= x1; cx++)
+		{
+			for (int_t cz = z0; cz <= z1; cz++)
+			{
+				if (level.isBlockNormalCube(cx, y - 1, cz) && level.isEmptyTile(cx, y, cz) && level.isEmptyTile(cx, y + 1, cz))
+				{
+					if (skip <= 0)
+					{
+						outX = cx;
+						outY = y;
+						outZ = cz;
+						return true;
+					}
+					skip--;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 

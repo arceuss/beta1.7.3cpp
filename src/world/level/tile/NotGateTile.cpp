@@ -22,7 +22,7 @@ NotGateTile::NotGateTile(int_t id, int_t tex, bool torchActive)
 	updateCachedProperties();
 }
 
-bool NotGateTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool NotGateTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	if (!torchActive)
 		return false;
@@ -38,10 +38,10 @@ bool NotGateTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_
 	return true;
 }
 
-bool NotGateTile::isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool NotGateTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	// b173: isIndirectlyPoweringTo — only provides indirect power upward (dir 0 = down)
-	return dir == 0 ? isDirectSignalTo(level, x, y, z, dir) : false;
+	return dir == 0 ? getSignal(level, x, y, z, dir) : false;
 }
 
 void NotGateTile::onPlace(Level &level, int_t x, int_t y, int_t z)
@@ -139,11 +139,11 @@ bool NotGateTile::isAttachedBlockPowered(Level &level, int_t x, int_t y, int_t z
 {
 	// b173: func_30002_h — check if the block the torch is attached to is indirectly powered
 	int_t data = level.getData(x, y, z);
-	if (data == 5) return level.isBlockIndirectlyProvidingPowerTo(x, y - 1, z, 0); // standing on ground → check below
-	if (data == 3) return level.isBlockIndirectlyProvidingPowerTo(x, y, z - 1, 2);   // on south face → check north (z-1)
-	if (data == 4) return level.isBlockIndirectlyProvidingPowerTo(x, y, z + 1, 3);   // on north face → check south (z+1)
-	if (data == 1) return level.isBlockIndirectlyProvidingPowerTo(x - 1, y, z, 4);   // on east face → check west (x-1)
-	if (data == 2) return level.isBlockIndirectlyProvidingPowerTo(x + 1, y, z, 5);   // on west face → check east (x+1)
+	if (data == 5) return level.getSignal(x, y - 1, z, 0); // standing on ground → check below
+	if (data == 3) return level.getSignal(x, y, z - 1, 2);   // on south face → check north (z-1)
+	if (data == 4) return level.getSignal(x, y, z + 1, 3);   // on north face → check south (z+1)
+	if (data == 1) return level.getSignal(x - 1, y, z, 4);   // on east face → check west (x-1)
+	if (data == 2) return level.getSignal(x + 1, y, z, 5);   // on west face → check east (x+1)
 	return false;
 }
 

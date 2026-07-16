@@ -71,7 +71,7 @@ void PistonMovingTile::spawnResources(Level &level, int_t x, int_t y, int_t z, i
 bool PistonMovingTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
 	(void)player;
-	if (level.getTileEntity(x, y, z) == nullptr)
+	if (!level.isOnline && level.getTileEntity(x, y, z) == nullptr)
 	{
 		level.setTile(x, y, z, 0);
 		return true;

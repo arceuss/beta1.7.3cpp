@@ -62,9 +62,9 @@ namespace
 		return lookup;
 	}
 
-	const std::array<BiomeInfo, 10> &getBiomeInfos()
+	const std::array<BiomeInfo, 11> &getBiomeInfos()
 	{
-		static const std::array<BiomeInfo, 10> infos = {{
+		static const std::array<BiomeInfo, 11> infos = {{
 			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Rainforest, 0, 10, 0, 0, true },
 			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, false },
 			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 4, 2, 0, 0, false },
@@ -75,6 +75,7 @@ namespace
 			{ Tile::sand.id, Tile::sand.id, false, TreeStyle::Default, 0, 0, 2, 10, false, false },
 			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 3, 10, 0, 0, false },
 			{ Tile::grass.id, Tile::dirt.id, true, TreeStyle::Default, 0, 0, 0, 0, false },
+			{ Tile::grass.id, Tile::dirt.id, false, TreeStyle::Default, 0, 0, 0, 0, false, false },
 		}};
 		return infos;
 	}
@@ -156,4 +157,30 @@ void BiomeSource::getBiomeBlock(int_t x, int_t z, int_t xd, int_t zd)
 			++index;
 		}
 	}
+}
+
+HellBiomeSource::HellBiomeSource(Level &level) : BiomeSource(level)
+{
+}
+
+double HellBiomeSource::getTemperature(int_t x, int_t z)
+{
+	(void)x; (void)z;
+	return 1.0;
+}
+
+BiomeId HellBiomeSource::getBiome(int_t x, int_t z)
+{
+	(void)x; (void)z;
+	return BiomeId::Hell;
+}
+
+void HellBiomeSource::getBiomeBlock(int_t x, int_t z, int_t xd, int_t zd)
+{
+	(void)x; (void)z;
+	std::size_t count = static_cast<std::size_t>(xd) * static_cast<std::size_t>(zd);
+	temperatures.assign(count, 1.0);
+	downfalls.assign(count, 0.0);
+	noises.assign(count, 0.0);
+	biomes.assign(count, BiomeId::Hell);
 }

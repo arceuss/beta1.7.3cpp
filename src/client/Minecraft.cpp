@@ -26,6 +26,8 @@
 #include "world/phys/AABB.h"
 #include "world/level/chunk/ChunkCache.h"
 #include "world/level/Level.h"
+#include "world/level/Teleporter.h"
+#include "nbt/CompoundTag.h"
 #include "world/level/tile/Tile.h"
 #include "world/item/Items.h"
 #include "world/stats/Achievement.h"
@@ -1163,10 +1165,60 @@ void Minecraft::selectLevel(const jstring &name, const jstring &levelName, long_
 		setLevel(new_level, u"Loading level");
 }
 
+// Minecraft.usePortal
 void Minecraft::toggleDimension()
 {
-	// TODO: Replace this stub with the full Beta dimension/world swap, coordinate scaling, and teleporter placement flow.
-	// LocalPlayer now calls this hook when portal travel completes so the transfer path has a single home.
+	if (level == nullptr || player == nullptr)
+		return;
+
+	std::cout << "Toggling dimension!!" << '\n';
+	int_t newDimension = (player->dimension == -1) ? 0 : -1;
+	player->dimension = newDimension;
+
+	level->removeEntity(player);
+	player->removed = false;
+
+	double x = player->x;
+	double z = player->z;
+	double scale = 8.0;
+	if (newDimension == -1)
+	{
+		x /= scale;
+		z /= scale;
+	}
+	else
+	{
+		x *= scale;
+		z *= scale;
+	}
+	player->moveTo(x, player->y, z, player->yRot, player->xRot);
+	// chunk-guarded tick (vanilla updateEntityWithOptionalForce with force=false):
+	// the scaled destination is normally unloaded, which is what stops the
+	// portal timer from re-firing toggleDimension inside this call
+	if (player->isAlive())
+		level->tick(player, true);
+
+	// vanilla carries the same player object across; Entity holds a Level
+	// reference, so the port recreates the player in the new level and moves
+	// its state over via NBT (same technique the respawn path uses)
+	CompoundTag playerTag;
+	player->saveWithoutId(playerTag);
+
+	std::shared_ptr<Level> newLevel = Util::make_shared<Level>(*level, newDimension);
+	std::shared_ptr<LocalPlayer> newPlayer = std::static_pointer_cast<LocalPlayer>(gameMode->createPlayer(*newLevel));
+	newPlayer->load(playerTag);
+	newPlayer->dimension = newDimension;
+	newPlayer->moveTo(x, player->y, z, player->yRot, player->xRot);
+	this->player = newPlayer;
+
+	setLevel(newLevel, newDimension == -1 ? u"Entering the Nether" : u"Leaving the Nether", newPlayer);
+
+	if (newPlayer->isAlive())
+	{
+		newPlayer->moveTo(x, newPlayer->y, z, newPlayer->yRot, newPlayer->xRot);
+		newLevel->tick(newPlayer, true);
+		Teleporter().teleport(*newLevel, *newPlayer);
+	}
 }
 
 void Minecraft::setLevel(std::shared_ptr<Level> level)
@@ -1313,6 +1365,9 @@ void Minecraft::respawnPlayer(int_t dimension)
 {
 	if (level == nullptr || gameMode == nullptr)
 		return;
+
+	if (!level->isOnline && level->dimension != nullptr && !level->dimension->mayRespawn())
+		toggleDimension();
 
 	level->setSpawnLocation();
 	level->updateEntityList();

@@ -28,6 +28,7 @@ enum class BiomeId
 	Desert,
 	Plains,
 	Tundra,
+	Hell,
 };
 
 struct BiomeInfo
@@ -70,10 +71,22 @@ private:
 
 public:
 	BiomeSource(Level &level);
+	virtual ~BiomeSource() {}
 
-	double getTemperature(int_t x, int_t z);
-	BiomeId getBiome(int_t x, int_t z);
+	virtual double getTemperature(int_t x, int_t z);
+	virtual BiomeId getBiome(int_t x, int_t z);
 	const BiomeInfo &getBiomeInfo(BiomeId biome) const;
 
-	void getBiomeBlock(int_t x, int_t z, int_t xd, int_t zd);
+	virtual void getBiomeBlock(int_t x, int_t z, int_t xd, int_t zd);
+};
+
+// WorldChunkManagerHell - fixed biome, temperature 1.0, downfall 0.0
+class HellBiomeSource : public BiomeSource
+{
+public:
+	HellBiomeSource(Level &level);
+
+	double getTemperature(int_t x, int_t z) override;
+	BiomeId getBiome(int_t x, int_t z) override;
+	void getBiomeBlock(int_t x, int_t z, int_t xd, int_t zd) override;
 };

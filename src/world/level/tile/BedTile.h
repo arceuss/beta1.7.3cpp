@@ -23,4 +23,7 @@ public:
 	static bool isBlockFootOfBed(int_t data) { return (data & 8) != 0; }
 	static bool isBedOccupied(int_t data) { return (data & 4) != 0; }
 	static void setBedOccupied(Level &level, int_t x, int_t y, int_t z, bool occupied);
+	// BlockBed.getNearestEmptyChunkCoordinates - skip counts empty spots to
+	// pass over (the sleep-interrupt monster takes spot 1, the player spot 0)
+	static bool getNearestEmptySpot(Level &level, int_t x, int_t y, int_t z, int_t skip, int_t &outX, int_t &outY, int_t &outZ);
 };

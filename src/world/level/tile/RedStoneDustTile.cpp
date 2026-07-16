@@ -72,7 +72,7 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 	int_t newPower = 0;
 
 	wiresProvidePower = false;
-	bool indirectlyPowered = level.isBlockIndirectlyGettingPowered(x, y, z);
+	bool indirectlyPowered = level.hasNeighborSignal(x, y, z);
 	wiresProvidePower = true;
 
 	if (indirectlyPowered)
@@ -120,7 +120,9 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 		level.setTilesDirty(x, y, z, x, y, z);
 		level.noNeighborUpdate = false;
 
-		// Recursively propagate to connected wires
+		// Recursively propagate to connected wires. Vanilla reuses the
+		// newPower variable as scratch here, and the final notification check
+		// below reads its post-loop value - that quirk is load-bearing.
 		static const int_t rdx[] = {-1, 1, 0, 0};
 		static const int_t rdz[] = {0, 0, -1, 1};
 
@@ -134,32 +136,31 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 				ny += 2; // y + 1
 
 			int_t neighborPower = getMaxCurrentStrength(level, nx, y, nz, -1);
-			int_t currentPower = level.getData(x, y, z);
-			if (currentPower > 0)
-				currentPower--;
+			newPower = level.getData(x, y, z);
+			if (newPower > 0)
+				newPower--;
 
-			if (neighborPower >= 0 && neighborPower != currentPower)
+			if (neighborPower >= 0 && neighborPower != newPower)
 				propagateCurrentStrength(level, nx, y, nz, x, y, z);
 
 			neighborPower = getMaxCurrentStrength(level, nx, ny, nz, -1);
-			currentPower = level.getData(x, y, z);
-			if (currentPower > 0)
-				currentPower--;
+			newPower = level.getData(x, y, z);
+			if (newPower > 0)
+				newPower--;
 
-			if (neighborPower >= 0 && neighborPower != currentPower)
+			if (neighborPower >= 0 && neighborPower != newPower)
 				propagateCurrentStrength(level, nx, ny, nz, x, y, z);
 		}
 
-		// Queue neighbor notifications only on 0 <-> nonzero transitions
 		if (oldPower == 0 || newPower == 0)
 		{
-			deferredNotifications.emplace(x, y, z);
-			deferredNotifications.emplace(x - 1, y, z);
-			deferredNotifications.emplace(x + 1, y, z);
-			deferredNotifications.emplace(x, y - 1, z);
-			deferredNotifications.emplace(x, y + 1, z);
-			deferredNotifications.emplace(x, y, z - 1);
-			deferredNotifications.emplace(x, y, z + 1);
+			deferredNotifications.emplace_back(x, y, z);
+			deferredNotifications.emplace_back(x - 1, y, z);
+			deferredNotifications.emplace_back(x + 1, y, z);
+			deferredNotifications.emplace_back(x, y - 1, z);
+			deferredNotifications.emplace_back(x, y + 1, z);
+			deferredNotifications.emplace_back(x, y, z - 1);
+			deferredNotifications.emplace_back(x, y, z + 1);
 		}
 	}
 }
@@ -268,7 +269,7 @@ void RedStoneDustTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, 
 	Tile::neighborChanged(level, x, y, z, tile);
 }
 
-bool RedStoneDustTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool RedStoneDustTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	if (!wiresProvidePower)
 		return false;
@@ -317,11 +318,11 @@ bool RedStoneDustTile::isDirectSignalTo(Level &level, int_t x, int_t y, int_t z,
 	return false;
 }
 
-bool RedStoneDustTile::isIndirectSignalTo(Level &level, int_t x, int_t y, int_t z, int_t dir)
+bool RedStoneDustTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
 	if (!wiresProvidePower)
 		return false;
-	return isDirectSignalTo(level, x, y, z, dir);
+	return getSignal(level, x, y, z, dir);
 }
 
 int_t RedStoneDustTile::getResource(int_t data, Random &random)

@@ -28,7 +28,6 @@ bool Pig::interact(Player &player)
 
 void Pig::onStruckByLightning(Entity &lightning)
 {
-	Entity::onStruckByLightning(lightning);
 	if (level.isOnline)
 		return;
 	auto pigZombie = std::make_shared<PigZombie>(level);

@@ -24,5 +24,5 @@ bool Animal::canSpawn()
 	int_t x = Mth::floor(this->x);
 	int_t y = Mth::floor(bb.y0);
 	int_t z = Mth::floor(this->z);
-	return level.getTile(x, y - 1, z) == Tile::grass.id && level.getRawBrightness(x, y, z) > 8 && PathfinderMob::canSpawn();
+	return level.getTile(x, y - 1, z) == Tile::grass.id && level.getFullBrightness(x, y, z) > 8 && PathfinderMob::canSpawn();
 }

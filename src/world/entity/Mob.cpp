@@ -130,6 +130,16 @@ void Mob::baseTick()
 	xRotO = xRot;
 }
 
+void Mob::playAmbientSound()
+{
+	const jstring &ambientSound = getAmbientSound();
+	if (!ambientSound.empty())
+	{
+		level.playSoundAtEntity(*this, ambientSound, getSoundVolume(),
+			(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+	}
+}
+
 void Mob::spawnAnim()
 {
 	for (int_t i = 0; i < 20; ++i)
@@ -150,8 +160,8 @@ void Mob::spawnAnim()
 void Mob::rideTick()
 {
 	Entity::rideTick();
-	walkAnimSpeedO = walkAnimSpeed;
-	walkAnimSpeed = 0.0f;
+	oRun = run;
+	run = 0.0f;
 }
 
 void Mob::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
@@ -457,7 +467,7 @@ void Mob::travel(float x, float z)
 		if (onGround)
 		{
 			friction = 0.546f;
-			int_t tile = level.getTile(Mth::floor(x), Mth::floor(bb.y0) - 1, Mth::floor(z));
+			int_t tile = level.getTile(Mth::floor(this->x), Mth::floor(bb.y0) - 1, Mth::floor(this->z));
 			if (tile > 0)
 				friction = Tile::tiles[tile]->friction * 0.91f;
 		}
@@ -469,15 +479,21 @@ void Mob::travel(float x, float z)
 		if (onGround)
 		{
 			friction = 0.546f;
-			int_t tile = level.getTile(Mth::floor(x), Mth::floor(bb.y0) - 1, Mth::floor(z));
+			int_t tile = level.getTile(Mth::floor(this->x), Mth::floor(bb.y0) - 1, Mth::floor(this->z));
 			if (tile > 0)
 				friction = Tile::tiles[tile]->friction * 0.91f;
 		}
 
 		if (onLadder())
 		{
+			float clamp = 0.15f;
+			if (xd < -clamp) xd = -clamp;
+			if (xd > clamp) xd = clamp;
+			if (zd < -clamp) zd = -clamp;
+			if (zd > clamp) zd = clamp;
 			fallDistance = 0.0f;
 			if (yd < -0.15) yd = -0.15;
+			if (isSneaking() && yd < 0.0) yd = 0.0;
 		}
 
 		move(xd, yd, zd);
@@ -651,7 +667,7 @@ void Mob::updateAi()
 
 	if (lookingAt != nullptr)
 	{
-		lookAt(*lookingAt, 10.0f);
+		lookAt(*lookingAt, 10.0f, static_cast<float>(getMaxHeadXRot()));
 		if (lookTime-- <= 0 || lookingAt->removed || lookingAt->distanceToSqr(*this) > lookRange * lookRange)
 			lookingAt = nullptr;
 	}
@@ -675,21 +691,26 @@ bool Mob::canDespawn()
 	return true;
 }
 
-void Mob::lookAt(Entity &entity, float speed)
+void Mob::lookAt(Entity &entity, float yawSpeed, float pitchSpeed)
 {
 	double dx = entity.x - x;
 	double dz = entity.z - z;
 	double dy;
 	if (Mob *mob = dynamic_cast<Mob *>(&entity))
-		dy = mob->y + mob->getHeadHeight() - (y + getHeadHeight());
+		dy = y + getHeadHeight() - (mob->y + mob->getHeadHeight());
 	else
 		dy = (entity.bb.y0 + entity.bb.y1) / 2.0 - (y + getHeadHeight());
 
 	double flatDistance = Mth::sqrt(dx * dx + dz * dz);
 	float targetYRot = static_cast<float>(std::atan2(dz, dx) * 180.0 / Mth::PI) - 90.0f;
-	float targetXRot = static_cast<float>(std::atan2(dy, flatDistance) * 180.0 / Mth::PI);
-	xRot = -rotlerp(xRot, targetXRot, speed);
-	yRot = rotlerp(yRot, targetYRot, speed);
+	float targetXRot = static_cast<float>(-(std::atan2(dy, flatDistance) * 180.0 / Mth::PI));
+	xRot = -rotlerp(xRot, targetXRot, pitchSpeed);
+	yRot = rotlerp(yRot, targetYRot, yawSpeed);
+}
+
+int_t Mob::getMaxHeadXRot()
+{
+	return 40;
 }
 
 float Mob::rotlerp(float from, float to, float speed)
@@ -766,7 +787,7 @@ Vec3 *Mob::getViewVector(float a)
 HitResult Mob::pick(float length, float a)
 {
 	Vec3 *pos = getPos(a);
-	Vec3 *look = getLookAngle();
+	Vec3 *look = getViewVector(a);
 	Vec3 *to = pos->add(look->x * length, look->y * length, look->z * length);
 	return level.clip(*pos, *to);
 }

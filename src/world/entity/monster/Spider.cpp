@@ -11,6 +11,7 @@ Spider::Spider(Level &level) : Monster(level)
 	textureName = u"/mob/spider.png";
 	setSize(1.4f, 0.9f);
 	runSpeed = 0.8f;
+	makeStepSound = false;
 }
 
 double Spider::getRideHeight()
@@ -61,8 +62,8 @@ void Spider::checkHurtTarget(Entity &entity, float distance)
 	double dx = entity.x - x;
 	double dz = entity.z - z;
 	float distanceMag = Mth::sqrt(dx * dx + dz * dz);
-	xd = dx / distanceMag * 0.4 + xd * 0.2;
-	zd = dz / distanceMag * 0.4 + zd * 0.2;
+	xd = dx / distanceMag * 0.5 * 0.8f + xd * 0.2f;
+	zd = dz / distanceMag * 0.5 * 0.8f + zd * 0.2f;
 	yd = 0.4f;
 }
 

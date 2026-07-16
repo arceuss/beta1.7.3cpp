@@ -50,6 +50,7 @@ public:
 	bool tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateTorchInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateStairsInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	bool tesselateFenceInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateFireInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateLadderInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateRailInWorld(Tile &tt, int_t x, int_t y, int_t z);

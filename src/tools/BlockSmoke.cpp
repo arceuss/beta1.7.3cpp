@@ -34,6 +34,7 @@
 #include "world/entity/animal/Pig.h"
 #include "world/entity/animal/Sheep.h"
 #include "world/entity/animal/Chicken.h"
+#include "world/entity/animal/Squid.h"
 #include "world/entity/animal/Wolf.h"
 #include "world/entity/monster/Zombie.h"
 #include "world/entity/monster/Skeleton.h"
@@ -50,7 +51,9 @@
 #include "world/level/pathfinder/PathEntity.h"
 #include "world/level/pathfinder/Pathfinder.h"
 #include "world/level/Level.h"
+#include "world/level/SpawnerAnimals.h"
 #include "world/level/material/GasMaterial.h"
+#include "world/level/material/LiquidMaterial.h"
 #include "world/phys/Vec3.h"
 #include "util/Mth.h"
 #include "world/level/LevelListener.h"
@@ -225,6 +228,44 @@ struct InspectableNoteParticle : public NoteParticle
 		}
 		BiomeSource &getBiomeSource() override { return level.getBiomeSource(); }
 	};
+
+	struct NaturalSpawnerTestLevel : public Level
+	{
+		std::vector<std::shared_ptr<Entity>> spawnedEntities;
+
+		explicit NaturalSpawnerTestLevel(int_t dimension)
+			: Level(File::open(u"build/block-smoke-workdir"),
+				dimension == -1 ? u"natural-spawner-smoke-hell" : u"natural-spawner-smoke-overworld",
+				2468LL, dimension)
+		{
+			xSpawn = 1000000;
+			ySpawn = 64;
+			zSpawn = 1000000;
+		}
+
+		bool isWaterColumn(int_t x, int_t z) const
+		{
+			return Mth::floor(x / 16.0) == 4 && Mth::floor(z / 16.0) == 4;
+		}
+
+		int_t getTile(int_t x, int_t y, int_t z) override
+		{
+			return y >= 0 && y < DEPTH && isWaterColumn(x, z) ? Tile::water.id : 0;
+		}
+
+		const Material &getMaterial(int_t x, int_t y, int_t z) override
+		{
+			return getTile(x, y, z) == Tile::water.id
+				? static_cast<const Material &>(Material::water)
+				: static_cast<const Material &>(Material::air);
+		}
+
+		bool addEntity(std::shared_ptr<Entity> entity) override
+		{
+			spawnedEntities.push_back(std::move(entity));
+			return true;
+		}
+	};
 	
 	struct GridCraftingContainer : public CraftingContainer
 	{
@@ -341,9 +382,9 @@ struct InspectableNoteParticle : public NoteParticle
 	{
 		std::cerr << "diag door " << phase
 			<< ": leverData=" << level.getData(leverX, leverY, leverZ)
-			<< " supportPowered=" << level.isBlockIndirectlyGettingPowered(supportX, supportY, supportZ)
+			<< " supportPowered=" << level.hasNeighborSignal(supportX, supportY, supportZ)
 			<< " doorData=" << level.getData(doorX, doorY, doorZ)
-			<< " doorPowered=" << level.isBlockIndirectlyGettingPowered(doorX, doorY, doorZ)
+			<< " doorPowered=" << level.hasNeighborSignal(doorX, doorY, doorZ)
 			<< std::endl;
 		logEvents("diag door sounds", listener.sounds);
 		logEvents("diag door particles", listener.particles);
@@ -353,8 +394,8 @@ struct InspectableNoteParticle : public NoteParticle
 	{
 		std::cerr << "diag note " << phase
 			<< ": leverData=" << level.getData(leverX, leverY, leverZ)
-			<< " notePowered=" << level.isBlockGettingPowered(noteX, noteY, noteZ)
-			<< " leverProvidesEast=" << level.isBlockProvidingPowerTo(leverX, leverY, leverZ, 5)
+			<< " notePowered=" << level.hasDirectSignal(noteX, noteY, noteZ)
+			<< " leverProvidesEast=" << level.getDirectSignal(leverX, leverY, leverZ, 5)
 			<< " aboveTile=" << level.getTile(noteX, noteY + 1, noteZ)
 			<< " belowTile=" << level.getTile(noteX, noteY - 1, noteZ)
 			<< " notePrev=" << (noteEntity != nullptr ? noteEntity->previousRedstoneState : false)
@@ -681,6 +722,29 @@ int runBlockSmoke()
 		ItemInstance furnaceMinecartOut = Recipes::getInstance().getItemFor(furnaceMinecartRecipe);
 		ok &= expect(furnaceMinecartOut.itemID == Items::minecartPowered->getShiftedIndex(), "furnace minecart recipe should match b173test");
 
+		std::cerr << "block-smoke: natural spawning" << std::endl;
+		NaturalSpawnerTestLevel naturalSpawnLevel(0);
+		naturalSpawnLevel.random.setSeed(12345LL);
+		std::shared_ptr<Player> naturalSpawnPlayer = std::make_shared<Player>(naturalSpawnLevel);
+		naturalSpawnPlayer->moveTo(0.5, 64.0, 0.5, 0.0f, 0.0f);
+		naturalSpawnLevel.players.push_back(naturalSpawnPlayer);
+		int_t reportedNaturalSpawns = SpawnerAnimals::performSpawning(naturalSpawnLevel, false, true);
+		bool spawnedOnlySquid = !naturalSpawnLevel.spawnedEntities.empty();
+		for (const auto &entity : naturalSpawnLevel.spawnedEntities)
+			spawnedOnlySquid = spawnedOnlySquid && dynamic_cast<Squid *>(entity.get()) != nullptr;
+		ok &= expect(naturalSpawnLevel.spawnedEntities.size() == 4,
+			"natural spawner should fill one valid water chunk to the squid pack limit");
+		ok &= expect(spawnedOnlySquid && reportedNaturalSpawns > 0,
+			"water-creature spawning should use the Beta squid list and report its cumulative pack count");
+
+		NaturalSpawnerTestLevel hellNaturalSpawnLevel(-1);
+		hellNaturalSpawnLevel.random.setSeed(12345LL);
+		std::shared_ptr<Player> hellNaturalSpawnPlayer = std::make_shared<Player>(hellNaturalSpawnLevel);
+		hellNaturalSpawnPlayer->moveTo(0.5, 64.0, 0.5, 0.0f, 0.0f);
+		hellNaturalSpawnLevel.players.push_back(hellNaturalSpawnPlayer);
+		SpawnerAnimals::performSpawning(hellNaturalSpawnLevel, false, true);
+		ok &= expect(hellNaturalSpawnLevel.spawnedEntities.empty(),
+			"Hell biome should expose no peaceful or water-creature spawn entries");
 
 		std::cerr << "block-smoke: level setup" << std::endl;
 		Level level(File::open(u"build/block-smoke-workdir"), u"block-smoke-world", 12345);

@@ -127,6 +127,8 @@ public:
 	virtual void baseTick() override;
 
 	void spawnAnim();
+	// EntityLiving.playLivingSound - play the ambient sound immediately
+	void playAmbientSound();
 
 	virtual void rideTick() override;
 
@@ -185,8 +187,10 @@ protected:
 	virtual void updateAi();
 
 	virtual bool canDespawn();
+
+	virtual int_t getMaxHeadXRot();
 public:
-	void lookAt(Entity &entity, float speed);
+	void lookAt(Entity &entity, float yawSpeed, float pitchSpeed);
 
 private:
 	float rotlerp(float from, float to, float speed);

@@ -1,6 +1,8 @@
 #include "world/entity/monster/Creeper.h"
 
+#include "world/entity/monster/Skeleton.h"
 #include "world/item/Items.h"
+#include "world/item/ItemInstance.h"
 #include "world/level/Level.h"
 #include "world/item/Item.h"
 #include "world/level/Explosion.h"
@@ -60,6 +62,13 @@ void Creeper::onStruckByLightning(Entity &lightning)
 {
 	Entity::onStruckByLightning(lightning);
 	dataWatcher.updateObject(17, static_cast<byte_t>(1));
+}
+
+void Creeper::die(Entity *source)
+{
+	Monster::die(source);
+	if (dynamic_cast<Skeleton *>(source) != nullptr)
+		spawnAtLocation(ItemInstance(Items::record13->getShiftedIndex() + random.nextInt(2), 1, 0), 0.0f);
 }
 void Creeper::addAdditionalSaveData(CompoundTag &tag)
 {

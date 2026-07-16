@@ -114,7 +114,7 @@ namespace
 		if ((data & RAIL_POWERED_BIT) == 0)
 			return false;
 
-		if (!level.isBlockIndirectlyGettingPowered(x, y, z) && !level.isBlockIndirectlyGettingPowered(x, y + 1, z))
+		if (!level.hasNeighborSignal(x, y, z) && !level.hasNeighborSignal(x, y + 1, z))
 			return findPoweredRailSignal(rail, level, x, y, z, data, forward, depth + 1);
 		return true;
 	}
@@ -208,13 +208,13 @@ void RailTile::updateRail(Level &level, int_t x, int_t y, int_t z, bool forceUpd
 	if (level.isOnline)
 		return;
 
-	RailLogic(*this, level, x, y, z).place(level.isBlockIndirectlyGettingPowered(x, y, z), forceUpdate);
+	RailLogic(*this, level, x, y, z).place(level.hasNeighborSignal(x, y, z), forceUpdate);
 }
 
 bool RailTile::updatePoweredState(Level &level, int_t x, int_t y, int_t z, int_t data)
 {
-	bool powered = level.isBlockIndirectlyGettingPowered(x, y, z)
-		|| level.isBlockIndirectlyGettingPowered(x, y + 1, z)
+	bool powered = level.hasNeighborSignal(x, y, z)
+		|| level.hasNeighborSignal(x, y + 1, z)
 		|| findPoweredRailSignal(*this, level, x, y, z, data, true, 0)
 		|| findPoweredRailSignal(*this, level, x, y, z, data, false, 0);
 

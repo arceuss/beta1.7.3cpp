@@ -152,7 +152,7 @@ void DoorTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t ti
 
 	if (tile > 0 && Tile::tiles[tile] != nullptr && Tile::tiles[tile]->isSignalSource())
 	{
-		bool powered = level.isBlockIndirectlyGettingPowered(x, y, z) || level.isBlockIndirectlyGettingPowered(x, y + 1, z);
+		bool powered = level.hasNeighborSignal(x, y, z) || level.hasNeighborSignal(x, y + 1, z);
 		bool isOpen = (data & 4) != 0;
 		if (isOpen != powered)
 		{
