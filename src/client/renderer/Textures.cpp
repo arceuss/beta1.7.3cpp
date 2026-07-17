@@ -2,12 +2,29 @@
 #include "client/renderer/texturefx/TextureFX.h"
 
 #include <cassert>
+#include <algorithm>
+#include <cstring>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 
+#include "client/Minecraft.h"
 #include "client/Options.h"
+#include "client/renderer/texturefx/CustomAnimation.h"
+#include "client/renderer/texturefx/TextureCompassFX.h"
+#include "client/renderer/texturefx/TextureFlamesFX.h"
+#include "client/renderer/texturefx/TextureLavaFlowFX.h"
+#include "client/renderer/texturefx/TextureLavaFX.h"
+#include "client/renderer/texturefx/TexturePortalFX.h"
+#include "client/renderer/texturefx/TextureWatchFX.h"
+#include "client/renderer/texturefx/TextureWaterFlowFX.h"
+#include "client/renderer/texturefx/TextureWaterFX.h"
+#include "client/renderer/texturefx/TileSize.h"
+#include "client/skins/FileTexturePack.h"
 #include "client/skins/TexturePackRepository.h"
 #include "java/File.h"
+#include "world/level/FoliageColor.h"
+#include "world/level/GrassColor.h"
 
 #include "OpenGL.h"
 #include "httplib.h"
@@ -25,6 +42,20 @@ struct HttpTexture
 
 namespace
 {
+const std::pair<jstring, int_t> EXPECTED_COLUMNS[] =
+{
+	{ u"/terrain.png", 16 },
+	{ u"/gui/items.png", 16 },
+	{ u"/misc/dial.png", 1 },
+	{ u"/custom_lava_still.png", 1 },
+	{ u"/custom_lava_flowing.png", 1 },
+	{ u"/custom_water_still.png", 1 },
+	{ u"/custom_water_flowing.png", 1 },
+	{ u"/custom_fire_n_s.png", 1 },
+	{ u"/custom_fire_e_w.png", 1 },
+	{ u"/custom_portal.png", 1 }
+};
+
 struct ParsedHttpUrl
 {
 	std::string host;
@@ -403,15 +434,81 @@ void downloadHttpTexture(const std::shared_ptr<HttpTexture> &texture, const jstr
 }
 }
 
-Textures::Textures(TexturePackRepository &skins, Options &options) : skins(skins), options(options)
+Textures::Textures(TexturePackRepository &skins, Options &options, Minecraft &minecraft)
+	: skins(skins), options(options), minecraft(minecraft)
 {
 
 }
 
+BufferedImage Textures::readResourceImage(const jstring &resourceName, bool resize)
+{
+	TexturePack *skin = skins.selected;
+	if (skin == nullptr)
+		throw std::runtime_error("No selected texture pack");
+
+	std::unique_ptr<std::istream> input(skin->getResource(resourceName));
+	if (input == nullptr)
+		throw std::runtime_error("Missing texture resource " + String::toUTF8(resourceName));
+	BufferedImage image = readImage(*input);
+
+	if (resize)
+	{
+		for (const auto &entry : EXPECTED_COLUMNS)
+		{
+			if (entry.first == resourceName && image.getWidth() != entry.second * TileSize::size)
+				return resizeImage(image, entry.second * TileSize::size);
+		}
+	}
+
+	return image;
+}
+
+BufferedImage Textures::getResourceImage(const jstring &resourceName)
+{
+	return readResourceImage(resourceName, true);
+}
+
+bool Textures::hasResource(const jstring &resourceName)
+{
+	try
+	{
+		TexturePack *skin = skins.selected;
+		std::unique_ptr<std::istream> input(skin == nullptr ? nullptr : skin->getResource(resourceName));
+		return input != nullptr;
+	}
+	catch (...)
+	{
+		return false;
+	}
+}
+
+int_t Textures::calculateTileSize()
+{
+	int_t size = 0;
+	for (const auto &entry : EXPECTED_COLUMNS)
+	{
+		try
+		{
+			BufferedImage image = readResourceImage(entry.first, false);
+			size = std::max(size, image.getWidth() / entry.second);
+		}
+		catch (...)
+		{
+		}
+	}
+	return size > 0 ? size : 16;
+}
+
+void Textures::setTileSize()
+{
+	TileSize::set(calculateTileSize());
+	reloadAll();
+	refreshTextureFX();
+	refreshColorizers();
+}
+
 int_t Textures::loadTexture(const jstring &resourceName)
 {
-	auto *skin = skins.selected;
-
 	auto it = idMap.find(resourceName);
 	if (it != idMap.end())
 	{
@@ -423,31 +520,27 @@ int_t Textures::loadTexture(const jstring &resourceName)
 
 	if (!resourceName.compare(0, 2, u"##"))
 	{
-		std::unique_ptr<std::istream> is(skin->getResource(resourceName.substr(2)));
-		BufferedImage img = readImage(*is);
+		BufferedImage img = getResourceImage(resourceName.substr(2));
 		img = makeStrip(img);
 		loadTexture(img, i);
 	}
 	else if (!resourceName.compare(0, 7, u"%clamp%"))
 	{
-		std::unique_ptr<std::istream> is(skin->getResource(resourceName.substr(7)));
-		BufferedImage img = readImage(*is);
+		BufferedImage img = getResourceImage(resourceName.substr(7));
 		clamp = true;
 		loadTexture(img, i);
 		clamp = false;
 	}
 	else if (!resourceName.compare(0, 6, u"%blur%"))
 	{
-		std::unique_ptr<std::istream> is(skin->getResource(resourceName.substr(6)));
-		BufferedImage img = readImage(*is);
+		BufferedImage img = getResourceImage(resourceName.substr(6));
 		blur = true;
 		loadTexture(img, i);
 		blur = false;
 	}
 	else
 	{
-		std::unique_ptr<std::istream> is(skin->getResource(resourceName));
-		BufferedImage img = readImage(*is);
+		BufferedImage img = getResourceImage(resourceName);
 		loadTexture(img, i);
 	}
 
@@ -457,14 +550,16 @@ int_t Textures::loadTexture(const jstring &resourceName)
 
 BufferedImage Textures::makeStrip(BufferedImage &source)
 {
-	int_t cols = source.getWidth() / 16;
+	int_t cols = source.getWidth() / TileSize::size;
 
-	BufferedImage out(16, source.getHeight() * cols);
+	BufferedImage out(TileSize::size, source.getHeight() * cols);
 
+	std::vector<unsigned char> column(TileSize::size * source.getHeight() * 4);
 	for (int_t i = 0; i < cols; i++)
 	{
-		// g.drawImage(source, -i * 16, i * source.getHeight(), null);
-		// TODO
+		// g.drawImage(source, -i * size, i * source.getHeight(), null);
+		source.getRGB(i * TileSize::size, 0, TileSize::size, source.getHeight(), column.data());
+		out.setRGB(0, i * source.getHeight(), TileSize::size, source.getHeight(), column.data());
 	}
 
 	return out;
@@ -629,6 +724,26 @@ int_t Textures::loadHttpTexture(const jstring &url)
 	return loadHttpTexture(url, nullptr);
 }
 
+BufferedImage Textures::resizeImage(BufferedImage &source, int_t width)
+{
+	int_t sourceWidth = source.getWidth();
+	int_t sourceHeight = source.getHeight();
+	int_t height = sourceHeight * width / sourceWidth;
+	std::unique_ptr<unsigned char[]> pixels = std::make_unique<unsigned char[]>(width * height * 4);
+	const unsigned char *sourcePixels = source.getRawPixels();
+	for (int_t y = 0; y < height; ++y)
+	{
+		int_t sourceY = y * sourceHeight / height;
+		for (int_t x = 0; x < width; ++x)
+		{
+			int_t sourceX = x * sourceWidth / width;
+			std::memcpy(pixels.get() + (x + y * width) * 4,
+				sourcePixels + (sourceX + sourceY * sourceWidth) * 4, 4);
+		}
+	}
+	return BufferedImage(width, height, std::move(pixels));
+}
+
 void Textures::obtainHttpTexture(const jstring &url)
 {
 	addHttpTexture(url);
@@ -682,6 +797,94 @@ void Textures::registerTextureFX(std::unique_ptr<TextureFX> fx)
 	textureList.push_back(std::move(fx));
 }
 
+void Textures::refreshTextureFX()
+{
+	std::vector<std::unique_ptr<TextureFX>> saved;
+	for (std::unique_ptr<TextureFX> &fx : textureList)
+	{
+		if (dynamic_cast<TextureCompassFX *>(fx.get()) == nullptr &&
+			dynamic_cast<TextureWatchFX *>(fx.get()) == nullptr &&
+			dynamic_cast<TextureLavaFX *>(fx.get()) == nullptr &&
+			dynamic_cast<TextureLavaFlowFX *>(fx.get()) == nullptr &&
+			dynamic_cast<TextureWaterFX *>(fx.get()) == nullptr &&
+			dynamic_cast<TextureWaterFlowFX *>(fx.get()) == nullptr &&
+			dynamic_cast<TextureFlamesFX *>(fx.get()) == nullptr &&
+			dynamic_cast<TexturePortalFX *>(fx.get()) == nullptr &&
+			dynamic_cast<CustomAnimation *>(fx.get()) == nullptr)
+		{
+			if (fx->imageData.size() != static_cast<size_t>(TileSize::numBytes))
+				fx->imageData.assign(TileSize::numBytes, 0);
+			saved.push_back(std::move(fx));
+		}
+	}
+	textureList.clear();
+
+	textureList.push_back(std::make_unique<TextureCompassFX>(minecraft));
+	textureList.push_back(std::make_unique<TextureWatchFX>(minecraft));
+
+	bool customPack = dynamic_cast<FileTexturePack *>(skins.selected) != nullptr;
+	if (customPack && hasResource(u"/custom_lava_still.png"))
+		textureList.push_back(std::make_unique<CustomAnimation>(*this, 14 * 16 + 13, 0, 1, u"lava_still", -1, -1));
+	else
+		textureList.push_back(std::make_unique<TextureLavaFX>());
+	if (customPack && hasResource(u"/custom_lava_flowing.png"))
+		textureList.push_back(std::make_unique<CustomAnimation>(*this, 14 * 16 + 14, 0, 2, u"lava_flowing", 3, 6));
+	else
+		textureList.push_back(std::make_unique<TextureLavaFlowFX>());
+
+	if (customPack && hasResource(u"/custom_water_still.png"))
+		textureList.push_back(std::make_unique<CustomAnimation>(*this, 12 * 16 + 13, 0, 1, u"water_still", -1, -1));
+	else
+		textureList.push_back(std::make_unique<TextureWaterFX>());
+	if (customPack && hasResource(u"/custom_water_flowing.png"))
+		textureList.push_back(std::make_unique<CustomAnimation>(*this, 12 * 16 + 14, 0, 2, u"water_flowing", 0, 0));
+	else
+		textureList.push_back(std::make_unique<TextureWaterFlowFX>());
+
+	if (customPack && hasResource(u"/custom_fire_e_w.png") && hasResource(u"/custom_fire_n_s.png"))
+	{
+		textureList.push_back(std::make_unique<CustomAnimation>(*this, 1 * 16 + 15 + 16, 0, 1, u"fire_n_s", 2, 4));
+		textureList.push_back(std::make_unique<CustomAnimation>(*this, 1 * 16 + 15, 0, 1, u"fire_e_w", 2, 4));
+	}
+	else
+	{
+		textureList.push_back(std::make_unique<TextureFlamesFX>(0));
+		textureList.push_back(std::make_unique<TextureFlamesFX>(1));
+	}
+
+	if (customPack && hasResource(u"/custom_portal.png"))
+		textureList.push_back(std::make_unique<CustomAnimation>(*this, 14, 0, 1, u"portal", -1, -1));
+	else
+		textureList.push_back(std::make_unique<TexturePortalFX>(14));
+
+	for (std::unique_ptr<TextureFX> &fx : saved)
+		textureList.push_back(std::move(fx));
+	for (std::unique_ptr<TextureFX> &fx : textureList)
+		fx->onTick();
+}
+
+void Textures::refreshColorizers()
+{
+	auto refresh = [this](const jstring &resourceName, void (*setter)(BufferedImage))
+	{
+		try
+		{
+			BufferedImage source = getResourceImage(resourceName);
+			if (source.getWidth() < 256 || source.getHeight() < 256)
+				throw std::runtime_error("Colorizer image is too small");
+			std::unique_ptr<unsigned char[]> pixels = std::make_unique<unsigned char[]>(256 * 256 * 4);
+			source.getRGB(0, 0, 256, 256, pixels.get());
+			setter(BufferedImage(256, 256, std::move(pixels)));
+		}
+		catch (...)
+		{
+		}
+	};
+
+	refresh(u"/misc/grasscolor.png", GrassColor::setImage);
+	refresh(u"/misc/foliagecolor.png", FoliageColor::setImage);
+}
+
 void Textures::tick()
 {
 	for (auto &fx : textureList)
@@ -696,9 +899,9 @@ void Textures::tick()
 			for (int_t ty = 0; ty < fx->tileSize; ++ty)
 			{
 				glTexSubImage2D(GL_TEXTURE_2D, 0,
-					(fx->iconIndex % 16) * 16 + tx * 16,
-					(fx->iconIndex / 16) * 16 + ty * 16,
-					16, 16, GL_RGBA, GL_UNSIGNED_BYTE, fx->imageData);
+					(fx->iconIndex % 16) * TileSize::size + tx * TileSize::size,
+					(fx->iconIndex / 16) * TileSize::size + ty * TileSize::size,
+					TileSize::size, TileSize::size, GL_RGBA, GL_UNSIGNED_BYTE, fx->imageData.data());
 			}
 		}
 	}
@@ -743,8 +946,6 @@ int_t Textures::crispBlend(int_t c0, int_t c1)
 
 void Textures::reloadAll()
 {
-	TexturePack *skin = skins.selected;
-
 	// Reload buffered textures
 	for (auto &entry : loadedImages)
 	{
@@ -760,26 +961,22 @@ void Textures::reloadAll()
 
 		if (!name.compare(0, 2, u"##"))
 		{
-			std::unique_ptr<std::istream> is(skin->getResource(name.substr(2)));
-			image = readImage(*is);
+			image = getResourceImage(name.substr(2));
 			image = makeStrip(image);
 		}
 		else if (!name.compare(0, 7, u"%clamp%"))
 		{
-			std::unique_ptr<std::istream> is(skin->getResource(name.substr(7)));
 			clamp = true;
-			image = readImage(*is);
+			image = getResourceImage(name.substr(7));
 		}
 		else if (!name.compare(0, 6, u"%blur%"))
 		{
-			std::unique_ptr<std::istream> is(skin->getResource(name.substr(6)));
 			blur = true;
-			image = readImage(*is);
+			image = getResourceImage(name.substr(6));
 		}
 		else
 		{
-			std::unique_ptr<std::istream> is(skin->getResource(name));
-			image = readImage(*is);
+			image = getResourceImage(name);
 		}
 
 		int_t id = entry.second;

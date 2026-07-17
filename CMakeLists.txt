@@ -210,6 +210,10 @@ set(McBetaCpp_SOURCES
 
 	"src/client/renderer/texturefx/TextureFX.cpp"
 	"src/client/renderer/texturefx/TextureFX.h"
+	"src/client/renderer/texturefx/TileSize.cpp"
+	"src/client/renderer/texturefx/TileSize.h"
+	"src/client/renderer/texturefx/CustomAnimation.cpp"
+	"src/client/renderer/texturefx/CustomAnimation.h"
 	"src/client/renderer/texturefx/TextureWaterFX.cpp"
 	"src/client/renderer/texturefx/TextureWaterFX.h"
 	"src/client/renderer/texturefx/TextureWaterFlowFX.cpp"
@@ -905,6 +909,8 @@ set(McBetaCpp_SOURCES
 	"src/java/Type.h"
 	
 	"src/external/stb_image.cpp"
+	"external/zlib/contrib/minizip/ioapi.c"
+	"external/zlib/contrib/minizip/unzip.c"
 )
 
 add_executable(McBetaCpp
@@ -980,6 +986,7 @@ add_subdirectory("external/zlib" EXCLUDE_FROM_ALL)
 target_link_libraries(McBetaCpp PRIVATE zlibstatic)
 target_include_directories(McBetaCpp PRIVATE "external/zlib")
 target_include_directories(McBetaCpp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/external/zlib")
+target_include_directories(McBetaCpp PRIVATE "external/zlib/contrib/minizip")
 
 target_include_directories(McBetaCpp PRIVATE "external/stb")
 target_include_directories(McBetaCpp PRIVATE "external/gzip-hpp/include")

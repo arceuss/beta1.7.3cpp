@@ -1,7 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
+#include <vector>
 
 #include "client/renderer/texturefx/TextureFX.h"
 
@@ -11,7 +11,7 @@ class TextureCompassFX : public TextureFX
 {
 private:
 	Minecraft &minecraft;
-	std::array<uint32_t, 256> compassIconImageData = {};
+	std::vector<uint32_t> compassIconImageData;
 	double rotation = 0.0;
 	double rotationDelta = 0.0;
 

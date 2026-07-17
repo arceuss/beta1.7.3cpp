@@ -7,6 +7,7 @@
 #include "client/renderer/Textures.h"
 #include "client/renderer/entity/PlayerRenderer.h"
 #include "client/renderer/Tesselator.h"
+#include "client/renderer/texturefx/TileSize.h"
 
 #include "util/Mth.h"
 
@@ -135,10 +136,10 @@ namespace HeldItemRenderer
 	
 			Tesselator &t = Tesselator::instance;
 			int_t icon = item.getIcon();
-			float u1 = (icon % 16 * 16 + 0.0f) / 256.0f;
-			float u0 = (icon % 16 * 16 + 15.99f) / 256.0f;
-			float v0 = (icon / 16 * 16 + 0.0f) / 256.0f;
-			float v1 = (icon / 16 * 16 + 15.99f) / 256.0f;
+			float u1 = (icon % 16 * TileSize::size + 0.0f) / TileSize::size16;
+			float u0 = (icon % 16 * TileSize::size + TileSize::sizeMinus0_01) / TileSize::size16;
+			float v0 = (icon / 16 * TileSize::size + 0.0f) / TileSize::size16;
+			float v1 = (icon / 16 * TileSize::size + TileSize::sizeMinus0_01) / TileSize::size16;
 			float r = 1.0f;
 			float xo = 0.0f;
 			float yo = 0.3f;
@@ -169,10 +170,10 @@ namespace HeldItemRenderer
 	
 			t.begin();
 			t.normal(-1.0f, 0.0f, 0.0f);
-			for (int_t i = 0; i < 16; i++)
+			for (int_t i = 0; i < TileSize::size; i++)
 			{
-				float p = i / 16.0f;
-				float uu = u0 + (u1 - u0) * p - 0.001953125f;
+				float p = i / TileSize::sizeFloat;
+				float uu = u0 + (u1 - u0) * p - TileSize::texNudge;
 				float xx = r * p;
 				t.vertexUV(xx, 0.0, 0.0f - dd, uu, v1);
 				t.vertexUV(xx, 0.0, 0.0, uu, v1);
@@ -183,11 +184,11 @@ namespace HeldItemRenderer
 	
 			t.begin();
 			t.normal(1.0f, 0.0f, 0.0f);
-			for (int_t i = 0; i < 16; i++)
+			for (int_t i = 0; i < TileSize::size; i++)
 			{
-				float p = i / 16.0f;
-				float uu = u0 + (u1 - u0) * p - 0.001953125f;
-				float xx = r * p + 0.0625f;
+				float p = i / TileSize::sizeFloat;
+				float uu = u0 + (u1 - u0) * p - TileSize::texNudge;
+				float xx = r * p + TileSize::reciprocal;
 				t.vertexUV(xx, 1.0, 0.0f - dd, uu, v0);
 				t.vertexUV(xx, 1.0, 0.0, uu, v0);
 				t.vertexUV(xx, 0.0, 0.0, uu, v1);
@@ -197,11 +198,11 @@ namespace HeldItemRenderer
 	
 			t.begin();
 			t.normal(0.0f, 1.0f, 0.0f);
-			for (int_t i = 0; i < 16; i++)
+			for (int_t i = 0; i < TileSize::size; i++)
 			{
-				float p = i / 16.0f;
-				float vv = v1 + (v0 - v1) * p - 0.001953125f;
-				float yy = r * p + 0.0625f;
+				float p = i / TileSize::sizeFloat;
+				float vv = v1 + (v0 - v1) * p - TileSize::texNudge;
+				float yy = r * p + TileSize::reciprocal;
 				t.vertexUV(0.0, yy, 0.0, u0, vv);
 				t.vertexUV(r, yy, 0.0, u1, vv);
 				t.vertexUV(r, yy, 0.0f - dd, u1, vv);
@@ -211,10 +212,10 @@ namespace HeldItemRenderer
 	
 			t.begin();
 			t.normal(0.0f, -1.0f, 0.0f);
-			for (int_t i = 0; i < 16; i++)
+			for (int_t i = 0; i < TileSize::size; i++)
 			{
-				float p = i / 16.0f;
-				float vv = v1 + (v0 - v1) * p - 0.001953125f;
+				float p = i / TileSize::sizeFloat;
+				float vv = v1 + (v0 - v1) * p - TileSize::texNudge;
 				float yy = r * p;
 				t.vertexUV(r, yy, 0.0, u1, vv);
 				t.vertexUV(0.0, yy, 0.0, u0, vv);

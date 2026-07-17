@@ -1,7 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
+#include <vector>
 
 #include "client/renderer/texturefx/TextureFX.h"
 
@@ -11,8 +11,8 @@ class TextureWatchFX : public TextureFX
 {
 private:
 	Minecraft &minecraft;
-	std::array<uint32_t, 256> watchIconImageData = {};
-	std::array<uint32_t, 256> dialImageData = {};
+	std::vector<uint32_t> watchIconImageData;
+	std::vector<uint32_t> dialImageData;
 	double rotation = 0.0;
 	double rotationDelta = 0.0;
 

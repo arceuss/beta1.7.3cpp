@@ -5,6 +5,7 @@
 
 #include "client/Minecraft.h"
 #include "client/renderer/texturefx/TextureItemFX.h"
+#include "client/renderer/texturefx/TileSize.h"
 #include "util/Mth.h"
 #include "world/level/dimension/Dimension.h"
 
@@ -13,7 +14,8 @@ namespace
 	constexpr int_t COMPASS_ICON_INDEX = 54;
 }
 
-TextureCompassFX::TextureCompassFX(Minecraft &minecraft) : TextureFX(COMPASS_ICON_INDEX), minecraft(minecraft)
+TextureCompassFX::TextureCompassFX(Minecraft &minecraft) : TextureFX(COMPASS_ICON_INDEX), minecraft(minecraft),
+	compassIconImageData(TileSize::numPixels)
 {
 	tileImage = 1;
 	TextureItemFX::loadIconPixels(minecraft, u"/gui/items.png", iconIndex, compassIconImageData);
@@ -21,7 +23,7 @@ TextureCompassFX::TextureCompassFX(Minecraft &minecraft) : TextureFX(COMPASS_ICO
 
 void TextureCompassFX::onTick()
 {
-	for (int_t i = 0; i < 256; ++i)
+	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{
 		int_t alpha = (compassIconImageData[i] >> 24) & 255;
 		int_t red = (compassIconImageData[i] >> 16) & 255;
@@ -60,11 +62,11 @@ void TextureCompassFX::onTick()
 	double sinRot = std::sin(rotation);
 	double cosRot = std::cos(rotation);
 
-	for (int_t i = -4; i <= 4; ++i)
+	for (int_t i = TileSize::compassCrossMin; i <= TileSize::compassCrossMax; ++i)
 	{
-		int_t x = static_cast<int_t>(8.5 + cosRot * i * 0.3);
-		int_t y = static_cast<int_t>(7.5 - sinRot * i * 0.3 * 0.5);
-		int_t pixel = y * 16 + x;
+		int_t x = static_cast<int_t>(TileSize::compassCenterMax + cosRot * i * 0.3);
+		int_t y = static_cast<int_t>(TileSize::compassCenterMin - sinRot * i * 0.3 * 0.5);
+		int_t pixel = y * TileSize::size + x;
 		int_t red = 100;
 		int_t green = 100;
 		int_t blue = 100;
@@ -75,11 +77,11 @@ void TextureCompassFX::onTick()
 		imageData[pixel * 4 + 3] = 255;
 	}
 
-	for (int_t i = -8; i <= 16; ++i)
+	for (int_t i = TileSize::compassNeedleMin; i <= TileSize::compassNeedleMax; ++i)
 	{
-		int_t x = static_cast<int_t>(8.5 + sinRot * i * 0.3);
-		int_t y = static_cast<int_t>(7.5 + cosRot * i * 0.3 * 0.5);
-		int_t pixel = y * 16 + x;
+		int_t x = static_cast<int_t>(TileSize::compassCenterMax + sinRot * i * 0.3);
+		int_t y = static_cast<int_t>(TileSize::compassCenterMin + cosRot * i * 0.3 * 0.5);
+		int_t pixel = y * TileSize::size + x;
 		int_t red = i >= 0 ? 255 : 100;
 		int_t green = i >= 0 ? 20 : 100;
 		int_t blue = i >= 0 ? 20 : 100;

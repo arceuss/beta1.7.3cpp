@@ -21,6 +21,7 @@ public:
 	int_t fontTexture = 0;
 
 	Font(Options &options, const jstring &name, Textures &textures);
+	void initialize(Options &options, const jstring &name, Textures &textures);
 
 private:
 	int_t listPos = 0;

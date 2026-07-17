@@ -36,10 +36,11 @@ private:
 		float distOrRoll;    // cutoff distance for attModel 2
 		float sourceVolume;  // volume multiplier (includes options->sound)
 		int attModel;        // 0=none, 2=linear
+		bool priority;       // paulscode priority flag (SoundManager: volume > 1.0F)
 
-		SourceInfo() : x(0), y(0), z(0), distOrRoll(0), sourceVolume(1.0f), attModel(0) {}
-		SourceInfo(float x, float y, float z, float distOrRoll, float sourceVolume, int attModel)
-			: x(x), y(y), z(z), distOrRoll(distOrRoll), sourceVolume(sourceVolume), attModel(attModel) {}
+		SourceInfo() : x(0), y(0), z(0), distOrRoll(0), sourceVolume(1.0f), attModel(0), priority(false) {}
+		SourceInfo(float x, float y, float z, float distOrRoll, float sourceVolume, int attModel, bool priority = false)
+			: x(x), y(y), z(z), distOrRoll(distOrRoll), sourceVolume(sourceVolume), attModel(attModel), priority(priority) {}
 	};
 
 	std::unordered_map<std::string, ALuint> activeSources;
@@ -48,13 +49,14 @@ private:
 	std::unordered_map<std::string, ALuint> soundBuffers;
 	ALuint musicSource = 0;
 	ALuint streamingSource = 0;
-	static constexpr int_t MAX_SOURCES = 32;
+	// Paulscode default: 28 normal channels (streaming channels are separate)
+	static constexpr int_t MAX_SOURCES = 28;
 
 	float listenerX = 0.0f, listenerY = 0.0f, listenerZ = 0.0f;
 
 	bool initOpenAL();
 	void cleanupOpenAL();
-	ALuint getOrCreateSource(const std::string &id, bool streaming);
+	ALuint getOrCreateSource(const std::string &id, bool streaming, bool priority = false);
 	void releaseSource(const std::string &id);
 	ALuint loadOGGFile(const std::string &filePath, bool isMUS = false);
 	bool loadSound(const Sound &sound, ALuint &buffer, bool isMUS = false);

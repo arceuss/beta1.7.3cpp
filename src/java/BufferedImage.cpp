@@ -1,6 +1,7 @@
 #include "java/BufferedImage.h"
 
 #include <cassert>
+#include <stdexcept>
 
 #include "stb_image.h"
 
@@ -91,7 +92,8 @@ BufferedImage BufferedImage::ImageIO_read(std::istream &in)
 	// Decode image
 	int w, h, comp;
 	stbi_uc *raw_data = stbi_load_from_callbacks(&stbi_io_callbacks_istream, &in, &w, &h, &comp, 0);
-	assert(raw_data != nullptr);
+	if (raw_data == nullptr)
+		throw std::runtime_error(stbi_failure_reason() == nullptr ? "Failed to decode image" : stbi_failure_reason());
 
 	// Convert to RGBA
 	std::unique_ptr<unsigned char[]> data = std::make_unique<unsigned char[]>(w * h * 4);

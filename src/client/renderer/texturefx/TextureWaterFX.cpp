@@ -2,12 +2,13 @@
 
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
+#include "client/renderer/texturefx/TileSize.h"
 
-TextureWaterFX::TextureWaterFX() : TextureFX(Tile::water.tex)
+TextureWaterFX::TextureWaterFX() : TextureFX(Tile::water.tex),
+	red0(TileSize::numPixels), red1(TileSize::numPixels), green0(TileSize::numPixels), green1(TileSize::numPixels)
 {
 }
 
@@ -15,45 +16,41 @@ void TextureWaterFX::onTick()
 {
 	++tickCounter;
 
-	for (int_t x = 0; x < 16; ++x)
+	for (int_t x = 0; x < TileSize::size; ++x)
 	{
-		for (int_t y = 0; y < 16; ++y)
+		for (int_t y = 0; y < TileSize::size; ++y)
 		{
 			float val = 0.0f;
 
 			for (int_t xx = x - 1; xx <= x + 1; ++xx)
 			{
-				int_t xi = xx & 15;
-				int_t yi = y & 15;
-				val += red0[xi + yi * 16];
+				int_t xi = xx & TileSize::sizeMinus1;
+				int_t yi = y & TileSize::sizeMinus1;
+				val += red0[xi + yi * TileSize::size];
 			}
 
-			red1[x + y * 16] = val / 3.3f + green0[x + y * 16] * 0.8f;
+			red1[x + y * TileSize::size] = val / 3.3f + green0[x + y * TileSize::size] * 0.8f;
 		}
 	}
 
-	for (int_t x = 0; x < 16; ++x)
+	for (int_t x = 0; x < TileSize::size; ++x)
 	{
-		for (int_t y = 0; y < 16; ++y)
+		for (int_t y = 0; y < TileSize::size; ++y)
 		{
-			green0[x + y * 16] += green1[x + y * 16] * 0.05f;
-			if (green0[x + y * 16] < 0.0f)
-				green0[x + y * 16] = 0.0f;
+			green0[x + y * TileSize::size] += green1[x + y * TileSize::size] * 0.05f;
+			if (green0[x + y * TileSize::size] < 0.0f)
+				green0[x + y * TileSize::size] = 0.0f;
 
-			green1[x + y * 16] -= 0.1f;
+			green1[x + y * TileSize::size] -= 0.1f;
 			if ((static_cast<double>(std::rand()) / RAND_MAX) < 0.05)
-				green1[x + y * 16] = 0.5f;
+				green1[x + y * TileSize::size] = 0.5f;
 		}
 	}
 
 	// Swap buffers
-	float *temp = new float[256];
-	std::memcpy(temp, red1, sizeof(float) * 256);
-	std::memcpy(red1, red0, sizeof(float) * 256);
-	std::memcpy(red0, temp, sizeof(float) * 256);
-	delete[] temp;
+	red0.swap(red1);
 
-	for (int_t i = 0; i < 256; ++i)
+	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{
 		float val = red0[i];
 		if (val > 1.0f) val = 1.0f;

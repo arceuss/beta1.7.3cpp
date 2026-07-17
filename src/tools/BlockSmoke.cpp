@@ -19,6 +19,7 @@
 #include "client/renderer/texturefx/TextureWatchFX.h"
 #include "client/renderer/texturefx/TextureFlamesFX.h"
 #include "client/renderer/texturefx/TexturePortalFX.h"
+#include "client/renderer/texturefx/TileSize.h"
 #include "world/item/Items.h"
 #include "world/item/Item.h"
 #include "world/item/ItemPickaxe.h"
@@ -1378,7 +1379,6 @@ int runBlockSmoke()
 		portalFx.onTick();
 		ok &= expect(portalFx.iconIndex == 14, "portal texture fx should target the beta portal icon");
 		ok &= expect(portalFx.imageData[3] != 0, "portal texture fx should generate portal pixels after a tick");
-	
 		std::cerr << "block-smoke: lighting" << std::endl;
 		level.setTile(10, baseY, 0, 1);
 		ok &= expect(level.setTile(10, baseY + 1, 0, 53), "wood stair should place");
@@ -2044,6 +2044,16 @@ int runBlockSmoke()
 		std::cerr << "block-smoke: TNT drop" << std::endl;
 		ok &= expect(Tile::tnt.getResourceCount(random) == 0, "TNT should not drop via getResourceCount");
 		ok &= expect(Tile::tnt.descriptionId == u"tile.tnt", "TNT should use the tnt localization key");
+
+		std::cerr << "block-smoke: HD texture effects" << std::endl;
+		TileSize::set(32);
+		TextureFlamesFX highResolutionFlames(0);
+		highResolutionFlames.onTick();
+		ok &= expect(highResolutionFlames.imageData.size() == 32 * 32 * 4, "HD flame texture fx should use the selected tile size");
+		TexturePortalFX highResolutionPortal(14);
+		highResolutionPortal.onTick();
+		ok &= expect(highResolutionPortal.imageData.size() == 32 * 32 * 4, "HD portal texture fx should use the selected tile size");
+		TileSize::set(16);
 
 		if (ok)
 		{

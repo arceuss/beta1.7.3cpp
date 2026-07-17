@@ -9,11 +9,13 @@ class TexturePackSelectScreen : public Screen
 private:
 	std::shared_ptr<Screen> lastScreen;
 	std::shared_ptr<GuiSlot> texturePackList;
+	int_t refreshTicks = -1;
 
 public:
 	TexturePackSelectScreen(Minecraft &minecraft, std::shared_ptr<Screen> lastScreen);
 
 	void init() override;
+	void tick() override;
 
 protected:
 	void buttonClicked(Button &button) override;

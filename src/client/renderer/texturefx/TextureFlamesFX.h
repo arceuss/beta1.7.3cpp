@@ -1,14 +1,14 @@
 #pragma once
 
-#include <array>
+#include <vector>
 
 #include "client/renderer/texturefx/TextureFX.h"
 
 class TextureFlamesFX : public TextureFX
 {
 private:
-	std::array<float, 320> current = {};
-	std::array<float, 320> next = {};
+	std::vector<float> current;
+	std::vector<float> next;
 
 public:
 	explicit TextureFlamesFX(int_t variant);

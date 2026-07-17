@@ -16,6 +16,7 @@
 
 class TexturePackRepository;
 class Options;
+class Minecraft;
 struct HttpTexture;
 
 class Textures
@@ -36,17 +37,26 @@ private:
 
 	TexturePackRepository &skins;
 	Options &options;
+	Minecraft &minecraft;
 
 	bool clamp = false;
 	bool blur = false;
 
 public:
-	Textures(TexturePackRepository &skins, Options &options);
+	Textures(TexturePackRepository &skins, Options &options, Minecraft &minecraft);
 
 	int_t loadTexture(const jstring &resourceName);
+	BufferedImage getResourceImage(const jstring &resourceName);
+	bool hasResource(const jstring &resourceName);
+	void setTileSize();
 
 private:
 	BufferedImage makeStrip(BufferedImage &source);
+	BufferedImage resizeImage(BufferedImage &source, int_t width);
+	BufferedImage readResourceImage(const jstring &resourceName, bool resize);
+	int_t calculateTileSize();
+	void refreshTextureFX();
+	void refreshColorizers();
 	HttpTexture *addHttpTexture(const jstring &url);
 public:
 	int_t getTexture(BufferedImage &img);

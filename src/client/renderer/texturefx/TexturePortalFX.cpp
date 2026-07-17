@@ -2,25 +2,27 @@
 
 #include <cmath>
 
+#include "client/renderer/texturefx/TileSize.h"
 #include "java/Random.h"
 #include "util/Mth.h"
 
-TexturePortalFX::TexturePortalFX(int_t iconIndex) : TextureFX(iconIndex)
+TexturePortalFX::TexturePortalFX(int_t iconIndex) : TextureFX(iconIndex),
+	frames(32, std::vector<byte_t>(TileSize::numBytes))
 {
 	Random random(100L);
 	for (int_t frame = 0; frame < 32; ++frame)
 	{
-		for (int_t x = 0; x < 16; ++x)
+		for (int_t x = 0; x < TileSize::size; ++x)
 		{
-			for (int_t y = 0; y < 16; ++y)
+			for (int_t y = 0; y < TileSize::size; ++y)
 			{
 				float value = 0.0f;
 				for (int_t layer = 0; layer < 2; ++layer)
 				{
-					float xOffset = static_cast<float>(layer * 8);
-					float yOffset = static_cast<float>(layer * 8);
-					float sampleX = (static_cast<float>(x) - xOffset) / 16.0f * 2.0f;
-					float sampleY = (static_cast<float>(y) - yOffset) / 16.0f * 2.0f;
+					float xOffset = static_cast<float>(layer * TileSize::sizeHalf);
+					float yOffset = static_cast<float>(layer * TileSize::sizeHalf);
+					float sampleX = (static_cast<float>(x) - xOffset) / TileSize::sizeFloat * 2.0f;
+					float sampleY = (static_cast<float>(y) - yOffset) / TileSize::sizeFloat * 2.0f;
 					if (sampleX < -1.0f)
 						sampleX += 2.0f;
 					if (sampleX >= 1.0f)
@@ -44,7 +46,7 @@ TexturePortalFX::TexturePortalFX(int_t iconIndex) : TextureFX(iconIndex)
 				int_t red = static_cast<int_t>(value * value * 200.0f + 55.0f);
 				int_t green = static_cast<int_t>(value * value * value * value * 255.0f);
 				int_t alpha = static_cast<int_t>(value * 100.0f + 155.0f);
-				int_t pixel = y * 16 + x;
+				int_t pixel = y * TileSize::size + x;
 				frames[frame][pixel * 4 + 0] = static_cast<byte_t>(red);
 				frames[frame][pixel * 4 + 1] = static_cast<byte_t>(green);
 				frames[frame][pixel * 4 + 2] = static_cast<byte_t>(blue);
@@ -57,8 +59,8 @@ TexturePortalFX::TexturePortalFX(int_t iconIndex) : TextureFX(iconIndex)
 void TexturePortalFX::onTick()
 {
 	++portalTickCounter;
-	const std::array<byte_t, 1024> &frame = frames[portalTickCounter & 31];
-	for (int_t i = 0; i < 256; ++i)
+	const std::vector<byte_t> &frame = frames[portalTickCounter & 31];
+	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{
 		int_t red = frame[i * 4 + 0] & 255;
 		int_t green = frame[i * 4 + 1] & 255;
