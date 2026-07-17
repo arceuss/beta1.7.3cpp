@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -10,8 +9,10 @@
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
+#include "client/renderer/texturefx/TileSize.h"
 
-TextureLavaFlowFX::TextureLavaFlowFX() : TextureFX(Tile::lava.tex + 1)
+TextureLavaFlowFX::TextureLavaFlowFX() : TextureFX(Tile::lava.tex + 1),
+	red0(TileSize::numPixels), red1(TileSize::numPixels), green0(TileSize::numPixels), green1(TileSize::numPixels)
 {
 	tileSize = 2;
 }
@@ -20,50 +21,46 @@ void TextureLavaFlowFX::onTick()
 {
 	++tickCounter;
 
-	for (int_t x = 0; x < 16; ++x)
+	for (int_t x = 0; x < TileSize::size; ++x)
 	{
-		for (int_t y = 0; y < 16; ++y)
+		for (int_t y = 0; y < TileSize::size; ++y)
 		{
 			float val = 0.0f;
-			int_t sinY = static_cast<int_t>(std::sin(static_cast<float>(y) * static_cast<float>(M_PI) * 2.0f / 16.0f) * 1.2f);
-			int_t sinX = static_cast<int_t>(std::sin(static_cast<float>(x) * static_cast<float>(M_PI) * 2.0f / 16.0f) * 1.2f);
+			int_t sinY = static_cast<int_t>(std::sin(static_cast<float>(y) * static_cast<float>(M_PI) * 2.0f / TileSize::sizeFloat) * 1.2f);
+			int_t sinX = static_cast<int_t>(std::sin(static_cast<float>(x) * static_cast<float>(M_PI) * 2.0f / TileSize::sizeFloat) * 1.2f);
 
 			for (int_t xx = x - 1; xx <= x + 1; ++xx)
 			{
 				for (int_t yy = y - 1; yy <= y + 1; ++yy)
 				{
-					int_t xi = (xx + sinY) & 15;
-					int_t yi = (yy + sinX) & 15;
-					val += red0[xi + yi * 16];
+					int_t xi = (xx + sinY) & TileSize::sizeMinus1;
+					int_t yi = (yy + sinX) & TileSize::sizeMinus1;
+					val += red0[xi + yi * TileSize::size];
 				}
 			}
 
-			red1[x + y * 16] = val / 10.0f +
-				(green0[((x + 0) & 15) + ((y + 0) & 15) * 16] +
-				 green0[((x + 1) & 15) + ((y + 0) & 15) * 16] +
-				 green0[((x + 1) & 15) + ((y + 1) & 15) * 16] +
-				 green0[((x + 0) & 15) + ((y + 1) & 15) * 16]) / 4.0f * 0.8f;
+			red1[x + y * TileSize::size] = val / 10.0f +
+				(green0[((x + 0) & TileSize::sizeMinus1) + ((y + 0) & TileSize::sizeMinus1) * TileSize::size] +
+				 green0[((x + 1) & TileSize::sizeMinus1) + ((y + 0) & TileSize::sizeMinus1) * TileSize::size] +
+				 green0[((x + 1) & TileSize::sizeMinus1) + ((y + 1) & TileSize::sizeMinus1) * TileSize::size] +
+				 green0[((x + 0) & TileSize::sizeMinus1) + ((y + 1) & TileSize::sizeMinus1) * TileSize::size]) / 4.0f * 0.8f;
 
-			green0[x + y * 16] += green1[x + y * 16] * 0.01f;
-			if (green0[x + y * 16] < 0.0f)
-				green0[x + y * 16] = 0.0f;
+			green0[x + y * TileSize::size] += green1[x + y * TileSize::size] * 0.01f;
+			if (green0[x + y * TileSize::size] < 0.0f)
+				green0[x + y * TileSize::size] = 0.0f;
 
-			green1[x + y * 16] -= 0.06f;
+			green1[x + y * TileSize::size] -= 0.06f;
 			if ((static_cast<double>(std::rand()) / RAND_MAX) < 0.005)
-				green1[x + y * 16] = 1.5f;
+				green1[x + y * TileSize::size] = 1.5f;
 		}
 	}
 
 	// Swap buffers
-	float *temp = new float[256];
-	std::memcpy(temp, red1, sizeof(float) * 256);
-	std::memcpy(red1, red0, sizeof(float) * 256);
-	std::memcpy(red0, temp, sizeof(float) * 256);
-	delete[] temp;
+	red0.swap(red1);
 
-	for (int_t i = 0; i < 256; ++i)
+	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{
-		float val = red0[i - tickCounter / 3 * 16 & 255] * 2.0f;
+		float val = red0[i - tickCounter / 3 * TileSize::size & TileSize::numPixelsMinus1] * 2.0f;
 		if (val > 1.0f) val = 1.0f;
 		if (val < 0.0f) val = 0.0f;
 

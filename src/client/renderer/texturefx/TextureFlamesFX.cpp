@@ -2,45 +2,47 @@
 
 #include <cstdlib>
 
+#include "client/renderer/texturefx/TileSize.h"
 #include "world/level/tile/FireTile.h"
 
-TextureFlamesFX::TextureFlamesFX(int_t variant) : TextureFX(Tile::fire.tex + variant * 16)
+TextureFlamesFX::TextureFlamesFX(int_t variant) : TextureFX(Tile::fire.tex + variant * 16),
+	current(TileSize::flameArraySize), next(TileSize::flameArraySize)
 {
 }
 
 void TextureFlamesFX::onTick()
 {
-	for (int_t x = 0; x < 16; ++x)
+	for (int_t x = 0; x < TileSize::size; ++x)
 	{
-		for (int_t y = 0; y < 20; ++y)
+		for (int_t y = 0; y < TileSize::flameHeight; ++y)
 		{
 			int_t count = 18;
-			float total = current[x + ((y + 1) % 20) * 16] * static_cast<float>(count);
+			float total = current[x + ((y + 1) % TileSize::flameHeight) * TileSize::size] * static_cast<float>(count);
 
 			for (int_t sx = x - 1; sx <= x + 1; ++sx)
 			{
 				for (int_t sy = y; sy <= y + 1; ++sy)
 				{
-					if (sx >= 0 && sy >= 0 && sx < 16 && sy < 20)
-						total += current[sx + sy * 16];
+					if (sx >= 0 && sy >= 0 && sx < TileSize::size && sy < TileSize::flameHeight)
+						total += current[sx + sy * TileSize::size];
 					++count;
 				}
 			}
 
-			next[x + y * 16] = total / (static_cast<float>(count) * 1.06f);
-			if (y >= 19)
+			next[x + y * TileSize::size] = total / (static_cast<float>(count) * TileSize::flameNudge);
+			if (y >= TileSize::flameHeightMinus1)
 			{
 				float r0 = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
 				float r1 = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
 				float r2 = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-				next[x + y * 16] = r0 * r0 * r1 * 4.0f + r2 * 0.1f + 0.2f;
+				next[x + y * TileSize::size] = r0 * r0 * r1 * 4.0f + r2 * 0.1f + 0.2f;
 			}
 		}
 	}
 
 	current.swap(next);
 
-	for (int_t i = 0; i < 256; ++i)
+	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{
 		float flame = current[i] * 1.8f;
 		if (flame > 1.0f)

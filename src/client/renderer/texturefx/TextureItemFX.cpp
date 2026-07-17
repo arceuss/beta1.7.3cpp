@@ -1,9 +1,7 @@
 #include "client/renderer/texturefx/TextureItemFX.h"
 
-#include <memory>
-
 #include "client/Minecraft.h"
-#include "client/skins/TexturePack.h"
+#include "client/renderer/texturefx/TileSize.h"
 #include "java/BufferedImage.h"
 
 namespace
@@ -17,18 +15,19 @@ namespace
 		return (alpha << 24) | (red << 16) | (green << 8) | blue;
 	}
 
-	bool loadRegion(const BufferedImage &image, int_t startX, int_t startY, std::array<uint32_t, 256> &out)
+	bool loadRegion(const BufferedImage &image, int_t startX, int_t startY, std::vector<uint32_t> &out)
 	{
-		if (image.getWidth() < startX + 16 || image.getHeight() < startY + 16)
+		if (image.getWidth() < startX + TileSize::size || image.getHeight() < startY + TileSize::size)
 			return false;
 
+		out.resize(TileSize::numPixels);
 		const unsigned char *rawPixels = image.getRawPixels();
-		for (int_t y = 0; y < 16; ++y)
+		for (int_t y = 0; y < TileSize::size; ++y)
 		{
-			for (int_t x = 0; x < 16; ++x)
+			for (int_t x = 0; x < TileSize::size; ++x)
 			{
 				int_t pixelIndex = (startX + x) + (startY + y) * image.getWidth();
-				out[y * 16 + x] = packPixel(rawPixels, pixelIndex);
+				out[y * TileSize::size + x] = packPixel(rawPixels, pixelIndex);
 			}
 		}
 		return true;
@@ -36,28 +35,34 @@ namespace
 
 	BufferedImage loadImage(Minecraft &minecraft, const jstring &resourceName)
 	{
-		TexturePack *texturePack = minecraft.texturePackRepository.selected;
-		if (texturePack == nullptr)
-			return {};
-
-		std::unique_ptr<std::istream> stream(texturePack->getResource(resourceName));
-		if (stream == nullptr)
-			return {};
-
-		return BufferedImage::ImageIO_read(*stream);
+		return minecraft.textures.getResourceImage(resourceName);
 	}
 }
 
-bool TextureItemFX::loadIconPixels(Minecraft &minecraft, const jstring &resourceName, int_t iconIndex, std::array<uint32_t, 256> &out)
+bool TextureItemFX::loadIconPixels(Minecraft &minecraft, const jstring &resourceName, int_t iconIndex, std::vector<uint32_t> &out)
 {
-	BufferedImage image = loadImage(minecraft, resourceName);
-	return loadRegion(image, (iconIndex % 16) * 16, (iconIndex / 16) * 16, out);
+	try
+	{
+		BufferedImage image = loadImage(minecraft, resourceName);
+		return loadRegion(image, (iconIndex % 16) * TileSize::size, (iconIndex / 16) * TileSize::size, out);
+	}
+	catch (...)
+	{
+		return false;
+	}
 }
 
-bool TextureItemFX::loadWholePixels(Minecraft &minecraft, const jstring &resourceName, std::array<uint32_t, 256> &out)
+bool TextureItemFX::loadWholePixels(Minecraft &minecraft, const jstring &resourceName, std::vector<uint32_t> &out)
 {
-	BufferedImage image = loadImage(minecraft, resourceName);
-	return loadRegion(image, 0, 0, out);
+	try
+	{
+		BufferedImage image = loadImage(minecraft, resourceName);
+		return loadRegion(image, 0, 0, out);
+	}
+	catch (...)
+	{
+		return false;
+	}
 }
 
 void TextureItemFX::applyAnaglyph(int_t &red, int_t &green, int_t &blue, bool enabled)

@@ -52,4 +52,9 @@ int_t getBirchColor()
 	return 0x80A755;
 }
 
+void setImage(BufferedImage image)
+{
+	getImg() = std::move(image);
+}
+
 }

@@ -96,9 +96,16 @@ TexturePackSelectScreen::TexturePackSelectScreen(Minecraft &minecraft, std::shar
 void TexturePackSelectScreen::init()
 {
 	Language &language = Language::getInstance();
+	minecraft.texturePackRepository.updateList();
 	texturePackList = Util::make_shared<TexturePackList>(minecraft, *this);
 	buttons.push_back(Util::make_shared<SmallButton>(5, width / 2 - 154, height - 48, language.getElement(u"texturePack.openFolder")));
 	buttons.push_back(Util::make_shared<SmallButton>(6, width / 2 + 4, height - 48, language.getElement(u"gui.done")));
+}
+
+void TexturePackSelectScreen::tick()
+{
+	Screen::tick();
+	--refreshTicks;
 }
 
 void TexturePackSelectScreen::buttonClicked(Button &button)
@@ -116,7 +123,6 @@ void TexturePackSelectScreen::buttonClicked(Button &button)
 	else if (button.id == 6)
 	{
 		minecraft.textures.reloadAll();
-		minecraft.options.save();
 		minecraft.setScreen(lastScreen);
 	}
 }
@@ -133,6 +139,12 @@ void TexturePackSelectScreen::render(int_t xm, int_t ym, float a)
 		texturePackList->drawScreen(xm, ym, a);
 	else
 		renderBackground();
+
+	if (refreshTicks <= 0)
+	{
+		minecraft.texturePackRepository.updateList();
+		refreshTicks += 20;
+	}
 
 	Language &language = Language::getInstance();
 	drawCenteredString(font, language.getElement(u"texturePack.title"), width / 2, 16, 0xFFFFFF);

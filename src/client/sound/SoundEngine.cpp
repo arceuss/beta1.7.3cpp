@@ -475,7 +475,10 @@ void SoundEngine::play(const jstring &name, float x, float y, float z, float vol
 	if (volume > 1.0f)
 		dist *= volume;
 
-	ALuint source = getOrCreateSource(id, false);
+	// SoundManager.java:163 - sndSystem.newSource(var5 > 1.0F, ...) (priority flag)
+	bool priority = volume > 1.0f;
+
+	ALuint source = getOrCreateSource(id, false, priority);
 	if (source == 0)
 		return;
 
@@ -506,7 +509,7 @@ void SoundEngine::play(const jstring &name, float x, float y, float z, float vol
 	// SoundManager.java:165-167 - clamp volume after pitch
 	float finalVolume = volume > 1.0f ? 1.0f : volume;
 	float sourceVolume = finalVolume * options->sound;
-	sourceInfoMap[id] = SourceInfo(x, y, z, dist, sourceVolume, 2);
+	sourceInfoMap[id] = SourceInfo(x, y, z, dist, sourceVolume, 2, priority);
 
 	float gain = calculateLinearGain(x, y, z, listenerX, listenerY, listenerZ, dist);
 	alSourcef(source, AL_GAIN, gain * sourceVolume);
@@ -559,7 +562,7 @@ void SoundEngine::playUI(const jstring &name, float volume, float pitch)
 	alSourcePlay(source);
 }
 
-ALuint SoundEngine::getOrCreateSource(const std::string &id, bool streaming)
+ALuint SoundEngine::getOrCreateSource(const std::string &id, bool streaming, bool priority)
 {
 	if (streaming)
 		return streamingSource;
@@ -583,24 +586,32 @@ ALuint SoundEngine::getOrCreateSource(const std::string &id, bool streaming)
 		return source;
 	}
 
-	// Steal oldest source when pool exhausted
-	if (!activeSources.empty())
+	// Paulscode Library.getNextChannel: with no free channel, non-priority
+	// sources are dropped; a priority source may take over a channel that is
+	// playing a non-priority source
+	if (priority)
 	{
-		auto oldest = activeSources.begin();
-		ALuint source = oldest->second;
+		for (auto it = activeSources.begin(); it != activeSources.end(); ++it)
+		{
+			auto info = sourceInfoMap.find(it->first);
+			if (info != sourceInfoMap.end() && info->second.priority)
+				continue;
 
-		alSourceStop(source);
-		alSourcei(source, AL_BUFFER, 0);
-		alSource3f(source, AL_POSITION, 0.0f, 0.0f, 0.0f);
-		alSourcef(source, AL_GAIN, 1.0f);
-		alSourcef(source, AL_PITCH, 1.0f);
-		alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
-		alSourcei(source, AL_LOOPING, AL_FALSE);
+			ALuint source = it->second;
 
-		sourceInfoMap.erase(oldest->first);
-		activeSources.erase(oldest);
-		activeSources[id] = source;
-		return source;
+			alSourceStop(source);
+			alSourcei(source, AL_BUFFER, 0);
+			alSource3f(source, AL_POSITION, 0.0f, 0.0f, 0.0f);
+			alSourcef(source, AL_GAIN, 1.0f);
+			alSourcef(source, AL_PITCH, 1.0f);
+			alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
+			alSourcei(source, AL_LOOPING, AL_FALSE);
+
+			sourceInfoMap.erase(it->first);
+			activeSources.erase(it);
+			activeSources[id] = source;
+			return source;
+		}
 	}
 
 	return 0;

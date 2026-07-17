@@ -5,17 +5,20 @@
 #include "client/renderer/Textures.h"
 #include "client/renderer/Tesselator.h"
 
-#include "java/Resource.h"
 #include "java/BufferedImage.h"
 
 Font::Font(Options &options, const jstring &name, Textures &textures)
 {
-	std::unique_ptr<std::istream> is(Resource::getResource(name));
-	BufferedImage img = BufferedImage::ImageIO_read(*is);
+	initialize(options, name, textures);
+}
+
+void Font::initialize(Options &options, const jstring &name, Textures &textures)
+{
+	BufferedImage img = textures.getResourceImage(name);
 
 	int_t w = img.getWidth();
-	int_t h = img.getHeight();
 	const unsigned char *rawPixels = img.getRawPixels();
+	int_t cellSize = w / 16;
 
 	// Determine character widths
 	for (int_t i = 0; i < 256; i++)
@@ -23,14 +26,14 @@ Font::Font(Options &options, const jstring &name, Textures &textures)
 		int_t xt = i % 16;
 		int_t yt = i / 16;
 
-		int_t x = 7;
+		int_t x = cellSize - 1;
 		for (; x >= 0; x--)
 		{
-			int_t xPixel = xt * 8 + x;
+			int_t xPixel = xt * cellSize + x;
 			bool emptyColumn = true;
-			for (int_t y = 0; y < 8 && emptyColumn; y++)
+			for (int_t y = 0; y < cellSize && emptyColumn; y++)
 			{
-				int_t yPixel = (yt * 8 + y) * w;
+				int_t yPixel = (yt * cellSize + y) * w;
 				int_t pixel = rawPixels[(xPixel + yPixel) * 4 + 3] & 0xFF;
 				if (pixel > 0)
 					emptyColumn = false;
@@ -39,8 +42,8 @@ Font::Font(Options &options, const jstring &name, Textures &textures)
 				break;
 		}
 
-		if (i == 32) x = 2;
-		charWidths[i] = x + 2;
+		if (i == 32) x = w / 64;
+		charWidths[i] = (128 * x + 256) / w;
 	}
 
 	fontTexture = textures.getTexture(img);

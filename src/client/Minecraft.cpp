@@ -46,15 +46,6 @@
 
 #include "CrashHandler.h"
 
-#include "client/renderer/texturefx/TextureWaterFX.h"
-#include "client/renderer/texturefx/TextureWaterFlowFX.h"
-#include "client/renderer/texturefx/TextureLavaFX.h"
-#include "client/renderer/texturefx/TextureLavaFlowFX.h"
-#include "client/renderer/texturefx/TexturePortalFX.h"
-#include "client/renderer/texturefx/TextureCompassFX.h"
-#include "client/renderer/texturefx/TextureWatchFX.h"
-#include "client/renderer/texturefx/TextureFlamesFX.h"
-
 const jstring Minecraft::VERSION_STRING = u"Minecraft " + SharedConstants::VERSION_STRING;
 
 std::array<long, 512> Minecraft::frameTimes = {};
@@ -109,6 +100,7 @@ void Minecraft::init()
 
 	options.open(workingDirectory.get());
 	texturePackRepository.updateListAndSelect();
+	textures.setTileSize();
 
 	font = std::make_unique<Font>(options, u"/font/default.png", textures);
 	SPCCommand::setMessageFont(font.get());
@@ -147,17 +139,6 @@ void Minecraft::init()
 	std::unique_ptr<File> resourceDir(File::openResourceDirectory());
 	if (resourceDir && resourceDir->exists() && resourceDir->isDirectory())
 		loadAllSounds(resourceDir.get(), u"");
-	// Dynamic textures
-	textures.registerTextureFX(std::make_unique<TextureLavaFX>());
-	textures.registerTextureFX(std::make_unique<TextureWaterFX>());
-	textures.registerTextureFX(std::make_unique<TexturePortalFX>(14));
-	textures.registerTextureFX(std::make_unique<TextureCompassFX>(*this));
-	textures.registerTextureFX(std::make_unique<TextureWatchFX>(*this));
-	textures.registerTextureFX(std::make_unique<TextureWaterFlowFX>());
-	textures.registerTextureFX(std::make_unique<TextureLavaFlowFX>());
-	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(0));
-	textures.registerTextureFX(std::make_unique<TextureFlamesFX>(1));
-
 	if (serverHost.empty())
 		setScreen(Util::make_shared<TitleScreen>(*this));
 	else

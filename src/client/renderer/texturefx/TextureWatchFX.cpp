@@ -5,6 +5,7 @@
 
 #include "client/Minecraft.h"
 #include "client/renderer/texturefx/TextureItemFX.h"
+#include "client/renderer/texturefx/TileSize.h"
 #include "util/Mth.h"
 #include "world/level/dimension/Dimension.h"
 
@@ -13,7 +14,8 @@ namespace
 	constexpr int_t CLOCK_ICON_INDEX = 70;
 }
 
-TextureWatchFX::TextureWatchFX(Minecraft &minecraft) : TextureFX(CLOCK_ICON_INDEX), minecraft(minecraft)
+TextureWatchFX::TextureWatchFX(Minecraft &minecraft) : TextureFX(CLOCK_ICON_INDEX), minecraft(minecraft),
+	watchIconImageData(TileSize::numPixels), dialImageData(TileSize::numPixels)
 {
 	tileImage = 1;
 	TextureItemFX::loadIconPixels(minecraft, u"/gui/items.png", iconIndex, watchIconImageData);
@@ -46,7 +48,7 @@ void TextureWatchFX::onTick()
 	double sinRot = std::sin(rotation);
 	double cosRot = std::cos(rotation);
 
-	for (int_t i = 0; i < 256; ++i)
+	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{
 		int_t alpha = (watchIconImageData[i] >> 24) & 255;
 		int_t red = (watchIconImageData[i] >> 16) & 255;
@@ -54,11 +56,11 @@ void TextureWatchFX::onTick()
 		int_t blue = watchIconImageData[i] & 255;
 		if (red == blue && green == 0 && blue > 0)
 		{
-			double sampleX = -((static_cast<double>(i % 16) / 15.0) - 0.5);
-			double sampleY = (static_cast<double>(i / 16) / 15.0) - 0.5;
-			int_t dialX = static_cast<int_t>((sampleX * cosRot + sampleY * sinRot + 0.5) * 16.0);
-			int_t dialY = static_cast<int_t>((sampleY * cosRot - sampleX * sinRot + 0.5) * 16.0);
-			int_t dialPixel = (dialX & 15) + (dialY & 15) * 16;
+			double sampleX = -((static_cast<double>(i % TileSize::size) / TileSize::sizeMinus1Double) - 0.5);
+			double sampleY = (static_cast<double>(i / TileSize::size) / TileSize::sizeMinus1Double) - 0.5;
+			int_t dialX = static_cast<int_t>((sampleX * cosRot + sampleY * sinRot + 0.5) * TileSize::sizeDouble);
+			int_t dialY = static_cast<int_t>((sampleY * cosRot - sampleX * sinRot + 0.5) * TileSize::sizeDouble);
+			int_t dialPixel = (dialX & TileSize::sizeMinus1) + (dialY & TileSize::sizeMinus1) * TileSize::size;
 			int_t intensity = red;
 			alpha = (dialImageData[dialPixel] >> 24) & 255;
 			red = ((dialImageData[dialPixel] >> 16) & 255) * red / 255;

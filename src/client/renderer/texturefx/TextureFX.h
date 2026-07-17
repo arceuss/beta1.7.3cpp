@@ -1,11 +1,13 @@
 #pragma once
 
+#include <vector>
+
 #include "java/Type.h"
 
 class TextureFX
 {
 public:
-	byte_t imageData[1024] = {};
+	std::vector<byte_t> imageData;
 	int_t iconIndex = 0;
 	bool anaglyphEnabled = false;
 	int_t textureId = 0;

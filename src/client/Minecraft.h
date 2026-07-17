@@ -66,8 +66,8 @@ private:
 public:
 	std::shared_ptr<Level> level;
 	Options options = Options(*this);
-	TexturePackRepository texturePackRepository = TexturePackRepository(*this);
-	Textures textures = Textures(texturePackRepository, options);
+	TexturePackRepository texturePackRepository{*this};
+	Textures textures{texturePackRepository, options, *this};
 	LevelRenderer levelRenderer = LevelRenderer(*this, textures);
 
 	std::shared_ptr<LocalPlayer> player;

@@ -42,4 +42,9 @@ int_t get(double x, double y)
 	return 0xFF000000 | (static_cast<int_t>(rawPixels[0]) << 16) | (static_cast<int_t>(rawPixels[1]) << 8) | rawPixels[2];
 }
 
+void setImage(BufferedImage image)
+{
+	getImg() = std::move(image);
+}
+
 }
