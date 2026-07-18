@@ -92,6 +92,7 @@ EntityMinecart::EntityMinecart(Level &level) : Entity(level)
 {
 	setSize(0.98f, 0.7f);
 	heightOffset = bbHeight / 2.0f;
+	makeStepSound = false;
 }
 
 EntityMinecart::EntityMinecart(Level &level, double x, double y, double z, int_t minecartType)

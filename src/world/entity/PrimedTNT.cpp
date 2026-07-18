@@ -10,6 +10,7 @@ PrimedTNT::PrimedTNT(Level &level) : Entity(level)
 {
 	setSize(0.98f, 0.98f);
 	heightOffset = bbHeight / 2.0f;
+	makeStepSound = false;
 }
 
 PrimedTNT::PrimedTNT(Level &level, double x, double y, double z) : PrimedTNT(level)
