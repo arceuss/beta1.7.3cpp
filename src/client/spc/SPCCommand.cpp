@@ -530,6 +530,12 @@ std::shared_ptr<Entity> createSpawnEntity(Level &level, const jstring &name)
 	if (key == u"ghast") return std::make_shared<Ghast>(level);
 	if (key == u"spider") return std::make_shared<Spider>(level);
 	if (key == u"creeper") return std::make_shared<Creeper>(level);
+	if (key == u"chargedcreeper" || key == u"poweredcreeper")
+	{
+		std::shared_ptr<Creeper> creeper = std::make_shared<Creeper>(level);
+		creeper->setPowered(true);
+		return creeper;
+	}
 	if (key == u"slime") return std::make_shared<Slime>(level);
 	if (key == u"pigzombie" || key == u"zombiepigman") return std::make_shared<PigZombie>(level);
 	return nullptr;

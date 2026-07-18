@@ -58,6 +58,11 @@ void Creeper::setCreeperState(int_t state)
 	dataWatcher.updateObject(16, static_cast<byte_t>(state));
 }
 
+void Creeper::setPowered(bool powered)
+{
+	dataWatcher.updateObject(17, static_cast<byte_t>(powered ? 1 : 0));
+}
+
 void Creeper::onStruckByLightning(Entity &lightning)
 {
 	Entity::onStruckByLightning(lightning);

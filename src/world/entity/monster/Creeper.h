@@ -16,6 +16,7 @@ public:
 	void tick() override;
 	float getSwelling(float a) const;
 	bool isPowered() const;
+	void setPowered(bool powered); // non-vanilla helper for the SPC spawn command
 	void onStruckByLightning(Entity &lightning) override;
 	void die(Entity *source) override;
 
