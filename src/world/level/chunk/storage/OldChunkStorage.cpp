@@ -222,7 +222,7 @@ std::shared_ptr<LevelChunk> OldChunkStorage::load(Level &level, CompoundTag &tag
 	std::shared_ptr<ListTag> entityTags = tag.getList(u"Entities");
 	if (entityTags != nullptr)
 	{
-		for (byte_t i = 0; i < entityTags->size(); i++)
+		for (int_t i = 0; i < entityTags->size(); i++)
 		{
 			std::shared_ptr<CompoundTag> entityTag = std::static_pointer_cast<CompoundTag>(entityTags->get(i));
 			std::shared_ptr<Entity> entity = EntityIO::loadStatic(*entityTag, level);
@@ -233,7 +233,7 @@ std::shared_ptr<LevelChunk> OldChunkStorage::load(Level &level, CompoundTag &tag
 	std::shared_ptr<ListTag> tileEntityTags = tag.getList(u"TileEntities");
 	if (tileEntityTags != nullptr)
 	{
-		for (byte_t i = 0; i < tileEntityTags->size(); i++)
+		for (int_t i = 0; i < tileEntityTags->size(); i++)
 		{
 			std::shared_ptr<CompoundTag> tileEntityTag = std::static_pointer_cast<CompoundTag>(tileEntityTags->get(i));
 			if (!tileEntityTag)

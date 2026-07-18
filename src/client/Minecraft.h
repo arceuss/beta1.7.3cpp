@@ -167,6 +167,8 @@ public:
 	void run();
 
 	void renderFpsMeter(long tickNanos);
+	void screenshotListener();
+	bool isTakingScreenshot = false;
 
 	void stop();
 	

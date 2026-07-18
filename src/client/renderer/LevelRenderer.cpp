@@ -16,6 +16,7 @@
 #include "client/particle/ExplodeParticle.h"
 #include "client/particle/RedDustParticle.h"
 #include "client/particle/PortalParticle.h"
+#include "client/particle/HeartParticle.h"
 #include "client/particle/NoteParticle.h"
 #include "client/particle/ItemParticle.h"
 #include "java/Math.h"
@@ -1316,7 +1317,14 @@ void LevelRenderer::playStreamingMusic(const jstring &name, int_t x, int_t y, in
 
 void LevelRenderer::playSound(const jstring &name, double x, double y, double z, float volume, float pitch)
 {
-	mc.soundEngine.play(name, (float)x, (float)y, (float)z, volume, pitch);
+	// b1.2 LevelRenderer.playSound: sounds beyond 16 blocks (16 * volume for
+	// volume > 1) never reach the engine, so they never occupy a channel
+	float dd = 16.0f;
+	if (volume > 1.0f)
+		dd *= volume;
+
+	if (mc.player != nullptr && mc.player->distanceToSqr(x, y, z) < (double)(dd * dd))
+		mc.soundEngine.play(name, (float)x, (float)y, (float)z, volume, pitch);
 }
 
 void LevelRenderer::addParticle(const jstring &name, double x, double y, double z, double xa, double ya, double za)
@@ -1355,6 +1363,8 @@ void LevelRenderer::addParticle(const jstring &name, double x, double y, double 
 		mc.particleEngine.add(std::make_unique<ItemParticle>(*level, x, y, z, *Items::snowball));
 	else if (name == u"slime")
 		mc.particleEngine.add(std::make_unique<ItemParticle>(*level, x, y, z, *Items::slimeball));
+	else if (name == u"heart")
+		mc.particleEngine.add(std::make_unique<HeartParticle>(*level, x, y, z, xa, ya, za));
 }
 
 void LevelRenderer::playMusic(const jstring &name, double x, double y, double z, float songOffset)

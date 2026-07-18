@@ -6,6 +6,7 @@
 #include "world/item/crafting/FurnaceRecipes.h"
 #include "world/level/Level.h"
 #include "world/level/tile/FurnaceTile.h"
+#include "world/level/tile/SaplingTile.h"
 #include "world/level/tile/Tile.h"
 
 #include "nbt/CompoundTag.h"
@@ -182,6 +183,12 @@ int_t FurnaceTileEntity::getBurnDuration(const ItemInstance &stack) const
 		return 1600;
 	// Stick
 	if (Items::stick != nullptr && id == Items::stick->getShiftedIndex())
+		return 100;
+	// Lava bucket
+	if (Items::bucketLava != nullptr && id == Items::bucketLava->getShiftedIndex())
+		return 20000;
+	// Sapling
+	if (id == Tile::sapling.id)
 		return 100;
 	return 0;
 

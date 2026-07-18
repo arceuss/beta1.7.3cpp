@@ -25,20 +25,20 @@ int_t TNTTile::getTexture(Facing face, int_t data)
 
 void TNTTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
+	Tile::onPlace(level, x, y, z);
 	if (level.hasNeighborSignal(x, y, z))
 	{
+		playerDestroy(level, x, y, z, 1);
 		level.setTile(x, y, z, 0);
-		onBlockDestroyedByExplosion(level, x, y, z);
 	}
 }
 
 void TNTTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
-	(void)tile;
-	if (level.hasNeighborSignal(x, y, z))
+	if (tile > 0 && Tile::tiles[tile]->isSignalSource() && level.hasNeighborSignal(x, y, z))
 	{
+		playerDestroy(level, x, y, z, 1);
 		level.setTile(x, y, z, 0);
-		onBlockDestroyedByExplosion(level, x, y, z);
 	}
 }
 
@@ -52,18 +52,25 @@ void TNTTile::attack(Level &level, int_t x, int_t y, int_t z, Player &player)
 	Tile::attack(level, x, y, z, player);
 }
 
-int_t TNTTile::getResource(int_t data, Random &random)
+int_t TNTTile::getResourceCount(Random &random)
 {
-	(void)data;
 	(void)random;
 	return 0;
 }
 
 void TNTTile::playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data)
 {
+	if (level.isOnline)
+		return;
+
 	if ((data & 1) == 0)
 	{
-		auto item = std::make_shared<EntityItem>(level, x + 0.5, y + 0.5, z + 0.5, ItemInstance(id, 1, 0));
+		float spread = 0.7f;
+		double xo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+		double yo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+		double zo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+		auto item = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, ItemInstance(id, 1, 0));
+		item->throwTime = 10;
 		level.addEntity(item);
 	}
 	else

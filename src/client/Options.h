@@ -93,7 +93,7 @@ public:
 	KeyMapping keyFog = KeyMapping(u"key.fog", lwjgl::Keyboard::KEY_F);
 	KeyMapping keySneak = KeyMapping(u"key.sneak", lwjgl::Keyboard::KEY_LSHIFT);
 	KeyMapping keyDrop = KeyMapping(u"key.drop", lwjgl::Keyboard::KEY_Q);
-	KeyMapping keyInventory = KeyMapping(u"key.inventory", lwjgl::Keyboard::KEY_I);
+	KeyMapping keyInventory = KeyMapping(u"key.inventory", lwjgl::Keyboard::KEY_E);
 	KeyMapping keyChat = KeyMapping(u"key.chat", lwjgl::Keyboard::KEY_T);
 
 	std::array<KeyMapping*, 10> keyMappings = { &keyUp, &keyLeft, &keyDown, &keyRight, &keyJump, &keySneak, &keyDrop, &keyInventory, &keyChat, &keyFog };

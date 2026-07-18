@@ -8,6 +8,8 @@
 #include "tools/BlockSmoke.h"
 #include "tools/MultiplayerScreenSmoke.h"
 #include "tools/NetworkSmoke.h"
+#include "tools/SaveConverterSmoke.h"
+#include "tools/SoundSmoke.h"
 
 #include "external/SDLException.h"
 
@@ -19,6 +21,10 @@ int main(int argc, char *argv[])
 		return runBlockSmoke();
 	if (argc >= 2 && std::strcmp(argv[1], "--network-smoke") == 0)
 		return runNetworkSmoke();
+	if (argc >= 2 && std::strcmp(argv[1], "--save-converter-smoke") == 0)
+		return runSaveConverterSmoke();
+	if (argc >= 2 && std::strcmp(argv[1], "--sound-smoke") == 0)
+		return runSoundSmoke();
 	if (argc >= 2 && std::strcmp(argv[1], "--multiplayer-screen-smoke") == 0)
 		return runMultiplayerScreenSmoke();
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER | SDL_INIT_AUDIO) < 0)

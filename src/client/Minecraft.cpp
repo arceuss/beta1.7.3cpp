@@ -19,6 +19,9 @@
 #include "client/title/TitleScreen.h"
 #include "client/player/KeyboardInput.h"
 #include "client/spc/SPCCommand.h"
+#include "client/ScreenShotHelper.h"
+#include "client/gui/ConflictWarningScreen.h"
+#include "MinecraftException.h"
 
 #include "client/gamemode/SurvivalMode.h"
 
@@ -26,9 +29,14 @@
 #include "world/phys/AABB.h"
 #include "world/level/chunk/ChunkCache.h"
 #include "world/level/Level.h"
+#include "world/level/SaveConverterMcRegion.h"
 #include "world/level/Teleporter.h"
 #include "nbt/CompoundTag.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/DirtTile.h"
+#include "world/level/tile/GrassTile.h"
+#include "world/level/tile/SlabTile.h"
+#include "world/level/tile/StoneTile.h"
 #include "world/item/Items.h"
 #include "world/stats/Achievement.h"
 #include "world/stats/AchievementList.h"
@@ -397,7 +405,7 @@ void Minecraft::generateFlyby()
 		player->y = player->yo = player->yOld = player_y;
 
 		// Render world
-		gameRenderer.renderLevel(1.0f);
+		gameRenderer.renderLevel(1.0f, 0);
 
 		lwjgl::Display::update();
 
@@ -450,7 +458,6 @@ void Minecraft::run()
 
 		while (running)
 		{
-			long_t frameStartNano = System::nanoTime();
 			AABB::resetPool();
 			Vec3::resetPool();
 
@@ -474,7 +481,19 @@ void Minecraft::run()
 			{
 				ticks++;
 				fpsTicks++;
-				tick();
+				try
+				{
+					tick();
+				}
+				catch (MinecraftException &)
+				{
+					// vanilla nulls theWorld before changeWorld1(null) so the
+					// conflicting level is never saved over
+					level = nullptr;
+					setLevel(nullptr);
+					setScreen(Util::make_shared<ConflictWarningScreen>(*this));
+					break;
+				}
 			}
 			long_t tickNanos = System::nanoTime() - tickNano;
 
@@ -512,19 +531,6 @@ void Minecraft::run()
 					toggleFullscreen();
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			}
-			if (options.limitFramerate == 1)
-			{
-				long_t remaining = 1000000000L / 120 - (System::nanoTime() - frameStartNano);
-				if (remaining > 0)
-					std::this_thread::sleep_for(std::chrono::nanoseconds(remaining));
-			}
-			else if (options.limitFramerate == 2)
-			{
-				long_t remaining = 1000000000L / 40 - (System::nanoTime() - frameStartNano);
-				if (remaining > 0)
-					std::this_thread::sleep_for(std::chrono::nanoseconds(remaining));
-			}
-			
 			if (options.showDebugInfo)
 			{
 				renderFpsMeter(tickNanos);
@@ -537,6 +543,8 @@ void Minecraft::run()
 			std::this_thread::yield();
 			if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F7))
 				lwjgl::Display::update();
+
+			screenshotListener();
 
 			if (!fullscreen)
 			{
@@ -834,12 +842,35 @@ void Minecraft::resize(int_t w, int_t h)
 	}
 }
 
+// B173-JAVA-METHOD: net.minecraft.client.Minecraft#screenshotListener()
+void Minecraft::screenshotListener()
+{
+	if (lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F2))
+	{
+		if (!isTakingScreenshot)
+		{
+			isTakingScreenshot = true;
+			SPCCommand::addChatMessage(ScreenShotHelper::saveScreenshot(*getWorkingDirectory(), width, height));
+		}
+	}
+	else
+	{
+		isTakingScreenshot = false;
+	}
+}
+
 void Minecraft::handleGrabTexture()
 {
 	if (hitResult.type != HitResult::Type::NONE)
 	{
 		int_t i = level->getTile(hitResult.x, hitResult.y, hitResult.z);
-		// TODO
+		if (i == Tile::grass.id)
+			i = Tile::dirt.id;
+		if (i == Tile::slabDouble.id)
+			i = Tile::slabSingle.id;
+		if (i == Tile::bedrock.id)
+			i = Tile::rock.id;
+		player->inventory.setCurrentItem(i);
 	}
 }
 
@@ -973,10 +1004,7 @@ void Minecraft::tick()
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_S && lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F3))
 						reloadSound();
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F5)
-					{
-						if (player == nullptr || !player->sleeping)
-							options.thirdPersonView = !options.thirdPersonView;
-					}
+						options.thirdPersonView = !options.thirdPersonView;
 					if (lwjgl::Keyboard::getEventKey() == lwjgl::Keyboard::KEY_F8)
 						options.smoothCamera = !options.smoothCamera;
 					if (lwjgl::Keyboard::getEventKey() == options.keyDrop.key && player != nullptr)
@@ -1130,6 +1158,15 @@ void Minecraft::selectLevel(const jstring &name, const jstring &levelName, long_
 	setLevel(nullptr);
 
 	std::unique_ptr<File> saves(File::open(*getWorkingDirectory(), u"saves"));
+	SaveConverterMcRegion converter(*saves);
+	if (converter.isOldMapFormat(name))
+	{
+		progressRenderer->progressStart(u"Converting World to " + converter.getFormatName());
+		progressRenderer->progressStage(u"This may take a while :)");
+		converter.convertMapFormat(name, *progressRenderer);
+		selectLevel(name, levelName, 0LL);
+		return;
+	}
 	std::shared_ptr<Level> new_level = Util::make_shared<Level>(saves.release(), name, levelName, seed);
 	if (statFileWriter != nullptr)
 	{
@@ -1173,11 +1210,10 @@ void Minecraft::toggleDimension()
 		z *= scale;
 	}
 	player->moveTo(x, player->y, z, player->yRot, player->xRot);
-	// chunk-guarded tick (vanilla updateEntityWithOptionalForce with force=false):
-	// the scaled destination is normally unloaded, which is what stops the
-	// portal timer from re-firing toggleDimension inside this call
+	// vanilla updateEntityWithOptionalForce(player, false): position/chunk
+	// bookkeeping only, never onUpdate (which would re-fire the portal timer)
 	if (player->isAlive())
-		level->tick(player, true);
+		level->tick(player, false);
 
 	// vanilla carries the same player object across; Entity holds a Level
 	// reference, so the port recreates the player in the new level and moves
@@ -1197,7 +1233,7 @@ void Minecraft::toggleDimension()
 	if (newPlayer->isAlive())
 	{
 		newPlayer->moveTo(x, newPlayer->y, z, newPlayer->yRot, newPlayer->xRot);
-		newLevel->tick(newPlayer, true);
+		newLevel->tick(newPlayer, false);
 		Teleporter().teleport(*newLevel, *newPlayer);
 	}
 }

@@ -35,15 +35,29 @@ int_t javaSubtractOne(int_t value)
 namespace Mth
 {
 
+namespace
+{
+
+struct SinTable
+{
+	float table[65536];
+
+	SinTable()
+	{
+		for (int_t i = 0; i < 65536; i++)
+			table[i] = static_cast<float>(std::sin(i * 3.141592653589793 * 2.0 / 65536.0));
+	}
+} static const SIN_TABLE;
+
+}
+
 float sin(float angle)
 {
-	// TODO
-	return std::sin(angle);
+	return SIN_TABLE.table[javaNumberToInt(angle * 10430.378f) & 65535];
 }
 float cos(float angle)
 {
-	// TODO
-	return std::cos(angle);
+	return SIN_TABLE.table[javaNumberToInt(angle * 10430.378f + 16384.0f) & 65535];
 }
 
 float sqrt(float value)
