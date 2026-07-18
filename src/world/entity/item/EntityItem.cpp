@@ -18,6 +18,7 @@ EntityItem::EntityItem(Level &level) : Entity(level)
 	setSize(0.25f, 0.25f);
 	heightOffset = bbHeight / 2.0f;
 	bobOffs = random.nextFloat() * Mth::PI * 2.0f;
+	makeStepSound = false;
 }
 
 EntityItem::EntityItem(Level &level, double x, double y, double z, const ItemInstance &stack) : EntityItem(level)
