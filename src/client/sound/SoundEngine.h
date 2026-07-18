@@ -43,9 +43,12 @@ private:
 			: x(x), y(y), z(z), distOrRoll(distOrRoll), sourceVolume(sourceVolume), attModel(attModel), priority(priority) {}
 	};
 
-	std::unordered_map<std::string, ALuint> activeSources;
 	std::unordered_map<std::string, SourceInfo> sourceInfoMap;
-	std::vector<ALuint> freeSources;
+	// Paulscode Library: fixed channel array + rotating cursor
+	// (channelIds[n] mirrors normalChannelSourceNames)
+	std::vector<ALuint> channelSources;
+	std::vector<std::string> channelIds;
+	int_t nextNormalChannel = 0;
 	std::unordered_map<std::string, ALuint> soundBuffers;
 	ALuint musicSource = 0;
 	ALuint streamingSource = 0;
@@ -80,5 +83,11 @@ public:
 
 	void playStreaming(const jstring &name, float x, float y, float z, float volume, float pitch);
 	void play(const jstring &name, float x, float y, float z, float volume, float pitch);
+
+	// --sound-smoke diagnostics
+	bool debugHasSound(const jstring &name) { return sounds.get(name) != nullptr; }
+	int_t debugActiveSources();
+	int_t debugPlayingSources();
+	int_t debugDrops = 0;
 	void playUI(const jstring &name, float volume, float pitch);
 };

@@ -72,8 +72,10 @@ bool SoundEngine::initOpenAL()
 		return false;
 	}
 
-	freeSources.resize(MAX_SOURCES);
-	alGenSources((ALsizei)freeSources.size(), freeSources.data());
+	channelSources.resize(MAX_SOURCES);
+	channelIds.assign(MAX_SOURCES, std::string());
+	nextNormalChannel = 0;
+	alGenSources((ALsizei)channelSources.size(), channelSources.data());
 	ALenum err = alGetError();
 	if (err != AL_NO_ERROR)
 	{
@@ -101,18 +103,18 @@ bool SoundEngine::initOpenAL()
 
 void SoundEngine::cleanupOpenAL()
 {
-	for (auto &pair : activeSources)
+	for (ALuint source : channelSources)
 	{
-		alSourceStop(pair.second);
-		alSourcei(pair.second, AL_BUFFER, 0);
+		alSourceStop(source);
+		alSourcei(source, AL_BUFFER, 0);
 	}
-	activeSources.clear();
 	sourceInfoMap.clear();
 
-	if (!freeSources.empty())
+	if (!channelSources.empty())
 	{
-		alDeleteSources((ALsizei)freeSources.size(), freeSources.data());
-		freeSources.clear();
+		alDeleteSources((ALsizei)channelSources.size(), channelSources.data());
+		channelSources.clear();
+		channelIds.clear();
 	}
 
 	if (musicSource != 0)
@@ -284,10 +286,12 @@ void SoundEngine::update(Mob *player, float a)
 
 void SoundEngine::checkAndReleaseFinishedSources()
 {
-	std::vector<std::string> toRelease;
-	for (auto it = activeSources.begin(); it != activeSources.end(); ++it)
+	for (size_t n = 0; n < channelSources.size(); ++n)
 	{
-		ALuint source = it->second;
+		if (channelIds[n].empty())
+			continue;
+
+		ALuint source = channelSources[n];
 		ALint state;
 		alGetSourcei(source, AL_SOURCE_STATE, &state);
 
@@ -305,15 +309,9 @@ void SoundEngine::checkAndReleaseFinishedSources()
 			alSourcei(source, AL_LOOPING, AL_FALSE);
 			alGetError();
 
-			freeSources.push_back(source);
-			toRelease.push_back(it->first);
+			sourceInfoMap.erase(channelIds[n]);
+			channelIds[n].clear();
 		}
-	}
-
-	for (const auto &id : toRelease)
-	{
-		activeSources.erase(id);
-		sourceInfoMap.erase(id);
 	}
 }
 
@@ -344,15 +342,18 @@ static float calculateLinearGain(float srcX, float srcY, float srcZ,
 // SourceLWJGLOpenAL.java:positionChanged (lines 199-208)
 void SoundEngine::updateSourceGains()
 {
-	for (auto &pair : activeSources)
+	for (size_t n = 0; n < channelSources.size(); ++n)
 	{
-		ALuint source = pair.second;
+		if (channelIds[n].empty())
+			continue;
+
+		ALuint source = channelSources[n];
 		ALint state;
 		alGetSourcei(source, AL_SOURCE_STATE, &state);
 		if (state != AL_PLAYING && state != AL_PAUSED)
 			continue;
 
-		auto infoIt = sourceInfoMap.find(pair.first);
+		auto infoIt = sourceInfoMap.find(channelIds[n]);
 		if (infoIt == sourceInfoMap.end())
 			continue;
 
@@ -364,7 +365,7 @@ void SoundEngine::updateSourceGains()
 		alSourcef(source, AL_GAIN, gain * info.sourceVolume);
 	}
 
-	// Streaming source (not in activeSources)
+	// Streaming source (not in the channel pool)
 	auto streamingInfoIt = sourceInfoMap.find("streaming");
 	if (streamingInfoIt != sourceInfoMap.end() && streamingSource != 0)
 	{
@@ -480,7 +481,10 @@ void SoundEngine::play(const jstring &name, float x, float y, float z, float vol
 
 	ALuint source = getOrCreateSource(id, false, priority);
 	if (source == 0)
+	{
+		debugDrops++;
 		return;
+	}
 
 	ALuint buffer;
 	if (!loadSound(*sound, buffer))
@@ -562,17 +566,20 @@ void SoundEngine::playUI(const jstring &name, float volume, float pitch)
 	alSourcePlay(source);
 }
 
+// Paulscode Library.getNextChannel (b1.2 ref: paulscode/sound/Library.java:514)
 ALuint SoundEngine::getOrCreateSource(const std::string &id, bool streaming, bool priority)
 {
+	(void)priority;
 	if (streaming)
 		return streamingSource;
 
-	checkAndReleaseFinishedSources();
+	int_t channels = static_cast<int_t>(channelSources.size());
+	if (channels == 0)
+		return 0;
 
-	if (!freeSources.empty())
+	auto takeChannel = [this](int_t n) -> ALuint
 	{
-		ALuint source = freeSources.back();
-		freeSources.pop_back();
+		ALuint source = channelSources[n];
 
 		alSourceStop(source);
 		alSourcei(source, AL_BUFFER, 0);
@@ -582,36 +589,60 @@ ALuint SoundEngine::getOrCreateSource(const std::string &id, bool streaming, boo
 		alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
 		alSourcei(source, AL_LOOPING, AL_FALSE);
 
-		activeSources[id] = source;
+		if (!channelIds[n].empty())
+			sourceInfoMap.erase(channelIds[n]);
 		return source;
+	};
+
+	// pass 1: a source with the same name takes over its existing channel
+	for (int_t n = 0; n < channels; ++n)
+	{
+		if (channelIds[n] == id)
+			return takeChannel(n);
 	}
 
-	// Paulscode Library.getNextChannel: with no free channel, non-priority
-	// sources are dropped; a priority source may take over a channel that is
-	// playing a non-priority source
-	if (priority)
+	// pass 2: round-robin from the cursor, take the first channel whose
+	// current sound is not playing
+	int_t n = nextNormalChannel;
+	for (int_t x = 0; x < channels; ++x)
 	{
-		for (auto it = activeSources.begin(); it != activeSources.end(); ++it)
+		bool playing = false;
+		if (!channelIds[n].empty())
 		{
-			auto info = sourceInfoMap.find(it->first);
-			if (info != sourceInfoMap.end() && info->second.priority)
-				continue;
+			ALint state;
+			alGetSourcei(channelSources[n], AL_SOURCE_STATE, &state);
+			playing = state == AL_PLAYING;
+		}
 
-			ALuint source = it->second;
-
-			alSourceStop(source);
-			alSourcei(source, AL_BUFFER, 0);
-			alSource3f(source, AL_POSITION, 0.0f, 0.0f, 0.0f);
-			alSourcef(source, AL_GAIN, 1.0f);
-			alSourcef(source, AL_PITCH, 1.0f);
-			alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
-			alSourcei(source, AL_LOOPING, AL_FALSE);
-
-			sourceInfoMap.erase(it->first);
-			activeSources.erase(it);
-			activeSources[id] = source;
+		if (!playing)
+		{
+			nextNormalChannel = (n + 1) % channels;
+			ALuint source = takeChannel(n);
+			channelIds[n] = id;
 			return source;
 		}
+
+		n = (n + 1) % channels;
+	}
+
+	// pass 3: ANY new source takes over a channel whose current sound is not
+	// priority; only priority sounds are protected. Drop only when every
+	// channel is playing a priority sound.
+	n = nextNormalChannel;
+	for (int_t x = 0; x < channels; ++x)
+	{
+		auto info = sourceInfoMap.find(channelIds[n]);
+		bool protectedChannel = info != sourceInfoMap.end() && info->second.priority;
+
+		if (!protectedChannel)
+		{
+			nextNormalChannel = (n + 1) % channels;
+			ALuint source = takeChannel(n);
+			channelIds[n] = id;
+			return source;
+		}
+
+		n = (n + 1) % channels;
 	}
 
 	return 0;
@@ -619,14 +650,16 @@ ALuint SoundEngine::getOrCreateSource(const std::string &id, bool streaming, boo
 
 void SoundEngine::releaseSource(const std::string &id)
 {
-	auto it = activeSources.find(id);
-	if (it != activeSources.end())
+	for (size_t n = 0; n < channelSources.size(); ++n)
 	{
-		alSourceStop(it->second);
-		alSourcei(it->second, AL_BUFFER, 0);
-		freeSources.push_back(it->second);
-		activeSources.erase(it);
-		sourceInfoMap.erase(id);
+		if (channelIds[n] == id)
+		{
+			alSourceStop(channelSources[n]);
+			alSourcei(channelSources[n], AL_BUFFER, 0);
+			channelIds[n].clear();
+			sourceInfoMap.erase(id);
+			return;
+		}
 	}
 }
 
@@ -724,4 +757,30 @@ bool SoundEngine::loadSound(const Sound &sound, ALuint &buffer, bool isMUS)
 {
 	buffer = loadOGGFile(sound.filePath, isMUS);
 	return buffer != 0;
+}
+
+int_t SoundEngine::debugActiveSources()
+{
+	int_t active = 0;
+	for (const std::string &id : channelIds)
+	{
+		if (!id.empty())
+			active++;
+	}
+	return active;
+}
+
+int_t SoundEngine::debugPlayingSources()
+{
+	int_t playing = 0;
+	for (size_t n = 0; n < channelSources.size(); ++n)
+	{
+		if (channelIds[n].empty())
+			continue;
+		ALint state;
+		alGetSourcei(channelSources[n], AL_SOURCE_STATE, &state);
+		if (state == AL_PLAYING)
+			playing++;
+	}
+	return playing;
 }

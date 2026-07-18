@@ -24,7 +24,9 @@ public:
 	EntityThrownEgg(Level &level, double x, double y, double z);
 	EntityThrownEgg(Level &level, Mob &owner);
 
-	jstring getEncodeId() const override { return u"ThrownEgg"; }
+	// vanilla EntityList has no EntityEgg mapping, so thrown eggs are never
+	// persisted; empty id makes Entity::save skip them the same way
+	jstring getEncodeId() const override { return u""; }
 	bool shouldRenderAtSqrDistance(double distance) override;
 	void shoot(double xd, double yd, double zd, float speed, float spread);
 	void setVelocity(double xd, double yd, double zd);

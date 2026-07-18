@@ -1,5 +1,6 @@
 #include "world/level/Level.h"
 #include "world/level/SpawnerAnimals.h"
+#include "MinecraftException.h"
 
 #include <algorithm>
 #include <array>
@@ -58,9 +59,9 @@ jstring getFileName(const File &file)
 	return pos == jstring::npos ? path : path.substr(pos + 1);
 }
 
-std::shared_ptr<CompoundTag> readLevelData(File &worldDir)
+std::shared_ptr<CompoundTag> readLevelDataFile(File &worldDir, const jstring &fileName)
 {
-	std::unique_ptr<File> levelDat(File::open(worldDir, u"level.dat"));
+	std::unique_ptr<File> levelDat(File::open(worldDir, fileName));
 	if (!levelDat->exists())
 		return nullptr;
 
@@ -77,6 +78,15 @@ std::shared_ptr<CompoundTag> readLevelData(File &worldDir)
 	{
 		return nullptr;
 	}
+}
+
+// SaveHandler.loadWorldInfo: level.dat first, then the level.dat_old backup
+std::shared_ptr<CompoundTag> readLevelData(File &worldDir)
+{
+	std::shared_ptr<CompoundTag> data = readLevelDataFile(worldDir, u"level.dat");
+	if (data == nullptr)
+		data = readLevelDataFile(worldDir, u"level.dat_old");
+	return data;
 }
 
 void writeLevelData(File &worldDir, const std::shared_ptr<CompoundTag> &data)
@@ -298,15 +308,13 @@ Level::Level(File *workingDirectory, const jstring &name, const jstring &levelNa
 	}
 
 	int_t new_dimension = Dimension::Id_Normal;
-	std::unique_ptr<File> fileDat(File::open(*dir, u"level.dat"));
-	isNew = !fileDat->exists();
+	// SaveHandler.loadWorldInfo semantics: level.dat, then level.dat_old;
+	// the world is new only when neither yields level data
+	std::shared_ptr<CompoundTag> data = readLevelData(*dir);
+	isNew = data == nullptr;
 
-	if (fileDat->exists())
+	if (data != nullptr)
 	{
-		std::shared_ptr<CompoundTag> data = readLevelData(*dir);
-		if (data == nullptr)
-			throw std::runtime_error("Failed to load level.dat");
-
 		this->seed = data->getLong(u"RandomSeed");
 		xSpawn = data->getInt(u"SpawnX");
 		ySpawn = data->getInt(u"SpawnY");
@@ -1763,11 +1771,8 @@ void Level::tick(std::shared_ptr<Entity> entity, bool ai)
 		else
 			entity->tick();
 	}
-	else
-	{
-		// TODO REMOVE
-		entity->tick();
-	}
+	// vanilla updateEntityWithOptionalForce: with force=false only the
+	// bookkeeping below runs; onUpdate/updateRidden are force-only
 
 	// Check if any invalid operations occured
 	if (std::isnan(entity->x) || std::isinf(entity->x))
@@ -2986,10 +2991,10 @@ void Level::checkSession()
 	std::unique_ptr<File> session_lock(File::open(*dir, u"session.lock"));
 	std::unique_ptr<std::istream> is(session_lock->toStreamIn());
 	if (!is)
-		throw std::runtime_error("Failed to check session lock, aborting");
+		throw MinecraftException("Failed to check session lock, aborting");
 
 	if (IOUtil::readLong(*is) != sessionId)
-		throw std::runtime_error("The save is being accessed from another location, aborting");
+		throw MinecraftException("The save is being accessed from another location, aborting");
 }
 
 void Level::setTime(long_t time)

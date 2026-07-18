@@ -127,6 +127,22 @@ void InventoryPlayer::setItem(int_t slot, const ItemInstance &item)
 		armorInventory[slot - static_cast<int_t>(mainInventory.size())] = item;
 }
 
+void InventoryPlayer::setCurrentItem(int_t itemId)
+{
+	int_t slot = -1;
+	for (int_t i = 0; i < static_cast<int_t>(mainInventory.size()); ++i)
+	{
+		if (!mainInventory[i].isEmpty() && mainInventory[i].itemID == itemId)
+		{
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot >= 0 && slot < 9)
+		currentItem = slot;
+}
+
 void InventoryPlayer::changeCurrentItem(int_t direction)
 {
 	if (direction > 0)

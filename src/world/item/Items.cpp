@@ -449,7 +449,7 @@ namespace Items
 		cake = new ItemCake(98, Tile::cake);
 		cake->setIconIndex(29).setDescriptionId(u"item.cake");
 
-		egg = new ItemEgg(344);
+		egg = new ItemEgg(88);
 		egg->setIconIndex(12).setDescriptionId(u"item.egg");
 
 		sign = new ItemSign(67);

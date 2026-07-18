@@ -24,6 +24,7 @@ FurnaceRecipes::FurnaceRecipes()
 	recipes.emplace(Tile::diamondOre.id, ItemInstance(Items::diamond->getShiftedIndex(), 1, 0));
 	recipes.emplace(Tile::sand.id, ItemInstance(20, 1, 0)); // sand → glass (block ID 20, no GlassTile yet)
 	recipes.emplace(Tile::cobblestone.id, ItemInstance(Tile::rock.id, 1, 0)); // cobblestone → stone
+	recipes.emplace(Items::clayItem->getShiftedIndex(), ItemInstance(Items::brick->getShiftedIndex(), 1, 0)); // clay → brick
 	// cactus → green dye (metadata 2)
 	recipes.emplace(Tile::cactus.id, ItemInstance(Items::dyePowder->getShiftedIndex(), 1, 2));
 	// wood/log → charcoal (coal with metadata 1)

@@ -618,8 +618,9 @@ int runBlockSmoke()
 		ok &= expect(repeaterOut.itemID == Items::redstoneRepeater->getShiftedIndex(), "repeater recipe should match b173");
 		GridCraftingContainer stoneButtonRecipe{};
 		stoneButtonRecipe.slots[0] = ItemInstance(Tile::rock.id, 1, 0);
+		stoneButtonRecipe.slots[3] = ItemInstance(Tile::rock.id, 1, 0);
 		ItemInstance stoneButtonOut = Recipes::getInstance().getItemFor(stoneButtonRecipe);
-		ok &= expect(stoneButtonOut.itemID == Tile::buttonStone.id, "stone button recipe should use stone, not cobblestone");
+		ok &= expect(stoneButtonOut.itemID == Tile::buttonStone.id, "stone button recipe should use two stone stacked vertically");
 		GridCraftingContainer stonePlateRecipe{};
 		stonePlateRecipe.slots[0] = ItemInstance(Tile::rock.id, 1, 0);
 		stonePlateRecipe.slots[1] = ItemInstance(Tile::rock.id, 1, 0);

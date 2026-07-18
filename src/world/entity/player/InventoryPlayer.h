@@ -30,6 +30,7 @@ public:
 	ItemInstance removeItem(int_t slot, int_t count);
 	void setItem(int_t slot, const ItemInstance &item);
 	void changeCurrentItem(int_t direction);
+	void setCurrentItem(int_t itemId);
 	void tick();
 	bool add(ItemInstance &item);
 	bool consumeItem(int_t itemId);

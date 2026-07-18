@@ -15,22 +15,24 @@ public:
 
 	ItemInstance getItemFor(const CraftingContainer &container) const;
 
-	struct ShapedRecipe
+	struct Recipe
 	{
+		bool shapeless = false;
 		int_t width = 0;
 		int_t height = 0;
 		std::vector<ItemInstance> items;
 		ItemInstance result;
 
-		int_t size() const { return width * height; }
+		int_t size() const { return shapeless ? static_cast<int_t>(items.size()) : width * height; }
 	};
 
-	const std::vector<ShapedRecipe> &getRecipes() const { return shapedRecipes; }
+	const std::vector<Recipe> &getRecipes() const { return recipes; }
 
 private:
-	std::vector<ShapedRecipe> shapedRecipes;
+	std::vector<Recipe> recipes;
 
 	Recipes();
 	void addShapedRecipe(const ItemInstance &result, const std::vector<std::string> &pattern,
 		const std::vector<std::pair<char, ItemInstance>> &mapping);
+	void addShapelessRecipe(const ItemInstance &result, const std::vector<ItemInstance> &ingredients);
 };

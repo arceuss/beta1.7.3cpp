@@ -1,5 +1,8 @@
 #include "client/renderer/GameRenderer.h"
 
+#include <chrono>
+#include <thread>
+
 #include "client/Minecraft.h"
 #include "client/Lighting.h"
 #include "client/gui/ScreenSizeCalculator.h"
@@ -459,9 +462,26 @@ void GameRenderer::render(float a)
 	int_t xm = lwjgl::Mouse::getX() * w / mc.width;
 	int_t ym = h - lwjgl::Mouse::getY() * h / mc.height - 1;
 
+	// EntityRenderer.updateCameraAndRender: Balanced/Power-saver caps are frame
+	// deadlines handed to the chunk-update loop, not sleeps; only Power saver
+	// (limitFramerate 2) actually sleeps out the remainder
+	long_t frameBudget = 1000000000LL / (mc.options.limitFramerate == 2 ? 40 : 120);
+
 	if (mc.level != nullptr)
 	{
-		renderLevel(a);
+		if (mc.options.limitFramerate == 0)
+			renderLevel(a, 0);
+		else
+			renderLevel(a, lastRenderNano + frameBudget);
+
+		if (mc.options.limitFramerate == 2)
+		{
+			long_t ms = (lastRenderNano + frameBudget - System::nanoTime()) / 1000000LL;
+			if (ms > 0 && ms < 500)
+				std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+		}
+
+		lastRenderNano = System::nanoTime();
 		if (!mc.options.hideGui || mc.screen != nullptr)
 			mc.gui.render(a, mc.screen != nullptr, xm, ym);
 	}
@@ -473,6 +493,17 @@ void GameRenderer::render(float a)
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 		setupGuiScreen();
+
+		if (mc.options.limitFramerate == 2)
+		{
+			long_t ms = (lastRenderNano + frameBudget - System::nanoTime()) / 1000000LL;
+			if (ms < 0)
+				ms += 10;
+			if (ms > 0 && ms < 500)
+				std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+		}
+
+		lastRenderNano = System::nanoTime();
 	}
 
 	auto screen = mc.screen; // Keep the current screen alive if render() replaces it.
@@ -483,7 +514,7 @@ void GameRenderer::render(float a)
 	}
 }
 
-void GameRenderer::renderLevel(float a)
+void GameRenderer::renderLevel(float a, long_t deadline)
 {
 	pick(a);
 
@@ -535,7 +566,14 @@ void GameRenderer::renderLevel(float a)
 		culler.prepare(xOff, yOff, zOff);
 
 		mc.levelRenderer.cull(culler, a);
-		mc.levelRenderer.updateDirtyChunks(*player, Minecraft::FLYBY_MODE);
+		// vanilla: keep building chunks until none are left or the frame
+		// deadline passes (this is where Balanced/Power-saver spare time goes)
+		while (!mc.levelRenderer.updateDirtyChunks(*player, Minecraft::FLYBY_MODE) && deadline != 0)
+		{
+			long_t remaining = deadline - System::nanoTime();
+			if (remaining < 0 || remaining > 1000000000LL)
+				break;
+		}
 		
 		setupFog(0);
 

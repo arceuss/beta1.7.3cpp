@@ -32,6 +32,7 @@ private:
 	double zoom_y = 0.0;
 
 	long_t lastActiveTime = System::currentTimeMillis();
+	long_t lastRenderNano = 0; // EntityRenderer.field_28133_I (frame deadline reference)
 
 	Random random = Random();
 	int_t rainSoundCounter = 0;
@@ -65,7 +66,7 @@ private:
 
 public:
 	void render(float a);
-	void renderLevel(float a);
+	void renderLevel(float a, long_t deadline);
 
 	void setupGuiScreen();
 private:
