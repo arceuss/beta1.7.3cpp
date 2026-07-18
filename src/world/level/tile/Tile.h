@@ -372,7 +372,7 @@ public:
 	virtual void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data);
 	virtual void playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data);
 	virtual void onBlockDestroyedByExplosion(Level &level, int_t x, int_t y, int_t z) {}
-	virtual float getExplosionResistance(Entity *entity) { (void)entity; return explosionResistance; }
+	virtual float getExplosionResistance(Entity *entity) { (void)entity; return explosionResistance / 5.0f; }
 	virtual void playBlock(Level &level, int_t x, int_t y, int_t z, int_t type, int_t data);
 	virtual int_t getMobilityFlag() const;
 };

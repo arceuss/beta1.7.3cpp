@@ -86,8 +86,11 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 			model->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
 			for (int_t i = 0; i < MAX_ARMOR_LAYERS; i++)
 			{
-				if (prepareArmor(mob, i, a))
+				if (prepareArmorOverlay(mob, i, a))
 				{
+					// vanilla sets the overlay color AFTER the pass setup, so
+					// it overrides e.g. the sheep wool glColor
+					glColor4f(br, 0.0f, 0.0f, 0.4f);
 					armor->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
 				}
 			}
@@ -103,8 +106,9 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 			model->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
 			for (int_t i = 0; i < MAX_ARMOR_LAYERS; i++)
 			{
-				if (prepareArmor(mob, i, a))
+				if (prepareArmorOverlay(mob, i, a))
 				{
+					glColor4f(r, g, b, aa);
 					armor->render(wp, ws, bob, headRot - bodyRot, headRotx, scale);
 				}
 			}
@@ -157,6 +161,11 @@ void MobRenderer::prepareModel(Mob &mob, float time, float speed, float a)
 bool MobRenderer::prepareArmor(Mob &mob, int_t layer, float a)
 {
 	return false;
+}
+
+bool MobRenderer::prepareArmorOverlay(Mob &mob, int_t layer, float a)
+{
+	return prepareArmor(mob, layer, a);
 }
 
 float MobRenderer::getFlipDegrees(Mob &mob)

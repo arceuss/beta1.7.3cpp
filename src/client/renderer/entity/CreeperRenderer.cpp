@@ -2,12 +2,62 @@
 
 #include "OpenGL.h"
 #include "client/model/CreeperModel.h"
+#include "client/renderer/entity/EntityRenderDispatcher.h"
 #include "world/entity/monster/Creeper.h"
 #include "util/Mth.h"
 
 CreeperRenderer::CreeperRenderer(EntityRenderDispatcher &entityRenderDispatcher)
 	: MobRenderer(entityRenderDispatcher, std::make_shared<CreeperModel>(), 0.5f)
 {
+	// RenderCreeper.field_27008_a - the charged-creeper power layer model
+	setArmor(std::make_shared<CreeperModel>(2.0f));
+}
+
+// RenderCreeper.func_27006_a - scrolling additive /armor/power.png layer
+bool CreeperRenderer::prepareArmor(Mob &mobBase, int_t layer, float a)
+{
+	Creeper &creeper = static_cast<Creeper &>(mobBase);
+	if (creeper.isPowered())
+	{
+		if (layer == 1)
+		{
+			float time = static_cast<float>(creeper.tickCount) + a;
+			entityRenderDispatcher.textures->bind(entityRenderDispatcher.textures->loadTexture(u"/armor/power.png"));
+			glMatrixMode(GL_TEXTURE);
+			glLoadIdentity();
+			float xo = time * 0.01f;
+			float yo = time * 0.01f;
+			glTranslatef(xo, yo, 0.0f);
+			glMatrixMode(GL_MODELVIEW);
+			glEnable(GL_BLEND);
+			float c = 0.5f;
+			glColor4f(c, c, c, 1.0f);
+			glDisable(GL_LIGHTING);
+			glBlendFunc(GL_ONE, GL_ONE);
+			return true;
+		}
+
+		if (layer == 2)
+		{
+			glMatrixMode(GL_TEXTURE);
+			glLoadIdentity();
+			glMatrixMode(GL_MODELVIEW);
+			glEnable(GL_LIGHTING);
+			glDisable(GL_BLEND);
+		}
+	}
+
+	return false;
+}
+
+// RenderCreeper.func_27007_b - the power layer is excluded from the
+// hurt/overlay re-render
+bool CreeperRenderer::prepareArmorOverlay(Mob &mobBase, int_t layer, float a)
+{
+	(void)mobBase;
+	(void)layer;
+	(void)a;
+	return false;
 }
 
 void CreeperRenderer::scale(Mob &mobBase, float a)

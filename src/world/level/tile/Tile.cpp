@@ -211,10 +211,10 @@ NotGateTile Tile::torchRedstoneActive = NotGateTile(76, 99, true);
 ButtonTile Tile::buttonStone = ButtonTile(77, 1);
 void Tile::initTiles()
 {
-	rock.setDestroyTime(1.5f).setSoundType(soundStoneFootstep);
+	rock.setDestroyTime(1.5f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
 	grass.setDestroyTime(0.6f).setSoundType(soundGrassFootstep);
 	dirt.setDestroyTime(0.5f).setSoundType(soundGravelFootstep);
-	wood.setDestroyTime(2.0f).setSoundType(soundWoodFootstep);
+	wood.setDestroyTime(2.0f).setExplodeable(5.0f).setSoundType(soundWoodFootstep);
 
 	sand.setDestroyTime(0.5f).setSoundType(soundSandFootstep);
 	gravel.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
@@ -227,34 +227,39 @@ void Tile::initTiles()
 	rose.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	brownMushroom.setDestroyTime(0.0f).setLightEmission(2).setSoundType(soundGrassFootstep);
 	redMushroom.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
-	bedrock.setDestroyTime(-1.0f).setSoundType(soundStoneFootstep);
+	bedrock.setDestroyTime(-1.0f).setExplodeable(6000000.0f).setSoundType(soundStoneFootstep);
+	// vanilla liquid hardness: water/still lava 100, but FLOWING lava is 0.0
+	water.setDestroyTime(100.0f);
+	calmWater.setDestroyTime(100.0f);
+	lava.setDestroyTime(0.0f);
+	calmLava.setDestroyTime(100.0f);
 	reed.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	pumpkin.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
 	cactus.setDestroyTime(0.4f).setSoundType(soundClothFootstep);
 
-	cobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
+	cobblestone.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
 	sandstone.setDestroyTime(0.8f).setSoundType(soundStoneFootstep);
 	noteBlock.setDestroyTime(0.8f).setSoundType(soundWoodFootstep);
 	bed.setDestroyTime(0.2f).setSoundType(soundStoneFootstep);
-	slabDouble.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
-	slabSingle.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
-	mossyCobblestone.setDestroyTime(2.0f).setSoundType(soundStoneFootstep);
+	slabDouble.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
+	slabSingle.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
+	mossyCobblestone.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
 	dispenser.setDestroyTime(3.5f).setSoundType(soundStoneFootstep);
-	obsidian.setDestroyTime(10.0f).setSoundType(soundStoneFootstep);
+	obsidian.setDestroyTime(10.0f).setExplodeable(2000.0f).setSoundType(soundStoneFootstep);
 	workBench.setDestroyTime(2.5f).setSoundType(soundWoodFootstep);
 	crops.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	farmland.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
 	furnace.setDestroyTime(3.5f).setSoundType(soundStoneFootstep);
 	furnaceLit.setDestroyTime(3.5f).setSoundType(soundStoneFootstep).setLightEmission(14);
 
-	goldOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
-	ironOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
-	coalOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
-	lapisOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
-	diamondOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	goldOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
+	ironOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
+	coalOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
+	lapisOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
+	diamondOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
 	jukebox.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
-	redstoneOre.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
-	redstoneOreGlowing.setDestroyTime(3.0f).setSoundType(soundStoneFootstep);
+	redstoneOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
+	redstoneOreGlowing.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
 	snow.setDestroyTime(0.1f).setSoundType(soundClothFootstep);
 	ice.setDestroyTime(0.5f).setLightBlock(3).setSoundType(soundGlassFootstep);
 	torch.setDestroyTime(0.0f).setLightEmission(14).setSoundType(soundWoodFootstep);
@@ -485,6 +490,9 @@ Tile::Shape Tile::getRenderShape()
 Tile &Tile::setDestroyTime(float time)
 {
 	destroySpeed = time;
+	// Block.setHardness also raises the explosion resistance floor
+	if (explosionResistance < time * 5.0f)
+		explosionResistance = time * 5.0f;
 	return *this;
 }
 

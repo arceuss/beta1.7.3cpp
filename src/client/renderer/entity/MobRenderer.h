@@ -32,6 +32,9 @@ protected:
 	virtual void prepareModel(Mob &mob, float time, float speed, float a);
 
 	virtual bool prepareArmor(Mob &mob, int_t layer, float a);
+	// RenderLiving.func_27005_b: gate for the hurt/overlay re-render of the
+	// pass model; defaults to prepareArmor, creeper excludes its power layer
+	virtual bool prepareArmorOverlay(Mob &mob, int_t layer, float a);
 	virtual float getFlipDegrees(Mob &mob);
 	virtual int_t getOverlayColor(Mob &mob, float br, float b);
 	virtual void scale(Mob &mob, float a);
