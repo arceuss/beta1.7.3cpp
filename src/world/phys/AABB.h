@@ -23,6 +23,7 @@ public:
 	double x1, y1, z1;
 
 	static AABB *newPermanent(double x0, double y0, double z0, double x1, double y1, double z1);
+	// Temporary results are borrowed and may be overwritten after resetPool.
 	static void resetPool();
 	static AABB *newTemp(double x0, double y0, double z0, double x1, double y1, double z1);
 

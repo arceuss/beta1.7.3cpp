@@ -7,6 +7,7 @@
 #include "world/level/Region.h"
 
 #include "util/Mth.h"
+#include "util/Profiler.h"
 #include <algorithm>
 
 int_t Chunk::updates = 0;
@@ -74,6 +75,7 @@ void Chunk::rebuild()
 	empty.fill(true);
 
 	LevelChunk::touchedSky = false;
+	Profiler::Scope captureProfile(Profiler::Section::ChunkRebuildCapture);
 
 	std::unordered_set<std::shared_ptr<TileEntity>> oldTileEntities;
 	oldTileEntities.insert(renderableTileEntities.begin(), renderableTileEntities.end());
@@ -82,9 +84,12 @@ void Chunk::rebuild()
 	int_t r = 1;
 	Region region(level, x0 - r, y0 - r, z0 - r, x1 + r, y1 + r, z1 + r);
 	TileRenderer tileRenderer(&region, ambientOcclusion, fancyGraphics);
+	captureProfile.finish();
 
+	MeshCapture mesh;
 	for (int_t i = 0; i < 2; i++)
 	{
+		Profiler::Scope tessellationProfile(Profiler::Section::ChunkTessellation);
 		bool renderNextLayer = false;
 		bool rendered = false;
 
@@ -103,16 +108,8 @@ void Chunk::rebuild()
 						{
 							started = true;
 
-							glNewList(lists + i, GL_COMPILE);
-							
-							glPushMatrix();
-							translateToPos();
-
-							float ss = 1.0000001f;
-							glTranslatef(-zs / 2.0f, -ys / 2.0f, -zs / 2.0f);
-							glScalef(ss, ss, ss);
-							glTranslatef(zs / 2.0f, ys / 2.0f, zs / 2.0f);
-
+							mesh = MeshCapture();
+							t.captureTo(&mesh);
 							t.begin();
 							t.offset(-this->x, -this->y, -this->z);
 						}
@@ -138,13 +135,24 @@ void Chunk::rebuild()
 				}
 			}
 		}
+		tessellationProfile.finish();
 
 		if (started)
 		{
+			Profiler::Scope publicationProfile(Profiler::Section::ChunkPublication);
 			t.end();
-			glPopMatrix();
-			glEndList();
+			t.captureTo(nullptr);
 			t.offset(0.0, 0.0, 0.0);
+			if (meshBuffers[i] == 0)
+				glGenBuffers(1, &meshBuffers[i]);
+			glBindBuffer(GL_ARRAY_BUFFER, meshBuffers[i]);
+			glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(mesh.data.size()), mesh.data.data(), GL_STATIC_DRAW);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			meshVertices[i] = mesh.vertices;
+			meshTexture[i] = mesh.hasTexture;
+			meshColor[i] = mesh.hasColor;
+			meshNormal[i] = mesh.hasNormal;
+			meshMode[i] = mesh.mode;
 		}
 		else
 		{
@@ -196,17 +204,66 @@ void Chunk::remove()
 	reset();
 }
 
-int_t Chunk::getList(int_t layer)
+bool Chunk::hasMesh(int_t layer)
 {
-	if (!visible) return -1;
-	if (!empty[layer]) return lists + layer;
-	return -1;
+	return visible && !empty[layer];
 }
-int_t Chunk::getAllLists(std::vector<int_t> displayLists, int_t p, int_t layer)
+
+void Chunk::draw(int_t layer)
 {
-	if (!visible) return p;
-	if (!empty[layer]) displayLists[p++] = lists + layer;
-	return p;
+	// Same sequence the compiled display list contained: WorldRenderer.updateRenderer setup, then Tessellator.draw.
+	glPushMatrix();
+	translateToPos();
+
+	float ss = 1.0000001f;
+	glTranslatef(-zs / 2.0f, -ys / 2.0f, -zs / 2.0f);
+	glScalef(ss, ss, ss);
+	glTranslatef(zs / 2.0f, ys / 2.0f, zs / 2.0f);
+
+	if (meshVertices[layer] > 0)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, meshBuffers[layer]);
+		const char *base = nullptr;
+		if (meshTexture[layer])
+		{
+			glTexCoordPointer(2, GL_FLOAT, 32, base + 12);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
+		if (meshColor[layer])
+		{
+			glColorPointer(4, GL_UNSIGNED_BYTE, 32, base + 20);
+			glEnableClientState(GL_COLOR_ARRAY);
+		}
+		if (meshNormal[layer])
+		{
+			glNormalPointer(GL_BYTE, 32, base + 24);
+			glEnableClientState(GL_NORMAL_ARRAY);
+		}
+		glVertexPointer(3, GL_FLOAT, 32, base);
+		glEnableClientState(GL_VERTEX_ARRAY);
+
+		glDrawArrays(meshMode[layer], 0, meshVertices[layer]);
+
+		glDisableClientState(GL_VERTEX_ARRAY);
+		if (meshTexture[layer])
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		if (meshColor[layer])
+			glDisableClientState(GL_COLOR_ARRAY);
+		if (meshNormal[layer])
+			glDisableClientState(GL_NORMAL_ARRAY);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+
+	glPopMatrix();
+}
+
+Chunk::~Chunk()
+{
+	for (GLuint &buffer : meshBuffers)
+	{
+		if (buffer != 0)
+			glDeleteBuffers(1, &buffer);
+	}
 }
 
 void Chunk::cull(Culler &culler)

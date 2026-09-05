@@ -7,7 +7,7 @@ class DeadBushTile : public FlowerTile
 public:
 	DeadBushTile(int_t id, int_t tex);
 
-	int_t getResourceCount(Random &random) override;
+	int_t getResource(int_t data, Random &random) override;
 	void updateDefaultShape() override;
 
 protected:

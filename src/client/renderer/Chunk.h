@@ -19,6 +19,14 @@ private:
 	int_t lists = -1;
 
 	static Tesselator &t;
+	// B173 - Chunk geometry lives in buffer objects instead of compiled display lists.
+	// The display list body (matrix setup, client arrays, draw) is replayed by draw().
+	GLuint meshBuffers[2] = {0, 0};
+	GLsizei meshVertices[2] = {0, 0};
+	bool meshTexture[2] = {false, false};
+	bool meshColor[2] = {false, false};
+	bool meshNormal[2] = {false, false};
+	GLenum meshMode[2] = {0, 0};
 
 public:
 	int_t x = 0, y = 0, z = 0;
@@ -60,6 +68,9 @@ private:
 
 public:
 	Chunk(Level &level, std::vector<std::shared_ptr<TileEntity>> &globalRenderableTileEntities, int_t x, int_t y, int_t z, int_t size, int_t lists, bool ambientOcclusion, bool fancyGraphics);
+	~Chunk();
+	Chunk(const Chunk &) = delete;
+	Chunk &operator=(const Chunk &) = delete;
 
 	void setPos(int_t x, int_t y, int_t z);
 
@@ -75,8 +86,8 @@ public:
 	void reset();
 	void remove();
 
-	int_t getList(int_t layer);
-	int_t getAllLists(std::vector<int_t> displayLists, int_t p, int_t layer);
+	bool hasMesh(int_t layer);
+	void draw(int_t layer);
 
 	void cull(Culler &culler);
 

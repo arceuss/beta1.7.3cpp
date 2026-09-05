@@ -49,11 +49,12 @@ void CropsTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 int_t CropsTile::getResource(int_t data, Random &random)
 {
 	(void)random;
-	return data == 7 ? Items::wheat->getShiftedIndex() : 0;
+	return data == 7 ? Items::wheat->getShiftedIndex() : -1;
 }
 
-void CropsTile::playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data)
+void CropsTile::spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance)
 {
+	Tile::spawnResources(level, x, y, z, data, chance);
 	if (level.isOnline)
 		return;
 
@@ -109,13 +110,10 @@ float CropsTile::getGrowthSpeed(Level &level, int_t x, int_t y, int_t z)
 
 void CropsTile::spawnSeed(Level &level, int_t x, int_t y, int_t z)
 {
-	if (Items::seeds == nullptr)
-		return;
-
 	float spread = 0.7f;
-	double xo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
-	double yo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
-	double zo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+	float xo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+	float yo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+	float zo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
 	ItemInstance stack(Items::seeds->getShiftedIndex(), 1, 0);
 	auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, stack);
 	entity->throwTime = 10;

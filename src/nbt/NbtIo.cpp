@@ -1,6 +1,7 @@
 #include "nbt/NbtIo.h"
 
 #include <sstream>
+#include <stdexcept>
 
 #include "java/IOUtil.h"
 
@@ -42,10 +43,10 @@ CompoundTag *readCompressed(std::istream &is)
 
 CompoundTag *read(std::istream &is)
 {
-	Tag *tag = Tag::readNamedTag(is);
+	std::unique_ptr<Tag> tag(Tag::readNamedTag(is));
 	if (tag->getId() != Tag::TAG_Compound)
-		throw std::runtime_error("Root tag must be a named compound tag");
-	return reinterpret_cast<CompoundTag *>(tag);
+		throw std::runtime_error("java.io.IOException: Root tag must be a named compound tag");
+	return static_cast<CompoundTag *>(tag.release());
 }
 
 void writeCompressed(CompoundTag &tag, std::ostream &os)
@@ -55,6 +56,8 @@ void writeCompressed(CompoundTag &tag, std::ostream &os)
 	std::string sstr = ss.str();
 	std::string compressed = gzip::compress(sstr.data(), sstr.size());
 	os.write(compressed.data(), compressed.size());
+	if (!os)
+		throw std::runtime_error("java.io.IOException: write failed");
 }
 
 void write(CompoundTag &tag, std::ostream &os)

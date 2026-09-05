@@ -11,8 +11,7 @@ NoteTile::NoteTile(int_t id, int_t tex, const Material &material) : Tile(id, tex
 
 void NoteTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (level.getTileEntity(x, y, z) == nullptr)
-		level.setTileEntity(x, y, z, Util::make_shared<NoteTileEntity>());
+	level.setTileEntity(x, y, z, Util::make_shared<NoteTileEntity>());
 }
 
 void NoteTile::onRemove(Level &level, int_t x, int_t y, int_t z)

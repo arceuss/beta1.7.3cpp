@@ -1,12 +1,24 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "java/Type.h"
 
 #include "OpenGL.h"
 
 #include "util/Memory.h"
+
+// B173 - CPU copy of one begin/end sequence, used to upload chunk meshes as buffer objects.
+struct MeshCapture
+{
+	std::vector<char> data;
+	int_t vertices = 0;
+	bool hasTexture = false;
+	bool hasColor = false;
+	bool hasNormal = false;
+	GLenum mode = 0;
+};
 
 class Tesselator
 {
@@ -57,6 +69,7 @@ private:
 
 	// Buffer state
 	int_t size = 0;
+	MeshCapture *capture = nullptr;
 
 public:
 	Tesselator(int_t size);
@@ -81,4 +94,6 @@ public:
 	void normal(float x, float y, float z);
 	void offset(double x, double y, double z);
 	void addOffset(float x, float y, float z);
+	// While set, end() appends the vertex bytes to the capture instead of drawing.
+	void captureTo(MeshCapture *target);
 };

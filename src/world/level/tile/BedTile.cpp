@@ -150,6 +150,12 @@ int_t BedTile::getResource(int_t data, Random &random)
 	return isBlockFootOfBed(data) ? 0 : Items::bed->getShiftedIndex();
 }
 
+void BedTile::spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance)
+{
+	if (!isBlockFootOfBed(data))
+		Tile::spawnResources(level, x, y, z, data, chance);
+}
+
 void BedTile::updateDefaultShape()
 {
 	setShape(0.0f, 0.0f, 0.0f, 1.0f, 9.0f / 16.0f, 1.0f);

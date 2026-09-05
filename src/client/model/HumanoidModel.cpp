@@ -172,7 +172,7 @@ void HumanoidModel::renderEars(float scale)
 
 void HumanoidModel::renderCloak(float scale)
 {
-	// TODO
+	cloak.render(scale);
 }
 
 void HumanoidModel::render(HumanoidModel &model, float scale)

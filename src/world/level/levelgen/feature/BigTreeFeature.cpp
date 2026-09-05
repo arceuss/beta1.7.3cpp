@@ -51,7 +51,7 @@ void BigTreeFeature::prepareLeafNodes()
 
 		for (int_t i = 0; i < nodesPerLayer; ++i)
 		{
-			double distance = this->scaleWidth * static_cast<double>(layerSize) * (static_cast<double>(this->treeRandom.nextFloat()) + 0.328);
+			double distance = this->scaleWidth * (static_cast<double>(layerSize) * (static_cast<double>(this->treeRandom.nextFloat()) + 0.328));
 			double angle = static_cast<double>(this->treeRandom.nextFloat()) * 2.0 * 3.14159;
 			int_t leafX = Mth::floor(distance * std::sin(angle) + static_cast<double>(this->basePos[0]) + 0.5);
 			int_t leafZ = Mth::floor(distance * std::cos(angle) + static_cast<double>(this->basePos[2]) + 0.5);
@@ -119,7 +119,7 @@ void BigTreeFeature::placeLeafDisc(int_t x, int_t y, int_t z, float radius, byte
 
 float BigTreeFeature::calcLayerSize(int_t layer) const
 {
-	if (static_cast<double>(layer) < static_cast<double>(static_cast<float>(this->heightLimit) * 0.3))
+	if (static_cast<double>(layer) < static_cast<double>(this->heightLimit) * 0.3)
 		return -1.618f;
 
 	float midpoint = static_cast<float>(this->heightLimit) / 2.0f;
@@ -289,7 +289,6 @@ bool BigTreeFeature::validTreeLocation()
 void BigTreeFeature::init(double v0, double v1, double v2)
 {
 	this->heightLimitLimit = static_cast<int_t>(v0 * 12.0);
-	this->leafDistanceLimit = 4;
 	if (v0 > 0.5)
 		this->leafDistanceLimit = 5;
 	this->scaleWidth = v1;
@@ -304,13 +303,11 @@ bool BigTreeFeature::place(Level &level, Random &random, int_t x, int_t y, int_t
 	this->basePos[1] = y;
 	this->basePos[2] = z;
 
-	int_t configuredHeightLimit = this->heightLimit;
 	if (this->heightLimit == 0)
 		this->heightLimit = 5 + this->treeRandom.nextInt(this->heightLimitLimit);
 
 	if (!this->validTreeLocation())
 	{
-		this->heightLimit = configuredHeightLimit;
 		return false;
 	}
 
@@ -318,6 +315,5 @@ bool BigTreeFeature::place(Level &level, Random &random, int_t x, int_t y, int_t
 	this->placeLeafNodes();
 	this->placeTrunk();
 	this->placeLeafNodeBases();
-	this->heightLimit = configuredHeightLimit;
 	return true;
 }

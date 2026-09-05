@@ -5,6 +5,11 @@
 #include <string>
 #include <memory>
 #include <iostream>
+#include <condition_variable>
+#include <deque>
+#include <mutex>
+#include <thread>
+#include <utility>
 
 #include "java/Type.h"
 #include "java/String.h"
@@ -26,6 +31,11 @@ private:
 
 	std::unordered_map<jstring, int_t> idMap;
 	std::unordered_map<jstring, std::shared_ptr<HttpTexture>> httpTextures;
+	std::deque<std::pair<jstring, std::weak_ptr<HttpTexture>>> httpJobs;
+	std::mutex httpMutex;
+	std::condition_variable httpReady;
+	std::thread httpWorker;
+	bool stopHttp = false;
 public:
 	static constexpr bool MIPMAP = false;
 
@@ -44,6 +54,7 @@ private:
 
 public:
 	Textures(TexturePackRepository &skins, Options &options, Minecraft &minecraft);
+	~Textures();
 
 	int_t loadTexture(const jstring &resourceName);
 	BufferedImage getResourceImage(const jstring &resourceName);
@@ -58,6 +69,8 @@ private:
 	void refreshTextureFX();
 	void refreshColorizers();
 	HttpTexture *addHttpTexture(const jstring &url);
+	void queueHttpTexture(const jstring &url, const std::shared_ptr<HttpTexture> &texture);
+	void downloadHttpTextures();
 public:
 	int_t getTexture(BufferedImage &img);
 	void loadTexture(BufferedImage &img, int_t id);

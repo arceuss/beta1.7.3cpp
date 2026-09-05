@@ -5,7 +5,7 @@
 class Random
 {
 private:
-	long_t seed;
+	ulong_t seed;
 	bool haveNextNextGaussian = false;
 	double nextNextGaussian = 0.0;
 public:

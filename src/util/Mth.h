@@ -19,9 +19,7 @@ float sqrt(float value);
 float sqrt(double value);
 
 int_t floor(float value);
-int_t fastFloor(double value);
 int_t floor(double value);
-int_t absFloor(double value);
 
 float abs(float value);
 

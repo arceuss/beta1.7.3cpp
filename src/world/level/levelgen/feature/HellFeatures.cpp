@@ -9,9 +9,12 @@ bool FireFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 {
 	for (int_t i = 0; i < 64; ++i)
 	{
-		int_t xx = x + random.nextInt(8) - random.nextInt(8);
-		int_t yy = y + random.nextInt(4) - random.nextInt(4);
-		int_t zz = z + random.nextInt(8) - random.nextInt(8);
+		int_t xx = x + random.nextInt(8);
+		xx -= random.nextInt(8);
+		int_t yy = y + random.nextInt(4);
+		yy -= random.nextInt(4);
+		int_t zz = z + random.nextInt(8);
+		zz -= random.nextInt(8);
 		if (level.isEmptyTile(xx, yy, zz) && level.getTile(xx, yy - 1, zz) == Tile::netherrack.id)
 			level.setTile(xx, yy, zz, Tile::fire.id);
 	}
@@ -30,9 +33,11 @@ static bool placeGlowStone(Level &level, Random &random, int_t x, int_t y, int_t
 
 	for (int_t i = 0; i < 1500; ++i)
 	{
-		int_t xx = x + random.nextInt(8) - random.nextInt(8);
+		int_t xx = x + random.nextInt(8);
+		xx -= random.nextInt(8);
 		int_t yy = y - random.nextInt(12);
-		int_t zz = z + random.nextInt(8) - random.nextInt(8);
+		int_t zz = z + random.nextInt(8);
+		zz -= random.nextInt(8);
 		if (level.getTile(xx, yy, zz) != 0)
 			continue;
 

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <array>
+#include <unordered_map>
+#include <vector>
 
 #include "world/level/chunk/ChunkSource.h"
 #include "world/level/chunk/storage/ChunkStorage.h"
@@ -13,32 +14,17 @@ class Level;
 class ChunkCache : public ChunkSource
 {
 private:
-	static constexpr int_t CHUNK_CACHE_WIDTH = 32;
-
 	std::shared_ptr<LevelChunk> emptyChunk;
 
 	std::unique_ptr<ChunkSource> source;
 	std::unique_ptr<ChunkStorage> storage;
-	std::array<std::shared_ptr<LevelChunk>, CHUNK_CACHE_WIDTH * CHUNK_CACHE_WIDTH> chunks;
+	std::unordered_map<uint_t, std::shared_ptr<LevelChunk>> chunkMap;
+	std::vector<std::shared_ptr<LevelChunk>> chunks;
 
 	Level &level;
 
 public:
-	int_t xLast = -999999999;
-	int_t zLast = -999999999;
-
-private:
-	std::shared_ptr<LevelChunk> last;
-
-	int_t xCenter = 0, yCenter = 0;
-
-	static constexpr int_t MAX_SAVES = 2;
-
-public:
 	ChunkCache(Level &level, ChunkStorage *storage, ChunkSource *source);
-
-	void centerOn(int_t x, int_t y);
-	bool fits(int_t x, int_t y);
 
 	bool hasChunk(int_t x, int_t z) override;
 	std::shared_ptr<LevelChunk> getChunk(int_t x, int_t z) override;
@@ -52,6 +38,4 @@ public:
 	bool tick() override;
 	bool shouldSave() override;
 	jstring gatherStats() override;
-
-	virtual bool isChunkCache() const override { return true; }
 };

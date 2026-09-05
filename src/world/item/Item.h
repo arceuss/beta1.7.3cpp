@@ -18,6 +18,7 @@ class Item
 {
 public:
 	static std::array<Item *, 32000> items;
+	static std::array<bool, 32000> subtypeItems;
 
 protected:
 	static Random itemRandom;
@@ -36,10 +37,12 @@ public:
 	int_t getShiftedIndex() const { return shiftedIndex; }
 	int_t getMaxStackSize() const { return maxStackSize; }
 	int_t getMaxDamage() const { return maxDamage; }
+	bool getHasSubtypes() const { return subtypeItems[shiftedIndex]; }
 	const jstring &getDescriptionId() const { return descriptionId; }
 
 	Item &setMaxStackSize(int_t size);
 	Item &setMaxDamage(int_t damage);
+	Item &setHasSubtypes(bool value);
 	Item &setIconIndex(int_t icon);
 	Item &setDescriptionId(const jstring &id);
 	Item &setContainerItem(Item &item);

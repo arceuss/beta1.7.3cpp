@@ -1,5 +1,7 @@
 #include "world/inventory/CraftingInventory.h"
 
+#include <stdexcept>
+
 #include "world/inventory/Container.h"
 
 CraftingInventory::CraftingInventory(Container &eventHandler, int_t width, int_t height)
@@ -16,7 +18,7 @@ ItemInstance *CraftingInventory::getStackInSlot(int_t slot)
 {
 	if (slot >= getSizeInventory())
 		return nullptr;
-	ItemInstance &item = items[static_cast<std::size_t>(slot)];
+	ItemInstance &item = items.at(static_cast<std::size_t>(slot));
 	return item.isEmpty() ? nullptr : &item;
 }
 
@@ -24,7 +26,7 @@ const ItemInstance *CraftingInventory::getStackInSlot(int_t slot) const
 {
 	if (slot >= getSizeInventory())
 		return nullptr;
-	const ItemInstance &item = items[static_cast<std::size_t>(slot)];
+	const ItemInstance &item = items.at(static_cast<std::size_t>(slot));
 	return item.isEmpty() ? nullptr : &item;
 }
 
@@ -39,7 +41,7 @@ ItemInstance CraftingInventory::getItem(int_t x, int_t y) const
 
 ItemInstance CraftingInventory::decrStackSize(int_t slot, int_t count)
 {
-	ItemInstance &item = items[static_cast<std::size_t>(slot)];
+	ItemInstance &item = items.at(static_cast<std::size_t>(slot));
 	if (item.isEmpty())
 		return ItemInstance();
 	if (item.stackSize <= count)
@@ -58,7 +60,7 @@ ItemInstance CraftingInventory::decrStackSize(int_t slot, int_t count)
 
 void CraftingInventory::setInventorySlotContents(int_t slot, const ItemInstance &item)
 {
-	items[static_cast<std::size_t>(slot)] = item;
+	items.at(static_cast<std::size_t>(slot)) = item;
 	eventHandler.onCraftMatrixChanged(*this);
 }
 
@@ -84,19 +86,22 @@ int_t CraftResultInventory::getSizeInventory() const
 
 ItemInstance *CraftResultInventory::getStackInSlot(int_t slot)
 {
-	(void)slot;
+	if (slot != 0)
+		throw std::out_of_range("Inventory slot out of range");
 	return result.isEmpty() ? nullptr : &result;
 }
 
 const ItemInstance *CraftResultInventory::getStackInSlot(int_t slot) const
 {
-	(void)slot;
+	if (slot != 0)
+		throw std::out_of_range("Inventory slot out of range");
 	return result.isEmpty() ? nullptr : &result;
 }
 
 ItemInstance CraftResultInventory::decrStackSize(int_t slot, int_t count)
 {
-	(void)slot;
+	if (slot != 0)
+		throw std::out_of_range("Inventory slot out of range");
 	(void)count;
 	ItemInstance removed = result;
 	result = ItemInstance();
@@ -105,7 +110,8 @@ ItemInstance CraftResultInventory::decrStackSize(int_t slot, int_t count)
 
 void CraftResultInventory::setInventorySlotContents(int_t slot, const ItemInstance &item)
 {
-	(void)slot;
+	if (slot != 0)
+		throw std::out_of_range("Inventory slot out of range");
 	result = item;
 }
 

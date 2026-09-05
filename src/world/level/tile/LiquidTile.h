@@ -20,7 +20,6 @@ public:
 	virtual int_t getTexture(Facing face) override;
 
 	virtual bool mayPick(int_t data, bool canPickLiquid) override;
-	virtual bool mayPick() override;
 
 	virtual int_t getResource(int_t data, Random &random) override;
 	virtual int_t getResourceCount(Random &random) override;
@@ -61,7 +60,10 @@ private:
 	void setStatic(Level &level, int_t x, int_t y, int_t z);
 	void trySpreadTo(Level &level, int_t x, int_t y, int_t z, int_t depth);
 	int_t getSlopeDistance(Level &level, int_t x, int_t y, int_t z, int_t distance, int_t fromDirection);
-	std::array<bool, 4> getSpread(Level &level, int_t x, int_t y, int_t z);
+	// Returns the shared member: BlockFlowing.getOptimalFlowDirections hands back its own
+	// isOptimalFlowDirection array, and nested flowIntoBlock ticks overwrite it while the
+	// outer updateTick is still reading it. Callers must observe that aliasing.
+	const std::array<bool, 4> &getSpread(Level &level, int_t x, int_t y, int_t z);
 	bool blocksLiquidFlow(Level &level, int_t x, int_t y, int_t z);
 	int_t getHighestNeighborDepth(Level &level, int_t x, int_t y, int_t z, int_t currentDepth);
 	bool canSpreadTo(Level &level, int_t x, int_t y, int_t z);

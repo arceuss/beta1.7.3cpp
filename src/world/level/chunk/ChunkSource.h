@@ -19,6 +19,4 @@ public:
 	virtual bool tick() = 0;
 	virtual bool shouldSave() = 0;
 	virtual jstring gatherStats() = 0;
-
-	virtual bool isChunkCache() const { return false; }
 };

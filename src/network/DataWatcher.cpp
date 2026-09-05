@@ -8,29 +8,30 @@
 #include "network/Packet.h"
 #include "network/PacketDataStream.h"
 #include "world/item/Item.h"
+#include "world/level/tile/Tile.h"
 
 WatchableObject::WatchableObject(int_t objectType, int_t dataValueId, byte_t value)
-	: objectType(objectType), dataValueId(dataValueId), runtimeType(objectType), byteValue(value)
+	: objectType(objectType), dataValueId(dataValueId), runtimeType(0), byteValue(value)
 {
 }
 
 WatchableObject::WatchableObject(int_t objectType, int_t dataValueId, short_t value)
-	: objectType(objectType), dataValueId(dataValueId), runtimeType(objectType), shortValue(value)
+	: objectType(objectType), dataValueId(dataValueId), runtimeType(1), shortValue(value)
 {
 }
 
 WatchableObject::WatchableObject(int_t objectType, int_t dataValueId, int_t value)
-	: objectType(objectType), dataValueId(dataValueId), runtimeType(objectType), intValue(value)
+	: objectType(objectType), dataValueId(dataValueId), runtimeType(2), intValue(value)
 {
 }
 
 WatchableObject::WatchableObject(int_t objectType, int_t dataValueId, float value)
-	: objectType(objectType), dataValueId(dataValueId), runtimeType(objectType), floatValue(value)
+	: objectType(objectType), dataValueId(dataValueId), runtimeType(3), floatValue(value)
 {
 }
 
 WatchableObject::WatchableObject(int_t objectType, int_t dataValueId, const jstring &value)
-	: objectType(objectType), dataValueId(dataValueId), runtimeType(objectType), stringValue(value)
+	: objectType(objectType), dataValueId(dataValueId), runtimeType(4), stringValue(value)
 {
 }
 
@@ -41,7 +42,7 @@ WatchableObject::WatchableObject(int_t objectType, int_t dataValueId, const Item
 
 WatchableObject::WatchableObject(int_t objectType, int_t dataValueId,
 	std::shared_ptr<ItemInstance> value)
-	: objectType(objectType), dataValueId(dataValueId), runtimeType(objectType),
+	: objectType(objectType), dataValueId(dataValueId), runtimeType(5),
 	  itemValue(std::move(value))
 {
 	if (!itemValue)
@@ -55,7 +56,7 @@ WatchableObject::WatchableObject(int_t objectType, int_t dataValueId, const Tile
 
 WatchableObject::WatchableObject(int_t objectType, int_t dataValueId,
 	std::shared_ptr<TilePos> value)
-	: objectType(objectType), dataValueId(dataValueId), runtimeType(objectType),
+	: objectType(objectType), dataValueId(dataValueId), runtimeType(6),
 	  coordinateValue(std::move(value))
 {
 	if (!coordinateValue)
@@ -350,10 +351,12 @@ const jstring &DataWatcher::getWatchableObjectString(int_t dataValueId) const
 
 void DataWatcher::writeWatchableObject(PacketDataOutput &output, const WatchableObject &object)
 {
-	if (object.getRuntimeType() != object.getObjectType())
-		throw std::runtime_error("java.lang.ClassCastException");
-	int_t header = (object.getObjectType() << 5 | (object.getDataValueId() & 31)) & 255;
+	int_t type = object.getObjectType();
+	int_t header = static_cast<int_t>((static_cast<uint_t>(type) << 5
+		| (static_cast<uint_t>(object.getDataValueId()) & 31U)) & 255U);
 	output.writeByte(header);
+	if (type >= 0 && type <= 6 && object.getRuntimeType() != type)
+		throw std::runtime_error("java.lang.ClassCastException");
 	switch (object.getObjectType())
 	{
 		case 0:
@@ -374,10 +377,13 @@ void DataWatcher::writeWatchableObject(PacketDataOutput &output, const Watchable
 		case 5:
 		{
 			const ItemInstance &item = object.getItem();
+			int_t id = item.itemID;
 			Item *itemType = item.getItem();
-			if (itemType == nullptr)
+			bool tileItem = id > 0 && id < static_cast<int_t>(Tile::tiles.size())
+				&& Tile::tiles[id] != nullptr;
+			if (itemType == nullptr && !tileItem)
 				throw std::runtime_error("java.lang.NullPointerException");
-			output.writeShort(itemType->getShiftedIndex());
+			output.writeShort(itemType == nullptr ? id : itemType->getShiftedIndex());
 			output.writeByte(item.stackSize);
 			output.writeShort(item.getAuxValue());
 			break;

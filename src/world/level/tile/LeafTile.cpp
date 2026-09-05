@@ -16,6 +16,7 @@ LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::lea
 {
 	oTex = tex;
 	setTicking(true);
+	updateCachedProperties();
 }
 
 int_t LeafTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)

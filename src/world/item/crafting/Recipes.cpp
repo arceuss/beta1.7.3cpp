@@ -80,9 +80,9 @@ namespace
 		{
 			for (int_t offsetY = 0; offsetY <= 3 - recipe.height; ++offsetY)
 			{
-				if (matchesAt(recipe, container, offsetX, offsetY, false))
-					return true;
 				if (matchesAt(recipe, container, offsetX, offsetY, true))
+					return true;
+				if (matchesAt(recipe, container, offsetX, offsetY, false))
 					return true;
 			}
 		}

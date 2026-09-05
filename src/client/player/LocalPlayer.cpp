@@ -284,5 +284,8 @@ void LocalPlayer::displayClientMessage(const jstring &message)
 
 void LocalPlayer::sendChatMessage(const jstring &message)
 {
+	// B173 - Vanilla single-player chat does not execute commands.
+#if defined(B173_ENABLE_SPC)
 	SPCCommand::execute(minecraft, message);
+#endif
 }

@@ -37,8 +37,7 @@ int_t SignTile::getResource(int_t data, Random &random)
 void SignTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
 	Tile::onPlace(level, x, y, z);
-	if (level.getTileEntity(x, y, z) == nullptr)
-		level.setTileEntity(x, y, z, Util::make_shared<SignTileEntity>());
+	level.setTileEntity(x, y, z, Util::make_shared<SignTileEntity>());
 }
 
 void SignTile::onRemove(Level &level, int_t x, int_t y, int_t z)

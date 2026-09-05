@@ -13,7 +13,7 @@
 #include "SharedConstants.h"
 #include "lwjgl/Keyboard.h"
 
-#include "glad/glad.h"
+#include "OpenGL.h"
 
 EditSignScreen::EditSignScreen(Minecraft &minecraft, std::shared_ptr<SignTileEntity> sign) : Screen(minecraft), sign(sign)
 {

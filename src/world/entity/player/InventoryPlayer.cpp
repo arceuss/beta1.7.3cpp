@@ -192,7 +192,9 @@ int_t InventoryPlayer::getSlotWithRemainingSpace(const ItemInstance &item) const
 	for (int_t i = 0; i < static_cast<int_t>(mainInventory.size()); ++i)
 	{
 		const ItemInstance &existing = mainInventory[i];
-		if (!existing.isEmpty() && existing.sameItem(item) && existing.isStackable() && existing.stackSize < existing.getMaxStackSize())
+		if (!existing.isEmpty() && existing.itemID == item.itemID && existing.isStackable()
+			&& existing.stackSize < existing.getMaxStackSize() && existing.stackSize < getInventoryStackLimit()
+			&& (!existing.getHasSubtypes() || existing.itemDamage == item.itemDamage))
 			return i;
 	}
 	return -1;
@@ -200,38 +202,43 @@ int_t InventoryPlayer::getSlotWithRemainingSpace(const ItemInstance &item) const
 
 bool InventoryPlayer::add(ItemInstance &item)
 {
-	while (!item.isEmpty())
+	if (item.isItemDamaged())
 	{
+		int_t slot = getFreeSlot();
+		if (slot < 0)
+			return false;
+		mainInventory[slot] = item;
+		mainInventory[slot].popTime = 5;
+		item.stackSize = 0;
+		return true;
+	}
+
+	int_t previous;
+	do
+	{
+		previous = item.stackSize;
 		int_t slot = getSlotWithRemainingSpace(item);
 		if (slot < 0)
 			slot = getFreeSlot();
 		if (slot < 0)
-			return false;
+			break;
 
 		ItemInstance &target = mainInventory[slot];
 		if (target.isEmpty())
-		{
-			int_t toMove = item.stackSize;
-			if (toMove > item.getMaxStackSize())
-				toMove = item.getMaxStackSize();
-			target = ItemInstance(item.itemID, toMove, item.itemDamage);
-			target.popTime = 5;
-			item.stackSize -= toMove;
-		}
-		else
-		{
-			int_t space = target.getMaxStackSize() - target.stackSize;
-			if (space <= 0)
-				return false;
-			int_t toMove = item.stackSize;
-			if (toMove > space)
-				toMove = space;
-			target.stackSize += toMove;
-			target.popTime = 5;
-			item.stackSize -= toMove;
-		}
+			target = ItemInstance(item.itemID, 0, item.itemDamage);
+		int_t toMove = item.stackSize;
+		if (toMove > target.getMaxStackSize() - target.stackSize)
+			toMove = target.getMaxStackSize() - target.stackSize;
+		if (toMove > getInventoryStackLimit() - target.stackSize)
+			toMove = getInventoryStackLimit() - target.stackSize;
+		if (toMove == 0)
+			break;
+		target.stackSize += toMove;
+		target.popTime = 5;
+		item.stackSize -= toMove;
 	}
-	return true;
+	while (item.stackSize > 0 && item.stackSize < previous);
+	return item.stackSize < previous;
 }
 
 bool InventoryPlayer::consumeItem(int_t itemId)

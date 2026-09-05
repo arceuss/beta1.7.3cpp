@@ -4,7 +4,6 @@
 
 TrapDoorTile::TrapDoorTile(int_t id, int_t tex, const Material &material) : Tile(id, tex, material)
 {
-	updateDefaultShape();
 	updateCachedProperties();
 }
 

@@ -1,7 +1,6 @@
 #include "network/NetClientHandler.h"
 
 #include <algorithm>
-#include <cctype>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -15,7 +14,6 @@
 #include "client/player/MultiplayerLocalPlayer.h"
 #include "client/player/RemotePlayer.h"
 #include "client/spc/SPCCommand.h"
-#include "network/Java6Http.h"
 #include "network/NetworkManager.h"
 #include "network/PacketCore.h"
 #include "network/PacketEntity.h"
@@ -77,24 +75,6 @@ float packetAngle(byte_t angle)
 	return static_cast<float>(angle) * 360.0f / 256.0f;
 }
 
-bool equalsIgnoreCaseAscii(const std::string &left, const char *right)
-{
-	const size_t rightLength = std::strlen(right);
-	if (left.size() != rightLength)
-		return false;
-	for (size_t i = 0; i < left.size(); ++i)
-	{
-		if (std::tolower(static_cast<unsigned char>(left[i])) !=
-			std::tolower(static_cast<unsigned char>(right[i])))
-			return false;
-	}
-	return true;
-}
-
-std::string firstLine(const std::string &text)
-{
-	return text.substr(0, text.find_first_of("\r\n"));
-}
 
 }
 
@@ -197,28 +177,9 @@ void NetClientHandler::handleHandshake(Packet2Handshake &packet)
 		return;
 	}
 
-	try
-	{
-		const std::string user = String::toUTF8(minecraft.user->name);
-		const std::string sessionId = String::toUTF8(minecraft.user->sessionId);
-		const std::string serverId = String::toUTF8(packet.username);
-		const std::string response = Java6Http::joinServer(user, sessionId, serverId);
-		if (response.empty())
-			throw std::runtime_error("java.lang.NullPointerException");
-
-		std::string line = firstLine(response);
-		if (equalsIgnoreCaseAscii(line, "ok"))
-			addToSendQueue(std::make_unique<Packet1Login>(minecraft.user->name, 14));
-		else
-			networkManager->networkShutdown(u"disconnect.loginFailedInfo",
-				{String::fromUTF8(line)});
-	}
-	catch (const std::exception &exception)
-	{
-		std::cerr << exception.what() << '\n';
-		networkManager->networkShutdown(u"disconnect.genericReason",
-			{u"Internal client error: " + String::fromUTF8(exception.what())});
-	}
+	// B173 - The retired session service is outside the supported multiplayer path.
+	networkManager->networkShutdown(u"disconnect.loginFailedInfo",
+		{u"Legacy session authentication is unavailable; use an offline-mode server."});
 }
 
 void NetClientHandler::handleChat(Packet3Chat &packet)

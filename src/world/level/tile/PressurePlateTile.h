@@ -14,6 +14,7 @@ public:
 	bool mayPick(int_t data, bool canPickLiquid) override { return true; }
 	AABB *getAABB(Level &level, int_t x, int_t y, int_t z) override { return nullptr; }
 	int_t getTickDelay() override { return 20; }
+	int_t getMobilityFlag() const override { return 1; }
 
 	bool getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
 	bool getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;

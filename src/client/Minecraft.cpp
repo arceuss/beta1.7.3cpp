@@ -48,6 +48,7 @@
 #include "java/File.h"
 
 #include "util/Mth.h"
+#include "util/Profiler.h"
 
 #include "lwjgl/Display.h"
 #include "lwjgl/Keyboard.h"
@@ -64,9 +65,6 @@ std::shared_ptr<File> Minecraft::workDir;
 
 Minecraft::Minecraft(int_t width, int_t height, bool fullscreen)
 {
-	// orgWidth = width;
-	orgHeight = height;
-
 	this->width = width;
 	this->height = height;
 	this->fullscreen = fullscreen;
@@ -77,7 +75,7 @@ void Minecraft::onCrash(const std::string &message, const std::exception &e)
 	CrashHandler::Crash(message + ": " + e.what());
 }
 
-void Minecraft::init()
+void Minecraft::init(std::shared_ptr<File> directory)
 {
 	Tile::initTiles();
 	Items::initItems();
@@ -99,15 +97,14 @@ void Minecraft::init()
 
 	lwjgl::Display::setTitle(VERSION_STRING);
 
-	lwjgl::Display::create();
+	lwjgl::Display::create(unattended);
 
-	// TODO
-	// EntityRenderDispatcher.instance.itemInHandRenderer = new ItemInHandRenderer(this);
+	workingDirectory = directory != nullptr ? std::move(directory) : getWorkingDirectory();
 
-	workingDirectory = getWorkingDirectory();
-
-	options.open(workingDirectory.get());
-	texturePackRepository.updateListAndSelect();
+	if (!unattended)
+		options.open(workingDirectory.get());
+	if (!unattended)
+		texturePackRepository.updateListAndSelect();
 	textures.setTileSize();
 
 	font = std::make_unique<Font>(options, u"/font/default.png", textures);
@@ -123,8 +120,6 @@ void Minecraft::init()
 	});
 	statFileWriter = std::make_unique<StatFileWriter>(*user, *workingDirectory);
 	achievementToast = std::make_unique<AchievementToast>(*this);
-
-	// renderLoadingScreen();
 
 	checkGlError("Pre startup");
 
@@ -147,10 +142,13 @@ void Minecraft::init()
 	std::unique_ptr<File> resourceDir(File::openResourceDirectory());
 	if (resourceDir && resourceDir->exists() && resourceDir->isDirectory())
 		loadAllSounds(resourceDir.get(), u"");
-	if (serverHost.empty())
-		setScreen(Util::make_shared<TitleScreen>(*this));
-	else
-		setScreen(Util::make_shared<ConnectingScreen>(*this, serverHost, serverPort));
+	if (!unattended)
+	{
+		if (serverHost.empty())
+			setScreen(Util::make_shared<TitleScreen>(*this));
+		else
+			setScreen(Util::make_shared<ConnectingScreen>(*this, serverHost, serverPort));
+	}
 }
 
 void Minecraft::renderLoadingScreen()
@@ -458,6 +456,7 @@ void Minecraft::run()
 
 		while (running)
 		{
+			Profiler::Scope frameProfile(Profiler::Section::Frame);
 			AABB::resetPool();
 			Vec3::resetPool();
 
@@ -499,7 +498,10 @@ void Minecraft::run()
 
 			// Update sound listener position every frame
 			if (player != nullptr)
+			{
+				Profiler::Scope soundProfile(Profiler::Section::Sound);
 				soundEngine.update(player.get(), timer.a);
+			}
 
 			checkGlError("Pre render");
 
@@ -682,7 +684,7 @@ void Minecraft::stop()
 
 void Minecraft::grabMouse()
 {
-	if (!lwjgl::Display::isActive())
+	if (unattended || !lwjgl::Display::isActive())
 		return;
 	if (mouseGrabbed)
 		return;
@@ -876,24 +878,18 @@ void Minecraft::handleGrabTexture()
 
 void Minecraft::tick()
 {
-
-	soundEngine.playMusicTick();
+	Profiler::Scope tickProfile(Profiler::Section::Tick);
+	{
+		Profiler::Scope soundProfile(Profiler::Section::Sound);
+		soundEngine.playMusicTick();
+	}
 
 	gameRenderer.pick(1.0f);
 
-	// Update chunk caching
 	if (player != nullptr)
 	{
 		player->prepareForTick();
 
-		auto chunkSource = level->getChunkSource();
-		if (chunkSource->isChunkCache())
-		{
-			ChunkCache &chunkCache = static_cast<ChunkCache &>(*chunkSource);
-			int_t x = Mth::floor(static_cast<float>(static_cast<int_t>(player->x))) >> 4;
-			int_t z = Mth::floor(static_cast<float>(static_cast<int_t>(player->z))) >> 4;
-			chunkCache.centerOn(x, z);
-		}
 	}
 
 	// 
@@ -933,7 +929,7 @@ void Minecraft::tick()
 	}
 
 	// Event processing
-	if (screen == nullptr || screen->passEvents)
+	if (!unattended && (screen == nullptr || screen->passEvents))
 	{
 		while (lwjgl::Mouse::next())
 		{
@@ -1072,7 +1068,7 @@ void Minecraft::tick()
 		}
 		if (!pause || isOnline())
 		{
-			level->setSpawnSettings(options.difficulty > 0, true);
+			level->setSpawnSettings(!unattended && options.difficulty > 0, !unattended);
 			level->tick();
 		}
 		if (!pause && level != nullptr)
@@ -1086,6 +1082,12 @@ void Minecraft::tick()
 	}
 
 	lastTickTime = System::currentTimeMillis();
+}
+
+void Minecraft::stressTick()
+{
+	++ticks;
+	tick();
 }
 
 void Minecraft::reloadSound()
@@ -1299,14 +1301,6 @@ void Minecraft::setLevel(std::shared_ptr<Level> level, const jstring &title, std
 		if (player != nullptr)
 			level->clearLoadedPlayerData();
 
-		std::shared_ptr<ChunkSource> chunkSource = level->getChunkSource();
-		if (chunkSource->isChunkCache())
-		{
-			ChunkCache &chunkCache = static_cast<ChunkCache &>(*chunkSource);
-			int_t x = Mth::floor(static_cast<float>(static_cast<int_t>(this->player->x))) >> 4;
-			int_t z = Mth::floor(static_cast<float>(static_cast<int_t>(this->player->z))) >> 4;
-			chunkCache.centerOn(x, z);
-		}
 
 		level->loadPlayer(this->player);
 
@@ -1329,7 +1323,6 @@ void Minecraft::prepareLevel(const jstring &title)
 	int_t max = radius * 2 / 16 + 1;
 	max *= max;
 
-	std::shared_ptr<ChunkSource> source = level->getChunkSource();
 	int_t xSpawn = level->xSpawn;
 	int_t zSpawn = level->zSpawn;
 	if (player != nullptr)
@@ -1338,11 +1331,6 @@ void Minecraft::prepareLevel(const jstring &title)
 		zSpawn = static_cast<int_t>(player->z);
 	}
 
-	if (source->isChunkCache())
-	{
-		ChunkCache &cache = static_cast<ChunkCache &>(*source);
-		cache.centerOn(xSpawn >> 4, zSpawn >> 4);
-	}
 
 	for (int_t x = -radius; x <= radius; x += 16)
 	{

@@ -7,8 +7,8 @@ class MapColor;
 class LiquidMaterial : public Material
 {
 public:
-	LiquidMaterial() = default;
-	explicit LiquidMaterial(MapColor &color) { setMapColor(color); }
+	LiquidMaterial() { setGroundCover(); setNoPushMobility(); }
+	explicit LiquidMaterial(MapColor &color) : LiquidMaterial() { setMapColor(color); }
 
 	bool isLiquid() const override;
 	bool isSolid() const override;

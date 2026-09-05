@@ -14,6 +14,7 @@ public:
 	void setPlacedBy(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 	void tick(Level &level, int_t x, int_t y, int_t z, Random &random) override;
+	int_t getTickDelay() override { return 4; }
 private:
 	void setDefaultDirection(Level &level, int_t x, int_t y, int_t z) const;
 	void dropContents(Level &level, int_t x, int_t y, int_t z) const;

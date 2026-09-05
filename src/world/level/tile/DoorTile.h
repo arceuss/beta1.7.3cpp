@@ -25,4 +25,5 @@ public:
 	bool use(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 	int_t getResource(int_t data, Random &random) override;
+	int_t getMobilityFlag() const override { return 1; }
 };

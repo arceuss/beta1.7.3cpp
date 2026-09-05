@@ -6,6 +6,7 @@
 #include "world/item/ItemInstance.h"
 
 std::array<Item *, 32000> Item::items = {};
+std::array<bool, 32000> Item::subtypeItems = {};
 Random Item::itemRandom;
 
 Item::Item(int_t baseId)
@@ -28,6 +29,12 @@ Item &Item::setMaxStackSize(int_t size)
 Item &Item::setMaxDamage(int_t damage)
 {
 	maxDamage = damage;
+	return *this;
+}
+
+Item &Item::setHasSubtypes(bool value)
+{
+	subtypeItems[shiftedIndex] = value;
 	return *this;
 }
 

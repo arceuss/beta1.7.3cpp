@@ -4,6 +4,7 @@
 
 PumpkinTile::PumpkinTile(int_t id, int_t tex, bool lit) : Tile(id, tex, Material::pumpkin()), lit(lit)
 {
+	setTicking(true);
 }
 
 int_t PumpkinTile::getTexture(Facing face, int_t data)

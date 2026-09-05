@@ -32,6 +32,8 @@ private:
 	std::vector<Entry> entries;
 	std::vector<int_t> bucketHeads = std::vector<int_t>(16, -1);
 	int_t resizeThreshold = 12;
+	int_t entryCount = 0;
+	int_t freeEntry = -1;
 
 	static uint_t hash(const TilePos &position)
 	{
@@ -41,9 +43,8 @@ private:
 		return value ^ (value >> 7) ^ (value >> 4);
 	}
 
-	int_t findEntry(const TilePos &position) const
+	int_t findEntry(const TilePos &position, uint_t positionHash) const
 	{
-		uint_t positionHash = hash(position);
 		int_t entryIndex = bucketHeads[positionHash & (bucketHeads.size() - 1)];
 		while (entryIndex >= 0)
 		{
@@ -146,28 +147,73 @@ public:
 	void clear()
 	{
 		entries.clear();
-		bucketHeads.assign(16, -1);
-		resizeThreshold = 12;
+		bucketHeads.assign(bucketHeads.size(), -1);
+		entryCount = 0;
+		freeEntry = -1;
 	}
 
 	bool emplace(int_t x, int_t y, int_t z)
 	{
-		TilePos position(x, y, z);
-		if (findEntry(position) >= 0)
+		return insert(TilePos(x, y, z), hash(TilePos(x, y, z)));
+	}
+
+	bool emplaceChunk(int_t x, int_t z)
+	{
+		uint_t value = (x < 0 ? 0x80000000U : 0U) | ((static_cast<uint_t>(x) & 32767U) << 16) |
+			(z < 0 ? 32768U : 0U) | (static_cast<uint_t>(z) & 32767U);
+		value ^= (value >> 20) ^ (value >> 12);
+		return insert(TilePos(x, 0, z), value ^ (value >> 7) ^ (value >> 4));
+	}
+
+private:
+	bool insert(const TilePos &position, uint_t positionHash)
+	{
+		if (findEntry(position, positionHash) >= 0)
 			return false;
-		uint_t positionHash = hash(position);
 		int_t bucket = static_cast<int_t>(positionHash & (bucketHeads.size() - 1));
-		int_t sizeBefore = static_cast<int_t>(entries.size());
-		entries.push_back({positionHash, position, bucketHeads[static_cast<size_t>(bucket)]});
-		bucketHeads[static_cast<size_t>(bucket)] = sizeBefore;
+		int_t sizeBefore = entryCount++;
+		int_t index = freeEntry;
+		if (index >= 0)
+		{
+			freeEntry = entries[static_cast<size_t>(index)].next;
+			entries[static_cast<size_t>(index)] = {positionHash, position, bucketHeads[static_cast<size_t>(bucket)]};
+		}
+		else
+		{
+			index = static_cast<int_t>(entries.size());
+			entries.push_back({positionHash, position, bucketHeads[static_cast<size_t>(bucket)]});
+		}
+		bucketHeads[static_cast<size_t>(bucket)] = index;
 		if (sizeBefore >= resizeThreshold)
 			resize(static_cast<int_t>(bucketHeads.size() * 2));
 		return true;
 	}
 
+public:
+	bool erase(const TilePos &position)
+	{
+		uint_t positionHash = hash(position);
+		int_t *link = &bucketHeads[positionHash & (bucketHeads.size() - 1)];
+		while (*link >= 0)
+		{
+			int_t index = *link;
+			Entry &entry = entries[static_cast<size_t>(index)];
+			if (entry.hash == positionHash && entry.value == position)
+			{
+				*link = entry.next;
+				entry.next = freeEntry;
+				freeEntry = index;
+				--entryCount;
+				return true;
+			}
+			link = &entry.next;
+		}
+		return false;
+	}
+
 	size_t size() const
 	{
-		return entries.size();
+		return static_cast<size_t>(entryCount);
 	}
 
 	const_iterator begin() const

@@ -1,4 +1,5 @@
 #include "client/renderer/GameRenderer.h"
+#include "util/Profiler.h"
 
 #include <chrono>
 #include <thread>
@@ -422,7 +423,7 @@ void GameRenderer::renderItemInHand(float a, int_t eye)
 
 void GameRenderer::render(float a)
 {
-	if (!lwjgl::Display::isActive())
+	if (!mc.unattended && !lwjgl::Display::isActive())
 	{
 		if (System::currentTimeMillis() - lastActiveTime > 500)
 			mc.pauseGame();
@@ -483,7 +484,10 @@ void GameRenderer::render(float a)
 
 		lastRenderNano = System::nanoTime();
 		if (!mc.options.hideGui || mc.screen != nullptr)
+		{
+			Profiler::Scope guiProfile(Profiler::Section::Gui);
 			mc.gui.render(a, mc.screen != nullptr, xm, ym);
+		}
 	}
 	else
 	{
@@ -509,6 +513,7 @@ void GameRenderer::render(float a)
 	auto screen = mc.screen; // Keep the current screen alive if render() replaces it.
 	if (screen != nullptr)
 	{
+		Profiler::Scope guiProfile(Profiler::Section::Gui);
 		glClear(GL_DEPTH_BUFFER_BIT);
 		screen->render(xm, ym, a);
 	}
@@ -525,14 +530,6 @@ void GameRenderer::renderLevel(float a, long_t deadline)
 	double yOff = player->yOld + (player->y - player->yOld) * a;
 	double zOff = player->zOld + (player->z - player->zOld) * a;
 
-	auto chunkSource = mc.level->getChunkSource();
-	if (chunkSource->isChunkCache())
-	{
-		ChunkCache &chunkCache = static_cast<ChunkCache &>(*chunkSource);
-		int_t x = Mth::floor(static_cast<float>(static_cast<int_t>(player->x))) >> 4;
-		int_t z = Mth::floor(static_cast<float>(static_cast<int_t>(player->z))) >> 4;
-		chunkCache.centerOn(x, z);
-	}
 
 	for (int_t eye = 0; eye < 2; eye++)
 	{
@@ -584,17 +581,29 @@ void GameRenderer::renderLevel(float a, long_t deadline)
 			glShadeModel(GL_SMOOTH);
 
 		Lighting::turnOff();
-		levelRenderer.render(*player, 0, a);
+		{
+			Profiler::Scope terrainProfile(Profiler::Section::TerrainRender);
+			levelRenderer.render(*player, 0, a);
+		}
 		glShadeModel(GL_FLAT);
 
 		Lighting::turnOn();
-		levelRenderer.renderEntities(*player->getPos(a), culler, a);
-		mc.particleEngine.renderLit(*player, a);
+		{
+			Profiler::Scope entityProfile(Profiler::Section::EntityRender);
+			levelRenderer.renderEntities(*player->getPos(a), culler, a);
+		}
+		{
+			Profiler::Scope particleProfile(Profiler::Section::Particles);
+			mc.particleEngine.renderLit(*player, a);
+		}
 		Lighting::turnOff();
 
 		setupFog(0);
 
-		mc.particleEngine.render(*player, a);
+		{
+			Profiler::Scope particleProfile(Profiler::Section::Particles);
+			mc.particleEngine.render(*player, a);
+		}
 
 		if (mc.hitResult.type != HitResult::Type::NONE && player->isUnderLiquid(Material::water))
 		{
@@ -612,6 +621,7 @@ void GameRenderer::renderLevel(float a, long_t deadline)
 
 		if (mc.options.fancyGraphics)
 		{
+			Profiler::Scope terrainProfile(Profiler::Section::TerrainRender);
 			if (mc.options.ambientOcclusion)
 				glShadeModel(GL_SMOOTH);
 
@@ -634,6 +644,7 @@ void GameRenderer::renderLevel(float a, long_t deadline)
 		}
 		else
 		{
+			Profiler::Scope terrainProfile(Profiler::Section::TerrainRender);
 			if (mc.options.ambientOcclusion)
 				glShadeModel(GL_SMOOTH);
 

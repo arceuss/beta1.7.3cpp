@@ -1,4 +1,6 @@
 #include "world/level/levelgen/HellRandomLevelSource.h"
+#include "java/Number.h"
+#include "util/Profiler.h"
 
 #include "world/level/Level.h"
 #include "world/level/chunk/LevelChunk.h"
@@ -181,7 +183,8 @@ void HellRandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 
 std::shared_ptr<LevelChunk> HellRandomLevelSource::getChunk(int_t x, int_t z)
 {
-	random.setSeed(x * 341873128712LL + z * 132897987541LL);
+	Profiler::Scope profile(Profiler::Section::ChunkGeneration);
+	random.setSeed(Java::longFromBits(static_cast<ulong_t>(x) * 341873128712ULL + static_cast<ulong_t>(z) * 132897987541ULL));
 
 	std::shared_ptr<LevelChunk> chunk = Util::make_shared<LevelChunk>(level, x, z);
 
@@ -189,8 +192,6 @@ std::shared_ptr<LevelChunk> HellRandomLevelSource::getChunk(int_t x, int_t z)
 	buildSurfaces(x, z, chunk->blocks.data());
 
 	caveFeature.apply(*this, level, x, z, chunk->blocks);
-
-	chunk->recalcHeightmap();
 
 	return chunk;
 }
@@ -213,7 +214,7 @@ void HellRandomLevelSource::getHeights(double *out, int_t x, int_t y, int_t z, i
 
 	for (int_t yi = 0; yi < yd; yi++)
 	{
-		yFalloff[yi] = Mth::cos(yi * Mth::PI * 6.0 / yd) * 2.0;
+		yFalloff[yi] = std::cos(yi * 3.1415926535897931 * 6.0 / yd) * 2.0;
 		double dist = yi;
 		if (yi > yd / 2)
 			dist = yd - 1 - yi;

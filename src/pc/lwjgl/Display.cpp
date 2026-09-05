@@ -9,6 +9,7 @@
 #include "lwjgl/Keyboard.h"
 
 #include "external/SDLException.h"
+#include "GLTrace.h"
 
 #include "SDL.h"
 #include <glad/glad.h>
@@ -127,6 +128,9 @@ void processMessages()
 void swapBuffers()
 {
 	SDL_GL_SwapWindow(GLContext::detail::getWindow());
+#if defined(B173_GL_TRACE)
+	GLTrace::nextFrame();
+#endif
 }
 
 void update(bool doProcessMessages)
@@ -136,9 +140,12 @@ void update(bool doProcessMessages)
 		processMessages();
 }
 
-void create()
+void create(bool hidden)
 {
-	SDL_ShowWindow(GLContext::detail::getWindow());
+	if (hidden)
+		SDL_HideWindow(GLContext::detail::getWindow());
+	else
+		SDL_ShowWindow(GLContext::detail::getWindow());
 }
 
 int_t getX()

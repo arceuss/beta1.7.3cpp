@@ -12,6 +12,43 @@
 #include <memory>
 #include <stdexcept>
 
+static jstring NormalizePath(const jstring &path)
+{
+	jstring result;
+	size_t start = path.find_first_not_of(u"/\\");
+	if (start != jstring::npos && start + 1 < path.size() && path[start + 1] == u':' &&
+		((path[start] >= u'a' && path[start] <= u'z') || (path[start] >= u'A' && path[start] <= u'Z')))
+	{
+		result = path.substr(start, 2);
+		start += 2;
+	}
+	else
+		start = 0;
+	for (size_t i = start; i < path.size(); ++i)
+	{
+		char16_t c = path[i] == u'/' ? u'\\' : path[i];
+		if (c != u'\\' || result.empty() || result.back() != u'\\' ||
+			(result.size() == 1 && i == 1))
+			result.push_back(c);
+	}
+	if (result.size() > 1 && result.back() == u'\\' &&
+		!(result.size() == 2 && result.front() == u'\\') &&
+		!(result.size() == 3 && result[1] == u':'))
+		result.pop_back();
+	return result;
+}
+
+static size_t PathPrefix(const jstring &path)
+{
+	if (path.empty())
+		return 0;
+	if (path.front() == u'\\')
+		return path.size() > 1 && path[1] == u'\\' ? 2 : 1;
+	if (path.size() > 1 && path[1] == u':' &&
+		((path[0] >= u'a' && path[0] <= u'z') || (path[0] >= u'A' && path[0] <= u'Z')))
+		return path.size() > 2 && path[2] == u'\\' ? 3 : 2;
+	return 0;
+}
 
 static jstring FromWPath(const std::wstring &wstr)
 {
@@ -22,6 +59,8 @@ static jstring FromWPath(const std::wstring &wstr)
 	std::u16string u16str(wstr.begin(), wstr.end());
 
 	// Remove prefix
+	if (u16str.compare(0, 8, u"\\\\?\\UNC\\") == 0)
+		return u"\\\\" + u16str.substr(8);
 	if (u16str.compare(0, 4, u"\\\\?\\") == 0)
 		return u16str.substr(4);
 	else
@@ -30,28 +69,23 @@ static jstring FromWPath(const std::wstring &wstr)
 
 static std::wstring ToWPath(const jstring &path)
 {
-	if (path.empty())
+	if (path.empty() || path.find(u'\0') != jstring::npos)
 		return L"";
 
 	// Convert u16string to wstring
 	std::wstring wpath(path.begin(), path.end());
 
-	wchar_t temp[1] = {};
-	size_t out_size = GetFullPathNameW(wpath.c_str(), 0, temp, nullptr);
-	if (out_size == 0)
-		throw std::runtime_error("Failed to convert wide string to canonical path: " + String::toUTF8(path));
-	
-	std::wstring out_path(out_size - 1, 0);
-	if (GetFullPathNameW(wpath.c_str(), out_size, &out_path[0], nullptr) == 0)
-		throw std::runtime_error("Failed to convert wide string to canonical path: " + String::toUTF8(path));
-
-	out_path.resize(out_size - 1);
-
-	// Remove trailing slashes
-	while (!out_path.empty() && (out_path.back() == L'\\' || out_path.back() == L'/'))
-		out_path.pop_back();
-
-	return L"\\\\?\\" + out_path;
+	DWORD size = GetFullPathNameW(wpath.c_str(), 0, nullptr, nullptr);
+	if (size == 0)
+		throw std::runtime_error("Failed to resolve file path");
+	std::wstring absolute(size, 0);
+	DWORD length = GetFullPathNameW(wpath.c_str(), size, &absolute[0], nullptr);
+	if (length == 0 || length >= size)
+		throw std::runtime_error("Failed to resolve file path");
+	absolute.resize(length);
+	if (absolute.compare(0, 2, L"\\\\") == 0)
+		return L"\\\\?\\UNC\\" + absolute.substr(2);
+	return L"\\\\?\\" + absolute;
 }
 
 class File_Impl : public File
@@ -62,8 +96,8 @@ private:
 public:
 	File_Impl(const jstring &path)
 	{
-		wpath = ToWPath(path);
-		this->path = FromWPath(wpath);
+		this->path = NormalizePath(path);
+		wpath = ToWPath(this->path);
 	}
 
 	virtual ~File_Impl()
@@ -92,8 +126,8 @@ public:
 
 	bool renameTo(const File &dest) const override
 	{
-		const File_Impl &dest_impl = reinterpret_cast<const File_Impl&>(dest);
-		if (MoveFileW(wpath.c_str(), dest_impl.wpath.c_str()) == 0)
+		std::wstring destination = ToWPath(dest.toString());
+		if (MoveFileW(wpath.c_str(), destination.c_str()) == 0)
 			return false;
 		return true;
 	}
@@ -118,13 +152,16 @@ public:
 
 	long_t lastModified() const override
 	{
-		HANDLE hfile = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+		HANDLE hfile = CreateFileW(wpath.c_str(), FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
 		if (hfile == INVALID_HANDLE_VALUE)
 			return 0;
 
 		FILETIME ftwrite;
 		if (!GetFileTime(hfile, nullptr, nullptr, &ftwrite))
+		{
+			CloseHandle(hfile);
 			return 0;
+		}
 
 		CloseHandle(hfile);
 
@@ -175,8 +212,8 @@ public:
 			if (wcscmp(find_data.cFileName, L".") == 0 || wcscmp(find_data.cFileName, L"..") == 0)
 				continue;
 
-			std::wstring child_path = wpath + L'\\' + find_data.cFileName;
-			files.push_back(std::make_unique<File_Impl>(FromWPath(child_path)));
+			jstring child_path = path + u'\\' + FromWPath(find_data.cFileName);
+			files.push_back(std::make_unique<File_Impl>(child_path));
 		} while (FindNextFileW(hfind, &find_data) != 0);
 
 		FindClose(hfind);
@@ -185,10 +222,11 @@ public:
 
 	File *getParentFile() const override
 	{
-		size_t npos = path.find_last_of(u"/\\");
-		if (npos != std::string::npos)
-			return new File_Impl(path.substr(0, npos));
-		return new File_Impl(u"");
+		size_t prefix = PathPrefix(path);
+		size_t npos = path.find_last_of(u'\\');
+		if (npos == jstring::npos || npos < prefix)
+			return prefix != 0 && path.size() > prefix ? new File_Impl(path.substr(0, prefix)) : nullptr;
+		return new File_Impl(path.substr(0, npos));
 	}
 
 	bool mkdir() const override
@@ -265,4 +303,40 @@ File *File::openWorkingDirectory(const jstring &name)
 	jstring u16str = FromWPath(path);
 
 	return new File_Impl(u16str + u"\\" + name);
+}
+
+jstring File::getName() const
+{
+	size_t prefix = PathPrefix(path);
+	size_t pos = path.find_last_of(u'\\');
+	return path.substr(pos == jstring::npos || pos < prefix ? prefix : pos + 1);
+}
+
+jstring File::toURL() const
+{
+	if (path.find(u'\0') != jstring::npos)
+		throw std::runtime_error("java.net.MalformedURLException: Invalid file path");
+	jstring absolute = path;
+	size_t prefix = PathPrefix(path);
+	if (prefix < 3 && !(prefix == 2 && path.front() == u'\\'))
+	{
+		jstring current = FromWPath(ToWPath(prefix == 2 ? path.substr(0, 2) : u"."));
+		if (prefix == 1)
+			absolute = current.substr(0, 2) + path;
+		else
+		{
+			absolute = current;
+			jstring relative = path.substr(prefix);
+			if (!relative.empty())
+				absolute += (absolute.back() == u'\\' ? u"" : u"\\") + relative;
+		}
+	}
+	for (char16_t &c : absolute)
+		if (c == u'\\')
+			c = u'/';
+	if (absolute.empty() || absolute.front() != u'/')
+		absolute.insert(absolute.begin(), u'/');
+	if (isDirectory() && absolute.back() != u'/')
+		absolute.push_back(u'/');
+	return u"file:" + absolute;
 }

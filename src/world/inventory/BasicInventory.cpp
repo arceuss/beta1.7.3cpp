@@ -14,19 +14,19 @@ int_t BasicInventory::getSizeInventory() const
 
 ItemInstance *BasicInventory::getStackInSlot(int_t slot)
 {
-	ItemInstance &item = items[static_cast<std::size_t>(slot)];
+	ItemInstance &item = items.at(static_cast<std::size_t>(slot));
 	return item.isEmpty() ? nullptr : &item;
 }
 
 const ItemInstance *BasicInventory::getStackInSlot(int_t slot) const
 {
-	const ItemInstance &item = items[static_cast<std::size_t>(slot)];
+	const ItemInstance &item = items.at(static_cast<std::size_t>(slot));
 	return item.isEmpty() ? nullptr : &item;
 }
 
 ItemInstance BasicInventory::decrStackSize(int_t slot, int_t count)
 {
-	ItemInstance &item = items[static_cast<std::size_t>(slot)];
+	ItemInstance &item = items.at(static_cast<std::size_t>(slot));
 	if (item.isEmpty())
 		return ItemInstance();
 	if (item.stackSize <= count)
@@ -45,8 +45,8 @@ ItemInstance BasicInventory::decrStackSize(int_t slot, int_t count)
 
 void BasicInventory::setInventorySlotContents(int_t slot, const ItemInstance &item)
 {
-	items[static_cast<std::size_t>(slot)] = item;
-	ItemInstance &stored = items[static_cast<std::size_t>(slot)];
+	items.at(static_cast<std::size_t>(slot)) = item;
+	ItemInstance &stored = items.at(static_cast<std::size_t>(slot));
 	if (!stored.isEmpty() && stored.stackSize > getInventoryStackLimit())
 		stored.stackSize = getInventoryStackLimit();
 	onInventoryChanged();

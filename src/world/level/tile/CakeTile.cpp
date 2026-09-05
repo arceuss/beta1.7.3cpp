@@ -7,7 +7,6 @@
 CakeTile::CakeTile(int_t id, int_t tex) : Tile(id, tex, Material::cakeMaterial)
 {
 	setTicking(true);
-	updateDefaultShape();
 	updateCachedProperties();
 }
 

@@ -4,11 +4,15 @@
 
 SoulSandTile::SoulSandTile(int_t id, int_t tex, const Material &material) : Tile(id, tex, material)
 {
-	setShape(0.0f, 0.0f, 0.0f, 1.0f, 0.875f, 1.0f);
 }
 
 void SoulSandTile::entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity)
 {
 	entity.xd *= 0.4;
 	entity.zd *= 0.4;
+}
+
+AABB *SoulSandTile::getAABB(Level &level, int_t x, int_t y, int_t z)
+{
+	return AABB::newTemp(x, y, z, x + 1, static_cast<float>(y + 1) - 0.125f, z + 1);
 }

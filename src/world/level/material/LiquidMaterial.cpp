@@ -12,7 +12,7 @@ bool LiquidMaterial::isSolid() const
 
 bool LiquidMaterial::blocksLight() const
 {
-	return false;
+	return true;
 }
 
 bool LiquidMaterial::blocksMotion() const

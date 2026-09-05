@@ -750,6 +750,26 @@ int runBlockSmoke()
 
 		std::cerr << "block-smoke: level setup" << std::endl;
 		Level level(File::open(u"build/block-smoke-workdir"), u"block-smoke-world", 12345);
+		// B173 - Captured from Entity.applyEntityCollision in the Beta JAR on JDK 8.
+		const double pushCases[][5] = {
+			{0.0075, 0.0075, 0.0, 0.0, 0.0},
+			{0.25, 0.75, 0.3f, 0.010103629870652761, 0.030310889611958287},
+			{3.0, -4.0, 0.0, 0.037500000558793545, -0.05000000074505806},
+			{static_cast<double>(0.01f), 0.0, 0.0, 0.004999999888241291, 0.0},
+			{1.0, std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0, 0.0}
+		};
+		for (const auto &values : pushCases)
+		{
+			Entity first(level);
+			Entity second(level);
+			second.x = values[0];
+			second.z = values[1];
+			first.pushthrough = static_cast<float>(values[2]);
+			first.push(second);
+			ok &= expect(first.xd == -values[3] && first.zd == -values[4] &&
+				second.xd == values[3] && second.zd == values[4],
+				"entity collision impulses should match the Beta Java oracle");
+		}
 		CaptureListener listener;
 		level.addListener(listener);
 		Player player(level);
@@ -1443,19 +1463,18 @@ int runBlockSmoke()
 		std::cerr << "block-smoke: rideable minecart mount toggles" << std::endl;
 		auto rideCart = std::make_shared<EntityMinecart>(level, 250.5, baseY + 1.0, 2.5, EntityMinecart::TYPE_RIDEABLE);
 		ok &= expect(level.addEntity(rideCart), "rideable minecart should join the level");
+		const double beforeMountX = mountPlayer->x;
+		const double beforeMountY = mountPlayer->y;
+		const double beforeMountZ = mountPlayer->z;
 		ok &= expect(rideCart->interact(*mountPlayer), "rideable minecart should mount on first interaction");
 		double mountedY = rideCart->y + rideCart->getRideHeight() + mountPlayer->getRidingHeight();
 		ok &= expect(mountPlayer->riding == rideCart, "minecart interact should set the player's riding pointer");
 		ok &= expect(rideCart->rider == mountPlayer, "minecart interact should set the cart rider pointer");
-		ok &= expectNear(mountPlayer->x, rideCart->x, 1.0e-6, "mounted player should snap to the cart seat x immediately");
-		ok &= expectNear(mountPlayer->y, mountedY, 1.0e-6, "mounted player should snap to the cart seat y immediately");
-		ok &= expectNear(mountPlayer->z, rideCart->z, 1.0e-6, "mounted player should snap to the cart seat z immediately");
-		ok &= expectNear(mountPlayer->xo, mountPlayer->x, 1.0e-6, "mounted player should sync previous x to the seat immediately");
-		ok &= expectNear(mountPlayer->yo, mountPlayer->y, 1.0e-6, "mounted player should sync previous y to the seat immediately");
-		ok &= expectNear(mountPlayer->zo, mountPlayer->z, 1.0e-6, "mounted player should sync previous z to the seat immediately");
-		ok &= expectNear(mountPlayer->xOld, mountPlayer->x, 1.0e-6, "mounted player should sync xOld to the seat immediately");
-		ok &= expectNear(mountPlayer->yOld, mountPlayer->y, 1.0e-6, "mounted player should sync yOld to the seat immediately");
-		ok &= expectNear(mountPlayer->zOld, mountPlayer->z, 1.0e-6, "mounted player should sync zOld to the seat immediately");
+		ok &= expect(mountPlayer->x == beforeMountX && mountPlayer->y == beforeMountY && mountPlayer->z == beforeMountZ,
+			"mounting should leave position unchanged until rider positioning");
+		rideCart->positionRider();
+		ok &= expect(mountPlayer->x == rideCart->x && mountPlayer->y == mountedY && mountPlayer->z == rideCart->z,
+			"rider positioning should place the player at the cart seat");
 		rideCart->xd = 0.0;
 		rideCart->zd = 0.0;
 		mountPlayer->xd = 0.0;
@@ -2037,10 +2056,21 @@ int runBlockSmoke()
 		level.setData(300, baseY + 1, 0, 5);
 		ok &= expect(PistonBaseTile::getDirection(level.getData(300, baseY + 1, 0)) == 5, "piston data should store direction");
 		ok &= expect(!PistonBaseTile::isPowered(level.getData(300, baseY + 1, 0)), "unpowered piston should not have powered bit");
+		level.setTile(301, baseY, 0, Tile::rock.id);
 		level.setTile(301, baseY + 1, 0, Tile::redstoneWire.id);
 		level.setData(301, baseY + 1, 0, 15);
 		Tile::pistonBase.neighborChanged(level, 300, baseY + 1, 0, Tile::redstoneWire.id);
-		ok &= expect(PistonBaseTile::isPowered(level.getData(300, baseY + 1, 0)), "piston should become powered from adjacent wire");
+		ok &= expect(!PistonBaseTile::isPowered(level.getData(300, baseY + 1, 0)),
+			"piston should ignore power supplied through its front face");
+		// A wire with hand-set strength loses it as soon as the piston's own metadata notify
+		// reaches it (World.setBlockMetadataWithNotify), so feed the rear wire from a torch.
+		level.setTile(298, baseY, 0, Tile::rock.id);
+		level.setTile(299, baseY, 0, Tile::rock.id);
+		level.setTile(299, baseY + 1, 0, Tile::redstoneWire.id);
+		level.setTileAndData(298, baseY + 1, 0, Tile::torchRedstoneActive.id, 5);
+		ok &= expect(level.getData(299, baseY + 1, 0) == 15, "torch-fed wire should carry full strength");
+		ok &= expect(PistonBaseTile::isPowered(level.getData(300, baseY + 1, 0)),
+			"piston should accept power supplied through its rear face");
 
 		std::cerr << "block-smoke: TNT drop" << std::endl;
 		ok &= expect(Tile::tnt.getResourceCount(random) == 0, "TNT should not drop via getResourceCount");

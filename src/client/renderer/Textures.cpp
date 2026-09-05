@@ -27,7 +27,7 @@
 #include "world/level/GrassColor.h"
 
 #include "OpenGL.h"
-#include "httplib.h"
+#include "util/HttpGet.h"
 #include "stb_image.h"
 
 struct HttpTexture
@@ -38,6 +38,8 @@ struct HttpTexture
 	int_t id = -1;
 	bool hasLoadedImage = false;
 	bool isUploaded = false;
+	// Render-thread scheduling state; the worker publishes pixels under mutex.
+	bool downloadRequested = false;
 };
 
 namespace
@@ -137,7 +139,7 @@ BufferedImage loadHttpTextureFromCache(const ParsedHttpUrl &parsed)
 	}
 }
 
-bool storeHttpTextureCache(const ParsedHttpUrl &parsed, const std::string &body)
+bool storeHttpTextureCache(const ParsedHttpUrl &parsed, const std::vector<byte_t> &body)
 {
 	std::unique_ptr<File> cacheFile(openHttpTextureCacheFile(parsed));
 	if (cacheFile == nullptr)
@@ -151,7 +153,7 @@ bool storeHttpTextureCache(const ParsedHttpUrl &parsed, const std::string &body)
 		return false;
 	}
 
-	os->write(body.data(), static_cast<std::streamsize>(body.size()));
+	os->write(reinterpret_cast<const char *>(body.data()), static_cast<std::streamsize>(body.size()));
 	return os->good();
 }
 
@@ -199,7 +201,7 @@ ParsedHttpUrl parseHttpUrl(const jstring &url)
 	return parsed;
 }
 
-BufferedImage readImageFromMemory(const std::string &data)
+BufferedImage readImageFromMemory(const std::vector<byte_t> &data)
 {
 	int w = 0;
 	int h = 0;
@@ -368,43 +370,30 @@ void downloadHttpTexture(const std::shared_ptr<HttpTexture> &texture, const jstr
 			}
 			std::cerr << std::endl;
 
-			httplib::Client client(parsed.host.c_str(), parsed.port);
-			if (useBetacraftProxy)
+			HttpGet::Response response = useBetacraftProxy
+				? HttpGet::fetch(urlUtf8, 30, BETACRAFT_PROXY_HOST, BETACRAFT_PROXY_PORT)
+				: HttpGet::fetch(urlUtf8);
+			if (!response.error.empty())
 			{
-				client.set_proxy(BETACRAFT_PROXY_HOST, BETACRAFT_PROXY_PORT);
-			}
-			client.set_connection_timeout(30);
-			client.set_read_timeout(30);
-			client.set_follow_location(true);
-
-			auto response = client.Get(parsed.path.c_str());
-			if (!response)
-			{
-				std::cerr << "[HTTP Texture] Request failed: " << urlUtf8 << " (null response)" << std::endl;
+				std::cerr << "[HTTP Texture] Request failed: " << urlUtf8 << " (" << response.error << ")" << std::endl;
 				return;
 			}
 
-			const std::string location = response->get_header_value("Location");
-			std::cerr << "[HTTP Texture] Response " << urlUtf8 << " status=" << response->status
-				<< " bytes=" << response->body.size();
-			if (!location.empty())
-			{
-				std::cerr << " location=" << location;
-			}
-			std::cerr << std::endl;
-			if (response->status < 200 || response->status >= 400)
+			std::cerr << "[HTTP Texture] Response " << urlUtf8 << " status=" << response.status
+				<< " bytes=" << response.body.size() << std::endl;
+			if (!response.ok())
 			{
 				return;
 			}
 
-			image = readImageFromMemory(response->body);
+			image = readImageFromMemory(response.body);
 			if (image.getWidth() == 0 || image.getHeight() == 0)
 			{
 				std::cerr << "[HTTP Texture] Decode failed: " << urlUtf8 << std::endl;
 				return;
 			}
 
-			if (storeHttpTextureCache(parsed, response->body))
+			if (storeHttpTextureCache(parsed, response.body))
 			{
 				std::cerr << "[HTTP Texture] Cached " << urlUtf8 << std::endl;
 			}
@@ -438,6 +427,54 @@ Textures::Textures(TexturePackRepository &skins, Options &options, Minecraft &mi
 	: skins(skins), options(options), minecraft(minecraft)
 {
 
+}
+
+Textures::~Textures()
+{
+	{
+		std::lock_guard<std::mutex> lock(httpMutex);
+		stopHttp = true;
+		httpJobs.clear();
+	}
+	httpReady.notify_one();
+	if (httpWorker.joinable())
+		httpWorker.join();
+}
+
+void Textures::queueHttpTexture(const jstring &url, const std::shared_ptr<HttpTexture> &texture)
+{
+	if (texture->downloadRequested)
+		return;
+	{
+		std::lock_guard<std::mutex> lock(httpMutex);
+		// Visible consumers retry pending entries without blocking on a full queue.
+		if (stopHttp || httpJobs.size() >= 16)
+			return;
+		if (!httpWorker.joinable())
+			httpWorker = std::thread(&Textures::downloadHttpTextures, this);
+		httpJobs.emplace_back(url, texture);
+		texture->downloadRequested = true;
+	}
+	httpReady.notify_one();
+}
+
+void Textures::downloadHttpTextures()
+{
+	for (;;)
+	{
+		std::pair<jstring, std::weak_ptr<HttpTexture>> job;
+		{
+			std::unique_lock<std::mutex> lock(httpMutex);
+			httpReady.wait(lock, [this] { return stopHttp || !httpJobs.empty(); });
+			if (stopHttp)
+				return;
+			job = std::move(httpJobs.front());
+			httpJobs.pop_front();
+		}
+		std::shared_ptr<HttpTexture> texture = job.second.lock();
+		if (texture != nullptr)
+			downloadHttpTexture(texture, job.first);
+	}
 }
 
 BufferedImage Textures::readResourceImage(const jstring &resourceName, bool resize)
@@ -689,6 +726,7 @@ int_t Textures::loadHttpTexture(const jstring &url, const jstring *backup)
 	auto it = httpTextures.find(url);
 	if (it != httpTextures.end())
 	{
+		queueHttpTexture(url, it->second);
 		HttpTexture *texture = it->second.get();
 		std::lock_guard<std::mutex> lock(texture->mutex);
 		if (texture->hasLoadedImage && !texture->isUploaded)
@@ -751,10 +789,14 @@ void Textures::obtainHttpTexture(const jstring &url)
 
 HttpTexture *Textures::addHttpTexture(const jstring &url)
 {
+	// B173 - Stress runs must not read the user skin cache or start network requests.
+	if (minecraft.unattended)
+		return nullptr;
 	auto it = httpTextures.find(url);
 	if (it != httpTextures.end())
 	{
 		it->second->count++;
+		queueHttpTexture(url, it->second);
 		std::cerr << "[HTTP Texture] Reusing cached URL " << String::toUTF8(url) << " refCount=" << it->second->count << std::endl;
 		return it->second.get();
 	}
@@ -763,10 +805,7 @@ HttpTexture *Textures::addHttpTexture(const jstring &url)
 	auto texture = Util::make_shared<HttpTexture>();
 	HttpTexture *ptr = texture.get();
 	httpTextures.emplace(url, texture);
-	std::thread([texture, url]()
-	{
-		downloadHttpTexture(texture, url);
-	}).detach();
+	queueHttpTexture(url, texture);
 	return ptr;
 }
 
@@ -892,8 +931,10 @@ void Textures::tick()
 		fx->anaglyphEnabled = options.anaglyph3d;
 		fx->onTick();
 
-		const jstring atlas = fx->tileImage == 1 ? u"/gui/items.png" : u"/terrain.png";
-		glBindTexture(GL_TEXTURE_2D, loadTexture(atlas));
+		if (fx->tileImage == 0)
+			glBindTexture(GL_TEXTURE_2D, loadTexture(u"/terrain.png"));
+		else if (fx->tileImage == 1)
+			glBindTexture(GL_TEXTURE_2D, loadTexture(u"/gui/items.png"));
 		for (int_t tx = 0; tx < fx->tileSize; ++tx)
 		{
 			for (int_t ty = 0; ty < fx->tileSize; ++ty)

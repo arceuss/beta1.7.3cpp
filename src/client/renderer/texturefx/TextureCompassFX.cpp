@@ -1,7 +1,7 @@
 #include "client/renderer/texturefx/TextureCompassFX.h"
 
 #include <cmath>
-#include <cstdlib>
+#include "java/Math.h"
 
 #include "client/Minecraft.h"
 #include "client/renderer/texturefx/TextureItemFX.h"
@@ -41,16 +41,16 @@ void TextureCompassFX::onTick()
 	{
 		double dx = static_cast<double>(minecraft.level->xSpawn) - minecraft.player->x;
 		double dz = static_cast<double>(minecraft.level->zSpawn) - minecraft.player->z;
-		angle = static_cast<double>(minecraft.player->yRot - 90.0f) * Mth::PI / 180.0 - std::atan2(dz, dx);
-		if (minecraft.level->dimension != nullptr && minecraft.level->dimension->id == Dimension::Id_Hell)
-			angle = (static_cast<double>(std::rand()) / RAND_MAX) * Mth::PI * 2.0;
+		angle = static_cast<double>(minecraft.player->yRot - 90.0f) * 3.141592653589793 / 180.0 - std::atan2(dz, dx);
+		if (minecraft.level->dimension != nullptr && minecraft.level->dimension->foggy)
+			angle = Math::random() * static_cast<double>(Mth::PI) * 2.0;
 	}
 
 	double delta = angle - rotation;
-	while (delta < -Mth::PI)
-		delta += Mth::PI * 2.0;
-	while (delta >= Mth::PI)
-		delta -= Mth::PI * 2.0;
+	while (delta < -3.141592653589793)
+		delta += 6.283185307179586;
+	while (delta >= 3.141592653589793)
+		delta -= 6.283185307179586;
 	if (delta < -1.0)
 		delta = -1.0;
 	if (delta > 1.0)

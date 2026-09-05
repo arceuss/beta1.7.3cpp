@@ -4,11 +4,7 @@
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/StoneTile.h"
 
-#include <cmath>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include "util/Mth.h"
 
 OreFeature::OreFeature(int_t blockId, int_t count) : blockId(blockId), count(count)
 {
@@ -16,11 +12,11 @@ OreFeature::OreFeature(int_t blockId, int_t count) : blockId(blockId), count(cou
 
 bool OreFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 {
-	float var6 = random.nextFloat() * (float)M_PI;
-	double var7 = (double)((float)(x + 8) + std::sin(var6) * (float)this->count / 8.0F);
-	double var9 = (double)((float)(x + 8) - std::sin(var6) * (float)this->count / 8.0F);
-	double var11 = (double)((float)(z + 8) + std::cos(var6) * (float)this->count / 8.0F);
-	double var13 = (double)((float)(z + 8) - std::cos(var6) * (float)this->count / 8.0F);
+	float var6 = random.nextFloat() * Mth::PI;
+	double var7 = (double)((float)(x + 8) + Mth::sin(var6) * (float)this->count / 8.0F);
+	double var9 = (double)((float)(x + 8) - Mth::sin(var6) * (float)this->count / 8.0F);
+	double var11 = (double)((float)(z + 8) + Mth::cos(var6) * (float)this->count / 8.0F);
+	double var13 = (double)((float)(z + 8) - Mth::cos(var6) * (float)this->count / 8.0F);
 	double var15 = (double)(y + random.nextInt(3) + 2);
 	double var17 = (double)(y + random.nextInt(3) + 2);
 
@@ -30,14 +26,14 @@ bool OreFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 		double var22 = var15 + (var17 - var15) * (double)var19 / (double)this->count;
 		double var24 = var11 + (var13 - var11) * (double)var19 / (double)this->count;
 		double var26 = random.nextDouble() * (double)this->count / 16.0;
-		double var28 = (double)(std::sin((float)var19 * (float)M_PI / (float)this->count) + 1.0F) * var26 + 1.0;
-		double var30 = (double)(std::sin((float)var19 * (float)M_PI / (float)this->count) + 1.0F) * var26 + 1.0;
-		int_t var32 = (int_t)std::floor(var20 - var28 / 2.0);
-		int_t var33 = (int_t)std::floor(var22 - var30 / 2.0);
-		int_t var34 = (int_t)std::floor(var24 - var28 / 2.0);
-		int_t var35 = (int_t)std::floor(var20 + var28 / 2.0);
-		int_t var36 = (int_t)std::floor(var22 + var30 / 2.0);
-		int_t var37 = (int_t)std::floor(var24 + var28 / 2.0);
+		double var28 = (double)(Mth::sin((float)var19 * Mth::PI / (float)this->count) + 1.0F) * var26 + 1.0;
+		double var30 = (double)(Mth::sin((float)var19 * Mth::PI / (float)this->count) + 1.0F) * var26 + 1.0;
+		int_t var32 = Mth::floor(var20 - var28 / 2.0);
+		int_t var33 = Mth::floor(var22 - var30 / 2.0);
+		int_t var34 = Mth::floor(var24 - var28 / 2.0);
+		int_t var35 = Mth::floor(var20 + var28 / 2.0);
+		int_t var36 = Mth::floor(var22 + var30 / 2.0);
+		int_t var37 = Mth::floor(var24 + var28 / 2.0);
 
 		for (int_t var38 = var32; var38 <= var35; ++var38)
 		{

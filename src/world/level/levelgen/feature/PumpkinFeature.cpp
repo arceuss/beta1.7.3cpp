@@ -9,9 +9,12 @@ bool PumpkinFeature::place(Level &level, Random &random, int_t x, int_t y, int_t
 {
 	for (int_t attempt = 0; attempt < 64; ++attempt)
 	{
-		int_t placeX = x + random.nextInt(8) - random.nextInt(8);
-		int_t placeY = y + random.nextInt(4) - random.nextInt(4);
-		int_t placeZ = z + random.nextInt(8) - random.nextInt(8);
+		int_t placeX = x + random.nextInt(8);
+		placeX -= random.nextInt(8);
+		int_t placeY = y + random.nextInt(4);
+		placeY -= random.nextInt(4);
+		int_t placeZ = z + random.nextInt(8);
+		placeZ -= random.nextInt(8);
 		if (!level.isEmptyTile(placeX, placeY, placeZ))
 			continue;
 		if (level.getTile(placeX, placeY - 1, placeZ) != Tile::grass.id)

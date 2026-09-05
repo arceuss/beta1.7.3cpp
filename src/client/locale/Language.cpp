@@ -22,7 +22,7 @@ void Language::load(const jstring &name)
 		{
 			std::string key = line.substr(0, pos);
 			std::string value = line.substr(pos + 1);
-			if (value.back() == '\r')
+			if (!value.empty() && value.back() == '\r')
 				value.pop_back();
 
 			elements[String::fromUTF8(key)] = String::fromUTF8(value);

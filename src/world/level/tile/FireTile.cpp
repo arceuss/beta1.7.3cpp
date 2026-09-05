@@ -4,6 +4,7 @@
 
 #include "world/level/Level.h"
 #include "world/level/material/Material.h"
+#include "world/level/material/GasMaterial.h"
 #include "world/level/tile/BookshelfTile.h"
 #include "world/level/tile/ClothTile.h"
 #include "world/level/tile/FenceTile.h"

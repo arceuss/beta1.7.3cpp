@@ -1,4 +1,6 @@
 #include "world/level/levelgen/RandomLevelSource.h"
+#include "java/Number.h"
+#include "util/Profiler.h"
 
 #include "world/level/Level.h"
 
@@ -40,12 +42,6 @@
 #include "world/level/levelgen/feature/SpringFeature.h"
 #include "world/level/levelgen/LargeCaveFeature.h"
 
-TreeFeature tree_feature_lol;
-BigTreeFeature big_tree_feature;
-ForestFeature forest_feature;
-Taiga1Feature taiga1_feature;
-Taiga2Feature taiga2_feature;
-LargeCaveFeature large_cave_feature;
 
 RandomLevelSource::RandomLevelSource(Level &level, long_t seed) : level(level),
 	random(seed),
@@ -144,7 +140,7 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 
 	double scale = 1.0 / 32.0;
 	perlinNoise2.getRegion(sandBuffer.data(), x * 16, z * 16, 0.0, 16, 16, 1, scale, scale, 1.0);
-	perlinNoise2.getRegion(gravelBuffer.data(), z * 16, 109.0134, x * 16, 16, 1, 16, scale, 1.0, scale);
+	perlinNoise2.getRegion(gravelBuffer.data(), x * 16, 109.0134, z * 16, 16, 1, 16, scale, 1.0, scale);
 	perlinNoise3.getRegion(depthBuffer.data(), x * 16, z * 16, 0.0, 16, 16, 1, scale * 2.0, scale * 2.0, scale * 2.0);
 
 	for (int_t x = 0; x < 16; x++)
@@ -155,15 +151,15 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 			bool isGravel = (gravelBuffer[x + z * 16] + random.nextDouble() * 0.2) > 3.0;
 
 			int_t depth = static_cast<int_t>(depthBuffer[x + z * 16] / 3.0 + 3.0 + random.nextDouble() * 0.25);
-			int_t depthI = 0;
-			const BiomeInfo &biomeInfo = level.getBiomeSource().getBiomeInfo(level.getBiomeSource().biomes[x * 16 + z]);
+			int_t depthI = -1;
+			const BiomeInfo &biomeInfo = level.getBiomeSource().getBiomeInfo(level.getBiomeSource().biomes[x + z * 16]);
 
 			int_t topTile = biomeInfo.topTileId;
 			int_t fillerTile = biomeInfo.fillerTileId;
 
 			for (int_t y = Level::DEPTH - 1; y >= 0; y--)
 			{
-				int_t i = (x * 16 + z) * Level::DEPTH + y;
+				int_t i = (z * 16 + x) * Level::DEPTH + y;
 				
 				// Bedrock
 				if (y <= 0 + random.nextInt(5))
@@ -191,8 +187,8 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 						}
 						else if (y >= seaLevel - 4 && y <= seaLevel + 1)
 						{
-							topTile = Tile::grass.id;
-							fillerTile = Tile::dirt.id;
+							topTile = biomeInfo.topTileId;
+							fillerTile = biomeInfo.fillerTileId;
 
 							if (isGravel) topTile = 0;
 							if (isGravel) fillerTile = Tile::gravel.id;
@@ -227,7 +223,8 @@ void RandomLevelSource::buildSurfaces(int_t x, int_t z, ubyte_t *tiles)
 
 std::shared_ptr<LevelChunk> RandomLevelSource::getChunk(int_t x, int_t z)
 {
-	random.setSeed(x * 341873128712LL + z * 132897987541LL);
+	Profiler::Scope profile(Profiler::Section::ChunkGeneration);
+	random.setSeed(Java::longFromBits(static_cast<ulong_t>(x) * 341873128712ULL + static_cast<ulong_t>(z) * 132897987541ULL));
 
 	std::shared_ptr<LevelChunk> chunk = Util::make_shared<LevelChunk>(level, x, z);
 
@@ -238,7 +235,7 @@ std::shared_ptr<LevelChunk> RandomLevelSource::getChunk(int_t x, int_t z)
 
 	buildSurfaces(x, z, chunk->blocks.data());
 
-	large_cave_feature.apply(*this, level, x, z, chunk->blocks);
+	caveFeature.apply(*this, level, x, z, chunk->blocks);
 
 	chunk->recalcHeightmap();
 
@@ -353,11 +350,13 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 	SandTile::fallInstantly = true;
 	int_t cx = x * 16;
 	int_t cz = z * 16;
+	BiomeId biome = level.getBiomeSource().getBiome(cx + 16, cz + 16);
+	const BiomeInfo &biomeInfo = level.getBiomeSource().getBiomeInfo(biome);
 
 	random.setSeed(level.seed);
 	long_t cs0 = random.nextLong() / 2LL * 2LL + 1LL;
 	long_t cs1 = random.nextLong() / 2LL * 2LL + 1LL;
-	random.setSeed((x * cs0 + z * cs1) ^ level.seed);
+	random.setSeed(Java::longFromBits((static_cast<ulong_t>(x) * static_cast<ulong_t>(cs0) + static_cast<ulong_t>(z) * static_cast<ulong_t>(cs1)) ^ static_cast<ulong_t>(level.seed)));
 
 	int_t px, py, pz;
 
@@ -470,8 +469,6 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 		OreFeature(Tile::lapisOre.id, 6).place(level, random, px, py, pz);
 	}
 
-	BiomeId biome = level.getBiomeSource().getBiome(cx + 16, cz + 16);
-	const BiomeInfo &biomeInfo = level.getBiomeSource().getBiomeInfo(biome);
 
 	// Trees
 	double scale = 0.5;
@@ -488,29 +485,40 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 	{
 		int_t tx = cx + random.nextInt(16) + 8;
 		int_t tz = cz + random.nextInt(16) + 8;
-		Feature *treeFeature = &tree_feature_lol;
+		auto placeTree = [&](Feature &&tree)
+		{
+			tree.init(1.0, 1.0, 1.0);
+			tree.place(level, random, tx, level.getHeightmap(tx, tz), tz);
+		};
 		switch (biomeInfo.treeStyle)
 		{
 		case TreeStyle::Rainforest:
-			treeFeature = random.nextInt(3) == 0 ? static_cast<Feature *>(&big_tree_feature) : static_cast<Feature *>(&tree_feature_lol);
+			if (random.nextInt(3) == 0)
+				placeTree(BigTreeFeature());
+			else
+				placeTree(TreeFeature());
 			break;
 		case TreeStyle::Forest:
 			if (random.nextInt(5) == 0)
-				treeFeature = &forest_feature;
+				placeTree(ForestFeature());
 			else if (random.nextInt(3) == 0)
-				treeFeature = &big_tree_feature;
+				placeTree(BigTreeFeature());
 			else
-				treeFeature = &tree_feature_lol;
+				placeTree(TreeFeature());
 			break;
 		case TreeStyle::Taiga:
-			treeFeature = random.nextInt(3) == 0 ? static_cast<Feature *>(&taiga1_feature) : static_cast<Feature *>(&taiga2_feature);
+			if (random.nextInt(3) == 0)
+				placeTree(Taiga1Feature());
+			else
+				placeTree(Taiga2Feature());
 			break;
 		default:
-			treeFeature = random.nextInt(10) == 0 ? static_cast<Feature *>(&big_tree_feature) : static_cast<Feature *>(&tree_feature_lol);
+			if (random.nextInt(10) == 0)
+				placeTree(BigTreeFeature());
+			else
+				placeTree(TreeFeature());
 			break;
 		}
-		treeFeature->init(1.0, 1.0, 1.0);
-		treeFeature->place(level, random, tx, level.getHeightmap(tx, tz), tz);
 	}
 
 	int_t yellowFlowers = 0;
@@ -621,8 +629,8 @@ void RandomLevelSource::postProcess(ChunkSource &parent, int_t x, int_t z)
 		SpringFeature(Tile::lava.id).place(level, random, px, py, pz);
 	}
 
-	level.getBiomeSource().getBiomeBlock(cx + 8, cz + 8, 16, 16);
-	double *temperatures = level.getBiomeSource().temperatures.data();
+	double *temperatures = generatedTemperatures.data();
+	level.getBiomeSource().getTemperatures(temperatures, cx + 8, cz + 8, 16, 16);
 
 	for (int_t snowX = cx + 8; snowX < cx + 24; ++snowX)
 	{

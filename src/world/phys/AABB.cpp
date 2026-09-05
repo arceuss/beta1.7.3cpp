@@ -189,24 +189,12 @@ double AABB::getSize() const
 
 AABB *AABB::shrink(double x, double y, double z) const
 {
-	double nx0 = x0;
-	double ny0 = y0;
-	double nz0 = z0;
-	double nx1 = x1;
-	double ny1 = y1;
-	double nz1 = z1;
-	if (x < 0.0)
-		nx0 -= x;
-	if (x > 0.0)
-		nx1 -= x;
-	if (y < 0.0)
-		ny0 -= y;
-	if (y > 0.0)
-		ny1 -= y;
-	if (z < 0.0)
-		nz0 -= z;
-	if (z > 0.0)
-		nz1 -= z;
+	double nx0 = x0 + x;
+	double ny0 = y0 + y;
+	double nz0 = z0 + z;
+	double nx1 = x1 - x;
+	double ny1 = y1 - y;
+	double nz1 = z1 - z;
 	return newTemp(nx0, ny0, nz0, nx1, ny1, nz1);
 }
 
@@ -268,7 +256,7 @@ HitResult AABB::clip(const Vec3 &a, const Vec3 &b) const
 	if (closest == clipz1)
 		f = Facing::SOUTH;
 
-	return HitResult(closest->x, closest->y, closest->z, f, *closest);
+	return HitResult(0, 0, 0, f, *closest);
 }
 
 bool AABB::containsX(const Vec3 *other) const

@@ -160,9 +160,15 @@ int_t ItemInstance::getMaxDamage() const
 	return 0;
 }
 
+bool ItemInstance::getHasSubtypes() const
+{
+	return itemID >= 0 && itemID < static_cast<int_t>(Item::subtypeItems.size())
+		&& Item::subtypeItems[itemID];
+}
+
 bool ItemInstance::isStackable() const
 {
-	return !isEmpty() && getMaxStackSize() > 1 && !isItemDamaged();
+	return getMaxStackSize() > 1 && !isItemDamaged();
 }
 
 bool ItemInstance::isItemDamaged() const
@@ -313,8 +319,6 @@ void ItemInstance::load(CompoundTag &tag)
 
 ItemInstance ItemInstance::remove(int_t count)
 {
-	if (count > stackSize)
-		count = stackSize;
 	stackSize -= count;
 	return ItemInstance(itemID, count, itemDamage);
 }

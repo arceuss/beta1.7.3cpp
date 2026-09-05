@@ -19,8 +19,6 @@ void LadderTile::setShapeForData(int_t data)
 		setShape(1.0f - thickness, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
 	else if (data == 5)
 		setShape(0.0f, 0.0f, 0.0f, thickness, 1.0f, 1.0f);
-	else
-		updateDefaultShape();
 }
 
 bool LadderTile::canSurvive(Level &level, int_t x, int_t y, int_t z, int_t data)
@@ -59,9 +57,6 @@ Tile::Shape LadderTile::getRenderShape()
 
 AABB *LadderTile::getAABB(Level &level, int_t x, int_t y, int_t z)
 {
-	int_t data = level.getData(x, y, z);
-	if (data == 0)
-		return nullptr;
 	updateShape(level, x, y, z);
 	return Tile::getAABB(level, x, y, z);
 }

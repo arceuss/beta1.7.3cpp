@@ -2,6 +2,8 @@
 
 #include "java/IOUtil.h"
 
+#include <stdexcept>
+
 ByteArrayTag::ByteArrayTag()
 {
 
@@ -16,13 +18,22 @@ void ByteArrayTag::write(std::ostream &os)
 {
 	IOUtil::writeInt(os, data.size());
 	os.write(reinterpret_cast<const char*>(data.data()), data.size());
+	if (!os)
+		throw std::runtime_error("java.io.IOException: write failed");
 }
 
 void ByteArrayTag::load(std::istream &is)
 {
-	size_t size = IOUtil::readInt(is);
-	data.resize(size);
-	is.read(reinterpret_cast<char*>(data.data()), size);
+	int_t size = IOUtil::readInt(is);
+	if (size < 0)
+		throw std::runtime_error("java.lang.NegativeArraySizeException");
+	data.resize(static_cast<size_t>(size));
+	if (size != 0)
+		is.read(reinterpret_cast<char*>(data.data()), size);
+	if (is.bad() || (is.fail() && !is.eof()))
+		throw std::runtime_error("java.io.IOException: read failed");
+	if (size != 0 && is.gcount() != size)
+		throw std::runtime_error("java.io.EOFException");
 }
 
 byte_t ByteArrayTag::getId() const

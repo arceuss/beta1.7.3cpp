@@ -6,6 +6,7 @@
 #include "world/level/Level.h"
 #include "world/level/material/GasMaterial.h"
 #include "world/level/material/Material.h"
+#include "world/level/material/DecorationMaterial.h"
 #include "world/level/tile/Tile.h"
 
 namespace

@@ -75,10 +75,7 @@ void FurnaceTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &r
 
 void FurnaceTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (keepContents)
-		return;
-	if (level.getTileEntity(x, y, z) == nullptr)
-		level.setTileEntity(x, y, z, Util::make_shared<FurnaceTileEntity>());
+	level.setTileEntity(x, y, z, Util::make_shared<FurnaceTileEntity>());
 	setDefaultDirection(level, x, y, z);
 }
 
@@ -86,8 +83,7 @@ void FurnaceTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 {
 	if (!keepContents)
 		dropContents(level, x, y, z);
-	if (!keepContents)
-		level.removeTileEntity(x, y, z);
+	level.removeTileEntity(x, y, z);
 }
 
 bool FurnaceTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
@@ -119,17 +115,14 @@ void FurnaceTile::setPlacedBy(Level &level, int_t x, int_t y, int_t z, Player &p
 
 void FurnaceTile::setLitState(bool lit, Level &level, int_t x, int_t y, int_t z)
 {
-	int_t newTile = lit ? Tile::furnaceLit.id : Tile::furnace.id;
-	if (level.getTile(x, y, z) == newTile)
-		return;
-
 	int_t data = level.getData(x, y, z);
 	auto tileEntity = level.getTileEntity(x, y, z);
 	keepContents = true;
-	level.setTileAndData(x, y, z, newTile, data);
+	level.setTile(x, y, z, lit ? Tile::furnaceLit.id : Tile::furnace.id);
 	keepContents = false;
-	if (tileEntity != nullptr)
-		level.setTileEntity(x, y, z, tileEntity);
+	level.setData(x, y, z, data);
+	tileEntity->clearRemoved();
+	level.setTileEntity(x, y, z, tileEntity);
 }
 
 void FurnaceTile::setDefaultDirection(Level &level, int_t x, int_t y, int_t z) const

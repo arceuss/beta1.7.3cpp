@@ -262,10 +262,6 @@ void Entity::move(double xd, double yd, double zd)
 		this->zd = 0.0;
 	}
 
-	// xd *= 20.0f;
-	// yd *= 6.0f;
-	// zd *= 20.0f;
-
 	double ox = x;
 	double oz = z;
 	double oxd = xd;
@@ -452,12 +448,6 @@ void Entity::move(double xd, double yd, double zd)
 	}
 
 	ySlideOffset *= 0.4f;
-
-	// Fire collisions
-	
-	// xd /= 20.0f;
-	// yd /= 6.0f;
-	// zd /= 20.0f;
 }
 
 void Entity::checkFallDamage(double yd, bool onGround)
@@ -587,38 +577,38 @@ void Entity::moveTo(double x, double y, double z, float yRot, float xRot)
 	zOld = zo = this->z = z;
 	this->yRot = yRot;
 	this->xRot = xRot;
-	setPos(x, y, z);
+	setPos(this->x, this->y, this->z);
 }
 
 float Entity::distanceTo(const Entity &entity)
 {
-	float dx = x - entity.x;
-	float dy = y - entity.y;
-	float dz = z - entity.z;
+	float dx = static_cast<float>(x - entity.x);
+	float dy = static_cast<float>(y - entity.y);
+	float dz = static_cast<float>(z - entity.z);
 	return Mth::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
 double Entity::distanceToSqr(double x, double y, double z)
 {
-	float dx = this->x - x;
-	float dy = this->y - y;
-	float dz = this->z - z;
+	double dx = this->x - x;
+	double dy = this->y - y;
+	double dz = this->z - z;
 	return dx * dx + dy * dy + dz * dz;
 }
 
 double Entity::distanceTo(double x, double y, double z)
 {
-	float dx = this->x - x;
-	float dy = this->y - y;
-	float dz = this->z - z;
+	double dx = this->x - x;
+	double dy = this->y - y;
+	double dz = this->z - z;
 	return Mth::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
 double Entity::distanceToSqr(const Entity &entity)
 {
-	float dx = x - entity.x;
-	float dy = y - entity.y;
-	float dz = z - entity.z;
+	double dx = x - entity.x;
+	double dy = y - entity.y;
+	double dz = z - entity.z;
 	return dx * dx + dy * dy + dz * dz;
 }
 
@@ -633,18 +623,22 @@ void Entity::push(Entity &entity)
 		return;
 	double dx = entity.x - x;
 	double dz = entity.z - z;
-	double distSqr = dx * dx + dz * dz;
-	if (distSqr < 1.0e-4)
+	double dist = Mth::asbMax(dx, dz);
+	if (!(dist >= static_cast<double>(0.01f)))
 		return;
 
-	double dist = std::sqrt(distSqr);
+	dist = Mth::sqrt(dist);
 	dx /= dist;
 	dz /= dist;
 	double scale = 1.0 / dist;
 	if (scale > 1.0)
 		scale = 1.0;
-	dx *= scale * 0.05 * (1.0f - pushthrough);
-	dz *= scale * 0.05 * (1.0f - pushthrough);
+	dx *= scale;
+	dz *= scale;
+	dx *= static_cast<double>(0.05f);
+	dz *= static_cast<double>(0.05f);
+	dx *= static_cast<double>(1.0f - pushthrough);
+	dz *= static_cast<double>(1.0f - pushthrough);
 	push(-dx, 0.0, -dz);
 	entity.push(dx, 0.0, dz);
 }
@@ -854,7 +848,6 @@ void Entity::rideTick()
 	yd = 0.0;
 	zd = 0.0;
 
-	// Run the rider's full tick (Java: this.onUpdate())
 	tick();
 
 	if (riding != nullptr)
@@ -919,11 +912,6 @@ void Entity::ride(std::shared_ptr<Entity> entity)
 		}
 		return nullptr;
 	};
-	auto syncPositionHistory = [&]() {
-		xo = xOld = x;
-		yo = yOld = y;
-		zo = zOld = z;
-	};
 
 	xRideRotA = 0.0;
 	yRideRotA = 0.0;
@@ -932,8 +920,7 @@ void Entity::ride(std::shared_ptr<Entity> entity)
 	{
 		if (riding != nullptr)
 		{
-			setPos(riding->x, riding->bb.y0 + riding->bbHeight + heightOffset, riding->z);
-			syncPositionHistory();
+			moveTo(riding->x, riding->bb.y0 + riding->bbHeight, riding->z, yRot, xRot);
 			riding->rider = nullptr;
 		}
 		riding = nullptr;
@@ -944,8 +931,7 @@ void Entity::ride(std::shared_ptr<Entity> entity)
 	{
 		entity->rider = nullptr;
 		riding = nullptr;
-		setPos(entity->x, entity->bb.y0 + entity->bbHeight + heightOffset, entity->z);
-		syncPositionHistory();
+		moveTo(entity->x, entity->bb.y0 + entity->bbHeight, entity->z, yRot, xRot);
 		return;
 	}
 
@@ -967,8 +953,8 @@ void Entity::lerpTo(double x, double y, double z, float yRot, float xRot, int_t 
 	(void)steps;
 	setPos(x, y, z);
 	setRot(yRot, xRot);
-	AABB *expanded = bb.grow(1.0 / 32.0, 0.0, 1.0 / 32.0);
-	const std::vector<AABB *> &collisions = level.getCubes(*this, *expanded);
+	AABB *contracted = bb.shrink(1.0 / 32.0, 0.0, 1.0 / 32.0);
+	const std::vector<AABB *> &collisions = level.getCubes(*this, *contracted);
 	if (!collisions.empty())
 	{
 		double highest = 0.0;
@@ -1019,9 +1005,6 @@ void Entity::prepareCustomTextures()
 {
 
 }
-
-// TODO
-// getEquipmentSlots
 
 void Entity::setEquippedSlot(int_t slot, int_t itemId, int_t auxValue)
 {

@@ -196,7 +196,7 @@ void PlayerRenderer::additionalRendering(Mob &mobBase, float a)
 			glRotatef(twist / 2.0f, 0.0f, 0.0f, 1.0f);
 			glRotatef(-twist / 2.0f, 0.0f, 1.0f, 0.0f);
 			glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
-			humanoidModel->cloak.render(1.0f / 16.0f);
+			humanoidModel->renderCloak(1.0f / 16.0f);
 			glPopMatrix();
 		}
 	}

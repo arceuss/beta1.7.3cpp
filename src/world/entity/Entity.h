@@ -263,9 +263,6 @@ public:
 	virtual void animateHurt();
 	virtual void prepareCustomTextures();
 
-	// TODO
-	// getEquipmentSlots
-
 	virtual void setEquippedSlot(int_t slot, int_t itemId, int_t auxValue);
 
 	bool isOnFire();

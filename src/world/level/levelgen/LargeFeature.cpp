@@ -1,4 +1,5 @@
 #include "world/level/levelgen/LargeFeature.h"
+#include "java/Number.h"
 
 #include "world/level/Level.h"
 #include "world/level/chunk/ChunkSource.h"
@@ -15,7 +16,7 @@ void LargeFeature::apply(ChunkSource &chunkSource, Level &level, int_t x, int_t 
 	{
 		for (int_t zz = z - radius; zz <= z + radius; zz++)
 		{
-			random.setSeed((xx * cs0 + zz * cs1) ^ level.seed);
+			random.setSeed(Java::longFromBits((static_cast<ulong_t>(xx) * static_cast<ulong_t>(cs0) + static_cast<ulong_t>(zz) * static_cast<ulong_t>(cs1)) ^ static_cast<ulong_t>(level.seed)));
 			addFeature(level, xx, zz, x, z, blocks);
 		}
 	}

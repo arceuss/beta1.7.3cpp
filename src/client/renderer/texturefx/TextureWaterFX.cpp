@@ -1,7 +1,7 @@
 #include "client/renderer/texturefx/TextureWaterFX.h"
 
-#include <cmath>
-#include <cstdlib>
+#include "java/Math.h"
+#include "java/Number.h"
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
@@ -14,7 +14,7 @@ TextureWaterFX::TextureWaterFX() : TextureFX(Tile::water.tex),
 
 void TextureWaterFX::onTick()
 {
-	++tickCounter;
+	tickCounter = Java::intFromBits(static_cast<uint_t>(tickCounter) + 1u);
 
 	for (int_t x = 0; x < TileSize::size; ++x)
 	{
@@ -42,7 +42,7 @@ void TextureWaterFX::onTick()
 				green0[x + y * TileSize::size] = 0.0f;
 
 			green1[x + y * TileSize::size] -= 0.1f;
-			if ((static_cast<double>(std::rand()) / RAND_MAX) < 0.05)
+			if (Math::random() < 0.05)
 				green1[x + y * TileSize::size] = 0.5f;
 		}
 	}

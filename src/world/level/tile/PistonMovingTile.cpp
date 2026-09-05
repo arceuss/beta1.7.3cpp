@@ -11,7 +11,7 @@
 PistonMovingTile::PistonMovingTile(int_t id) : Tile(id, Material::piston)
 {
 	setDestroyTime(-1.0f);
-	setLightBlock(0);
+	updateCachedProperties();
 	Tile::isEntityTile[id] = true;
 }
 
@@ -36,7 +36,7 @@ void PistonMovingTile::setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, 
 	(void)level; (void)x; (void)y; (void)z; (void)face;
 }
 
-int_t PistonMovingTile::getResourceCount(Random &random)
+int_t PistonMovingTile::getResource(int_t data, Random &random)
 {
 	(void)random;
 	return 0;

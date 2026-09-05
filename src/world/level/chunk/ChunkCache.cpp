@@ -3,6 +3,18 @@
 #include "world/level/Level.h"
 
 #include "world/level/chunk/EmptyLevelChunk.h"
+#include "util/Profiler.h"
+
+#include <iostream>
+#include <stdexcept>
+
+static uint_t chunkKey(int_t x, int_t z)
+{
+	uint_t key = x < 0 ? 0x80000000U : 0U;
+	key |= (static_cast<uint_t>(x) & 0x7fffU) << 16;
+	key |= z < 0 ? 0x8000U : 0U;
+	return key | (static_cast<uint_t>(z) & 0x7fffU);
+}
 
 ChunkCache::ChunkCache(Level &level, ChunkStorage *storage, ChunkSource *source) : level(level)
 {
@@ -12,104 +24,88 @@ ChunkCache::ChunkCache(Level &level, ChunkStorage *storage, ChunkSource *source)
 	this->storage = std::unique_ptr<ChunkStorage>(storage);
 }
 
-void ChunkCache::centerOn(int_t x, int_t y)
-{
-	xCenter = x;
-	yCenter = y;
-}
-
-bool ChunkCache::fits(int_t x, int_t y)
-{
-	byte_t b = CHUNK_CACHE_WIDTH / 2 - 1;
-	return (x >= (xCenter - b)) && (y >= (yCenter - b)) && (x <= (xCenter + b)) && (y <= (yCenter + b));
-}
 
 bool ChunkCache::hasChunk(int_t x, int_t z)
 {
-	if (!fits(x, z))
-		return false;
-	if (x == xLast && z == zLast && last != nullptr)
-		return true;
-
-	int_t rx = x & (CHUNK_CACHE_WIDTH - 1);
-	int_t rz = z & (CHUNK_CACHE_WIDTH - 1);
-	int_t ri = rx + rz * CHUNK_CACHE_WIDTH;
-
-	return chunks[ri] != nullptr && (chunks[ri] == emptyChunk || chunks[ri]->isAt(x, z));
+	return chunkMap.find(chunkKey(x, z)) != chunkMap.end();
 }
 
 std::shared_ptr<LevelChunk> ChunkCache::getChunk(int_t x, int_t z)
 {
-	if (x == xLast && z == zLast && last != nullptr)
-		return last;
-	if (!level.isFindingSpawn && !fits(x, z))
-		return emptyChunk;
+	const uint_t key = chunkKey(x, z);
+	auto entry = chunkMap.find(key);
+	if (entry != chunkMap.end())
+		return entry->second;
 
-	int_t rx = x & (CHUNK_CACHE_WIDTH - 1);
-	int_t rz = z & (CHUNK_CACHE_WIDTH - 1);
-	int_t ri = rx + rz * CHUNK_CACHE_WIDTH;
+	std::shared_ptr<LevelChunk> chunk = load(x, z);
+	if (chunk == nullptr)
+		chunk = source == nullptr ? emptyChunk : source->getChunk(x, z);
 
-	if (!hasChunk(x, z))
-	{
-		if (chunks[ri] != nullptr)
-		{
-			chunks[ri]->unload();
-			save(*chunks[ri]);
-			saveEntities(*chunks[ri]);
-		}
+	chunkMap.emplace(key, chunk);
+	chunks.push_back(chunk);
+	chunk->lightLava();
+	chunk->load();
 
-		std::shared_ptr<LevelChunk> chunk = load(x, z);
-		if (chunk == nullptr)
-		{
-			if (source == nullptr)
-				chunk = emptyChunk;
-			else
-				chunk = source->getChunk(x, z);
-		}
+	if (!chunk->terrainPopulated && hasChunk(x + 1, z + 1) && hasChunk(x, z + 1) && hasChunk(x + 1, z))
+		postProcess(*this, x, z);
+	if (hasChunk(x - 1, z) && !getChunk(x - 1, z)->terrainPopulated && hasChunk(x - 1, z + 1) && hasChunk(x, z + 1) && hasChunk(x - 1, z))
+		postProcess(*this, x - 1, z);
+	if (hasChunk(x, z - 1) && !getChunk(x, z - 1)->terrainPopulated && hasChunk(x + 1, z - 1) && hasChunk(x, z - 1) && hasChunk(x + 1, z))
+		postProcess(*this, x, z - 1);
+	if (hasChunk(x - 1, z - 1) && !getChunk(x - 1, z - 1)->terrainPopulated && hasChunk(x - 1, z - 1) && hasChunk(x, z - 1) && hasChunk(x - 1, z))
+		postProcess(*this, x - 1, z - 1);
 
-		chunks[ri] = chunk;
-		chunk->lightLava();
-
-		if (chunks[ri] != nullptr)
-			chunks[ri]->load();
-
-		if (!chunks[ri]->terrainPopulated && hasChunk(x + 1, z + 1) && hasChunk(x, z + 1) && hasChunk(x + 1, z))
-			postProcess(*this, x, z);
-		if (hasChunk(x - 1, z) && !(getChunk(x - 1, z))->terrainPopulated && hasChunk(x - 1, z + 1) && hasChunk(x, z + 1) && hasChunk(x - 1, z))
-			postProcess(*this, x - 1, z);
-		if (hasChunk(x, z - 1) && !(getChunk(x, z - 1))->terrainPopulated && hasChunk(x + 1, z - 1) && hasChunk(x, z - 1) && hasChunk(x + 1, z))
-			postProcess(*this, x, z - 1);
-		if (hasChunk(x - 1, z - 1) && !(getChunk(x - 1, z - 1))->terrainPopulated && hasChunk(x - 1, z - 1) && hasChunk(x, z - 1) && hasChunk(x - 1, z))
-			postProcess(*this, x - 1, z - 1);
-	}
-
-	xLast = x;
-	zLast = z;
-	last = chunks[ri];
-	return chunks[ri];
+	return chunk;
 }
 
 std::shared_ptr<LevelChunk> ChunkCache::load(int_t x, int_t z)
 {
-	if (storage == nullptr) return emptyChunk;
-
-	std::shared_ptr<LevelChunk> chunk = storage->load(level, x, z);
-	if (chunk != nullptr)
-		chunk->lastSaveTime = level.time;
-	return chunk;
+	if (storage == nullptr)
+		return nullptr;
+	Profiler::Scope ioProfile(Profiler::Section::IO);
+	try
+	{
+		std::shared_ptr<LevelChunk> chunk = storage->load(level, x, z);
+		if (chunk != nullptr)
+			chunk->lastSaveTime = level.time;
+		return chunk;
+	}
+	catch (const std::runtime_error &error)
+	{
+		std::cerr << error.what() << '\n';
+		return nullptr;
+	}
 }
 
 void ChunkCache::saveEntities(LevelChunk &chunk)
 {
-	if (storage == nullptr) return;
-	storage->saveEntities(level, chunk);
+	if (storage == nullptr)
+		return;
+	Profiler::Scope ioProfile(Profiler::Section::IO);
+	try
+	{
+		storage->saveEntities(level, chunk);
+	}
+	catch (const std::runtime_error &error)
+	{
+		std::cerr << error.what() << '\n';
+	}
 }
 
 void ChunkCache::save(LevelChunk &chunk)
 {
-	if (storage == nullptr) return;
-	chunk.lastSaveTime = level.time;
-	storage->save(level, chunk);
+	if (storage == nullptr)
+		return;
+	Profiler::Scope ioProfile(Profiler::Section::IO);
+	try
+	{
+		chunk.lastSaveTime = level.time;
+		storage->save(level, chunk);
+	}
+	catch (const std::runtime_error &error)
+	{
+		std::cerr << error.what() << '\n';
+	}
 }
 
 void ChunkCache::postProcess(ChunkSource &parent, int_t x, int_t z)
@@ -128,53 +124,34 @@ void ChunkCache::postProcess(ChunkSource &parent, int_t x, int_t z)
 
 bool ChunkCache::save(bool force, std::shared_ptr<ProgressListener> progressListener)
 {
+	(void)progressListener;
 	int_t throttle = 0;
-
-	int_t chunksToSave = 0;
-	if (progressListener != nullptr)
+	for (size_t i = 0; i < chunks.size(); ++i)
 	{
-		for (auto &c : chunks)
+		std::shared_ptr<LevelChunk> chunk = chunks[i];
+		if (force && !chunk->dontSave)
+			saveEntities(*chunk);
+		if (chunk->shouldSave(force))
 		{
-			if (c != nullptr && c->shouldSave(force))
-				chunksToSave++;
+			save(*chunk);
+			chunk->unsaved = false;
+			if (++throttle == 24 && !force)
+				return false;
 		}
 	}
-
-	int_t i = 0;
-
-	for (auto &c : chunks)
-	{
-		if (c != nullptr)
-		{
-			if (force && !c->dontSave)
-				saveEntities(*c);
-			if (c->shouldSave(force))
-			{
-				save(*c);
-				c->unsaved = false;
-
-				if (++throttle == 2 && !force)
-					return false;
-
-				if (progressListener != nullptr && (++i % 10) == 0)
-					progressListener->progressStagePercentage(i * 100 / chunksToSave);
-			}
-		}
-	}
-
-	if (force)
-	{
-		if (storage == nullptr)
-			return true;
+	if (force && storage != nullptr)
 		storage->flush();
-	}
-
 	return true;
 }
 
 bool ChunkCache::tick()
 {
-	return false;
+	// B173 - The vanilla client never inserts into its private dropped-chunk set.
+	if (storage != nullptr)
+		storage->tick();
+	if (source == nullptr)
+		throw std::runtime_error("java.lang.NullPointerException");
+	return source->tick();
 }
 
 bool ChunkCache::shouldSave()
@@ -184,6 +161,5 @@ bool ChunkCache::shouldSave()
 
 jstring ChunkCache::gatherStats()
 {
-	// TODO
-	return u"ChunkCache: " + String::toString((int)chunks.size());
+	return u"ServerChunkCache: " + String::toString(static_cast<int_t>(chunkMap.size())) + u" Drop: 0";
 }

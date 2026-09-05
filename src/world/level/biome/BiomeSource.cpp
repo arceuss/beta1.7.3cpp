@@ -1,4 +1,5 @@
 #include "world/level/biome/BiomeSource.h"
+#include "java/Number.h"
 
 #include <algorithm>
 
@@ -82,9 +83,9 @@ namespace
 }
 
 BiomeSource::BiomeSource(Level &level) :
-	temperatureMap(Random(level.seed * 9871LL), 4),
-	downfallMap(Random(level.seed * 39811LL), 4),
-	noiseMap(Random(level.seed * 543321LL), 2)
+	temperatureMap(Random(Java::longFromBits(static_cast<ulong_t>(level.seed) * 9871ULL)), 4),
+	downfallMap(Random(Java::longFromBits(static_cast<ulong_t>(level.seed) * 39811ULL)), 4),
+	noiseMap(Random(Java::longFromBits(static_cast<ulong_t>(level.seed) * 543321ULL)), 2)
 {
 	
 }
@@ -105,6 +106,26 @@ double BiomeSource::getTemperature(int_t x, int_t z)
 {
 	temperatureMap.getRegion(temperatures.data(), x, z, 1, 1, tempScale, tempScale, 0.5);
 	return temperatures[0];
+}
+
+void BiomeSource::getTemperatures(double *out, int_t x, int_t z, int_t xd, int_t zd)
+{
+	noises.resize(static_cast<std::size_t>(xd) * static_cast<std::size_t>(zd));
+	temperatureMap.getRegion(out, x, z, xd, zd, tempScale, tempScale, 0.25);
+	noiseMap.getRegion(noises.data(), x, z, xd, zd, noiseScale, noiseScale, 0.5882352941176471);
+	for (int_t i = 0; i < xd * zd; ++i)
+	{
+		double noise = noises[i] * 1.1 + 0.5;
+		double blend = 0.01;
+		double inverseBlend = 1.0 - blend;
+		double temperature = (out[i] * 0.15 + 0.7) * inverseBlend + noise * blend;
+		temperature = 1.0 - (1.0 - temperature) * (1.0 - temperature);
+		if (temperature < 0.0)
+			temperature = 0.0;
+		if (temperature > 1.0)
+			temperature = 1.0;
+		out[i] = temperature;
+	}
 }
 
 BiomeId BiomeSource::getBiome(int_t x, int_t z)
@@ -167,6 +188,11 @@ double HellBiomeSource::getTemperature(int_t x, int_t z)
 {
 	(void)x; (void)z;
 	return 1.0;
+}
+
+void HellBiomeSource::getTemperatures(double *out, int_t x, int_t z, int_t xd, int_t zd)
+{
+	std::fill(out, out + xd * zd, 1.0);
 }
 
 BiomeId HellBiomeSource::getBiome(int_t x, int_t z)

@@ -122,6 +122,7 @@ public:
 	static std::array<int_t, 256> lightBlock;
 	static std::array<bool, 256> translucent;
 	static std::array<int_t, 256> lightEmission;
+	static std::array<bool, 256> notifyRenderOnDataChange;
 
 
 	// Step sounds
@@ -184,7 +185,7 @@ public:
 	static SnowTile snow;
 	static IceTile ice;
 	static CactusTile cactus;
-	static Tile clay;
+	static Tile &clay;
 	static ReedTile reed;
 	static JukeboxTile jukebox;
 	static PumpkinTile pumpkin;
@@ -279,9 +280,7 @@ public:
 	Tile &setLightBlock(int_t lightBlock);
 	Tile &setLightEmission(int_t lightEmission);
 	Tile &setExplodeable(float resistance);
-
-private:
-	virtual bool isTranslucent();
+	Tile &setNotifyRenderOnDataChange();
 
 public:
 	virtual bool isCubeShaped();

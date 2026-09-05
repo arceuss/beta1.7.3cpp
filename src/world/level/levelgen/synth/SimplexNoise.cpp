@@ -1,4 +1,5 @@
 #include "world/level/levelgen/synth/SimplexNoise.h"
+#include "java/Number.h"
 
 constexpr int_t SimplexNoise::grad3[12][3];
 
@@ -32,7 +33,8 @@ SimplexNoise::SimplexNoise(Random &&random) : SimplexNoise(random)
 
 int_t SimplexNoise::fastfloor(double x)
 {
-	return (x > 0.0) ? static_cast<int_t>(x) : (static_cast<int_t>(x) - 1);
+	int_t value = Java::numberToInt(x);
+	return x > 0.0 ? value : Java::intFromBits(static_cast<uint_t>(value) - 1U);
 }
 
 double SimplexNoise::dot(const int_t *g, double x, double y)
@@ -52,7 +54,7 @@ double SimplexNoise::getValue(double xin, double yin)
 	double s = (xin + yin) * F2; // Hairy factor for 2D
 	int i = fastfloor(xin + s);
 	int j = fastfloor(yin + s);
-	double t = (i + j) * G2;
+	double t = Java::intFromBits(static_cast<uint_t>(i) + static_cast<uint_t>(j)) * G2;
 	double X0 = i - t; // Unskew the cell origin back to (x,y) space
 	double Y0 = j - t;
 	double x0 = xin - X0; // The x,y distances from the cell origin
@@ -110,7 +112,7 @@ double SimplexNoise::getValue(double xin, double yin, double zin) {
 	int i = fastfloor(xin + s);
 	int j = fastfloor(yin + s);
 	int k = fastfloor(zin + s);
-	double t = (i + j + k) * G3;
+	double t = Java::intFromBits(static_cast<uint_t>(i) + static_cast<uint_t>(j) + static_cast<uint_t>(k)) * G3;
 	double X0 = i - t; // Unskew the cell origin back to (x,y,z) space
 	double Y0 = j - t;
 	double Z0 = k - t;

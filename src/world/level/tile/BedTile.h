@@ -16,6 +16,8 @@ public:
 	bool isCubeShaped() override { return false; }
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 	int_t getResource(int_t data, Random &random) override;
+	using Tile::spawnResources;
+	void spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance) override;
 	void updateDefaultShape() override;
 	int_t getMobilityFlag() const override { return 1; }
 

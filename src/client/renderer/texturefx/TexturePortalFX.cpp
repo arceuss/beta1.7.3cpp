@@ -4,6 +4,7 @@
 
 #include "client/renderer/texturefx/TileSize.h"
 #include "java/Random.h"
+#include "java/Number.h"
 #include "util/Mth.h"
 
 TexturePortalFX::TexturePortalFX(int_t iconIndex) : TextureFX(iconIndex),
@@ -33,7 +34,7 @@ TexturePortalFX::TexturePortalFX(int_t iconIndex) : TextureFX(iconIndex),
 						sampleY -= 2.0f;
 
 					float distance = sampleX * sampleX + sampleY * sampleY;
-					float angle = static_cast<float>(std::atan2(sampleY, sampleX))
+					float angle = static_cast<float>(std::atan2(static_cast<double>(sampleY), static_cast<double>(sampleX)))
 						+ (static_cast<float>(frame) / 32.0f * Mth::PI * 2.0f - distance * 10.0f + static_cast<float>(layer * 2))
 							* static_cast<float>(layer * 2 - 1);
 					float swirl = (Mth::sin(angle) + 1.0f) / 2.0f;
@@ -58,7 +59,7 @@ TexturePortalFX::TexturePortalFX(int_t iconIndex) : TextureFX(iconIndex),
 
 void TexturePortalFX::onTick()
 {
-	++portalTickCounter;
+	portalTickCounter = Java::intFromBits(static_cast<uint_t>(portalTickCounter) + 1u);
 	const std::vector<byte_t> &frame = frames[portalTickCounter & 31];
 	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{

@@ -207,7 +207,6 @@ set(McBetaCpp_SOURCES
 	"src/client/renderer/Tesselator.h"
 	"src/client/renderer/Textures.cpp"
 	"src/client/renderer/Textures.h"
-	"external/cpp-httplib/httplib.h"
 	"src/client/renderer/TileRenderer.cpp"
 	"src/client/renderer/TileRenderer.h"
 	"src/client/renderer/SignRenderer.cpp"
@@ -389,9 +388,13 @@ set(McBetaCpp_SOURCES
 
 	"src/util/GLU.cpp"
 	"src/util/GLU.h"
+	"src/util/HttpGet.cpp"
+	"src/util/HttpGet.h"
 	"src/util/Memory.h"
 	"src/util/Mth.cpp"
 	"src/util/Mth.h"
+	"src/util/Profiler.cpp"
+	"src/util/Profiler.h"
 	"src/tools/BlockSmoke.cpp"
 	"src/tools/BlockSmoke.h"
 	"src/tools/MultiplayerScreenSmoke.cpp"
@@ -743,6 +746,8 @@ set(McBetaCpp_SOURCES
 	"src/world/level/tile/BookshelfTile.h"
 	"src/world/level/tile/ClothTile.cpp"
 	"src/world/level/tile/ClothTile.h"
+	"src/world/level/tile/ClayTile.cpp"
+	"src/world/level/tile/ClayTile.h"
 	"src/world/level/tile/DeadBushTile.cpp"
 	"src/world/level/tile/DeadBushTile.h"
 	"src/world/level/tile/IceTile.cpp"
@@ -882,8 +887,6 @@ set(McBetaCpp_SOURCES
 
 	"src/network/NetHandler.cpp"
 	"src/network/NetHandler.h"
-	"src/network/Java6Http.cpp"
-	"src/network/Java6Http.h"
 	"src/network/NetClientHandler.cpp"
 	"src/network/NetClientHandler.h"
 	"src/network/NetworkManager.cpp"
@@ -913,6 +916,9 @@ set(McBetaCpp_SOURCES
 	"src/java/Math.h"
 	"src/java/Random.cpp"
 	"src/java/Random.h"
+	"src/java/Number.h"
+	"src/java/StrictMath.cpp"
+	"src/java/StrictMath.h"
 	"src/java/Resource.h"
 	"src/java/Runtime.h"
 	"src/java/String.cpp"
@@ -926,14 +932,14 @@ set(McBetaCpp_SOURCES
 	"external/zlib/contrib/minizip/unzip.c"
 )
 
-add_executable(McBetaCpp
+add_library(McBetaCppCore OBJECT
 	${McBetaCpp_SOURCES}
-	
-	"src/pc/Main.cpp"
 
 	"src/pc/CrashHandler.cpp"
 	"src/pc/CrashHandler.h"
 	"src/pc/OpenGL.h"
+	"src/pc/GLTrace.cpp"
+	"src/pc/GLTrace.h"
 
 	"src/pc/external/miniaudio.cpp"
 	"src/pc/external/SDLException.h"
@@ -949,95 +955,129 @@ add_executable(McBetaCpp
 	"src/pc/lwjgl/Mouse.cpp"
 	"src/pc/lwjgl/Mouse.h"
 )
-target_include_directories(McBetaCpp PRIVATE "src/pc")
 
-target_include_directories(McBetaCpp PRIVATE "src")
+add_executable(McBetaCpp "src/pc/Main.cpp")
+target_link_libraries(McBetaCpp PRIVATE McBetaCppCore)
+
+add_executable(McBetaCppStress EXCLUDE_FROM_ALL
+	"src/tools/stress/StressMain.cpp"
+	"src/tools/stress/StressHarness.cpp"
+	"src/tools/stress/Scenarios.cpp"
+)
+target_link_libraries(McBetaCppStress PRIVATE McBetaCppCore)
+target_include_directories(McBetaCppCore PUBLIC "src/pc")
+
+target_include_directories(McBetaCppCore PUBLIC "src")
 
 # Compile platform specific code
 if(WIN32)
-	target_sources(McBetaCpp PRIVATE
+	target_sources(McBetaCppCore PRIVATE
 		"src/pc/win32/java/File.cpp"
 		"src/pc/win32/java/Resource.cpp"
 		"src/pc/win32/java/Runtime.cpp"
 		"src/pc/win32/McBetaCpp.rc"
 	)
 
-	target_compile_definitions(McBetaCpp PRIVATE MC_WIN32)
+	target_compile_definitions(McBetaCppCore PUBLIC MC_WIN32)
 elseif(APPLE)
 	#message(FATAL_ERROR "MacOS is not supported yet.")
-	target_sources(McBetaCpp PRIVATE
+	target_sources(McBetaCppCore PRIVATE
 		"src/pc/linux/java/File.cpp"
 		"src/pc/linux/java/Resource.cpp"
 		"src/pc/linux/java/Runtime.cpp"
 	)
 elseif(UNIX)
-	target_sources(McBetaCpp PRIVATE
+	target_sources(McBetaCppCore PRIVATE
 		"src/pc/linux/java/File.cpp"
 		"src/pc/linux/java/Resource.cpp"
 		"src/pc/linux/java/Runtime.cpp"
 	)
 	
-	target_compile_definitions(McBetaCpp PRIVATE MC_LINUX)
+	target_compile_definitions(McBetaCppCore PUBLIC MC_LINUX)
 endif()
 
 # Use C++14
-set_target_properties(McBetaCpp PROPERTIES
+set_target_properties(McBetaCppCore McBetaCpp McBetaCppStress PROPERTIES
 	CXX_STANDARD 14
 	CXX_STANDARD_REQUIRED YES
 	CXX_EXTENSIONS NO
 )
 
+# Java numeric expressions depend on their intermediate rounding points.
+if(MSVC)
+	set_source_files_properties(src/java/Random.cpp src/java/StrictMath.cpp src/util/Mth.cpp
+		src/world/entity/Entity.cpp src/world/phys/AABB.cpp src/world/phys/Vec3.cpp
+		PROPERTIES COMPILE_OPTIONS "/fp:strict")
+else()
+	set_source_files_properties(src/java/Random.cpp src/java/StrictMath.cpp src/util/Mth.cpp
+		src/world/entity/Entity.cpp src/world/phys/AABB.cpp src/world/phys/Vec3.cpp
+		PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
+endif()
+
+option(B173_ENABLE_GL_TRACE "Compile the logical GL trace in Debug builds" OFF)
+if(B173_ENABLE_GL_TRACE)
+	target_compile_definitions(McBetaCppCore PUBLIC $<$<CONFIG:Debug>:B173_GL_TRACE>)
+endif()
+
+option(B173_ENABLE_SPC "Enable non-vanilla single-player commands" OFF)
+if(B173_ENABLE_SPC)
+	target_compile_definitions(McBetaCppCore PUBLIC B173_ENABLE_SPC)
+endif()
+
 # Third party
 add_subdirectory("external/glad" EXCLUDE_FROM_ALL)
-target_link_libraries(McBetaCpp PRIVATE glad)
+target_link_libraries(McBetaCppCore PUBLIC glad)
 
 add_subdirectory("external/SDL2" EXCLUDE_FROM_ALL)
-target_link_libraries(McBetaCpp PRIVATE SDL2-static)
+target_link_libraries(McBetaCppCore PUBLIC SDL2-static)
 
 add_subdirectory("external/zlib" EXCLUDE_FROM_ALL)
 
-target_link_libraries(McBetaCpp PRIVATE zlibstatic)
-target_include_directories(McBetaCpp PRIVATE "external/zlib")
-target_include_directories(McBetaCpp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/external/zlib")
-target_include_directories(McBetaCpp PRIVATE "external/zlib/contrib/minizip")
+target_link_libraries(McBetaCppCore PUBLIC zlibstatic)
+target_include_directories(McBetaCppCore PUBLIC "external/zlib")
+target_include_directories(McBetaCppCore PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/external/zlib")
+target_include_directories(McBetaCppCore PUBLIC "external/zlib/contrib/minizip")
 
-target_include_directories(McBetaCpp PRIVATE "external/stb")
-target_include_directories(McBetaCpp PRIVATE "external/gzip-hpp/include")
+target_include_directories(McBetaCppCore PUBLIC "external/stb")
+target_include_directories(McBetaCppCore PUBLIC "external/gzip-hpp/include")
 
-target_include_directories(McBetaCpp PRIVATE "external/cpp-httplib")
 
-target_include_directories(McBetaCpp PRIVATE "external/miniaudio")
+target_include_directories(McBetaCppCore PUBLIC "external/miniaudio")
 
 # OpenAL-Soft - build from source
 add_subdirectory("external/openal-soft" EXCLUDE_FROM_ALL)
-target_include_directories(McBetaCpp PRIVATE "external/openal-soft/include")
+target_include_directories(McBetaCppCore PUBLIC "external/openal-soft/include")
 
 # Link OpenAL
 if(WIN32)
-	target_link_libraries(McBetaCpp PRIVATE OpenAL32 ws2_32)
+	target_link_libraries(McBetaCppCore PUBLIC OpenAL32 ws2_32)
 else()
-	target_link_libraries(McBetaCpp PRIVATE openal)
+	target_link_libraries(McBetaCppCore PUBLIC openal)
 endif()
 
 # Output to bin/ directory
-set_target_properties(McBetaCpp PROPERTIES
+set(B173_OUTPUT_SUFFIX "" CACHE STRING "Suffix appended to executable names, for side-by-side variant builds")
+set_target_properties(McBetaCpp McBetaCppStress PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+	OUTPUT_NAME "McBetaCpp${B173_OUTPUT_SUFFIX}"
 )
+set_target_properties(McBetaCppStress PROPERTIES OUTPUT_NAME "McBetaCppStress${B173_OUTPUT_SUFFIX}")
 
-# Post-build: copy OpenAL DLL next to executable (Windows)
+# Shared runtime files are copied once when either executable is requested.
 if(WIN32)
-	add_custom_command(TARGET McBetaCpp POST_BUILD
+	add_custom_target(McBetaCppResources
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/bin"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"$<TARGET_FILE:OpenAL32>"
-			"$<TARGET_FILE_DIR:McBetaCpp>"
-		COMMENT "Copying OpenAL32.dll to output directory"
+			"$<TARGET_FILE:OpenAL32>" "${CMAKE_SOURCE_DIR}/bin"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+			"${CMAKE_SOURCE_DIR}/resource" "${CMAKE_SOURCE_DIR}/bin/resource"
+		DEPENDS OpenAL32
+	)
+else()
+	add_custom_target(McBetaCppResources
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+			"${CMAKE_SOURCE_DIR}/resource" "${CMAKE_SOURCE_DIR}/bin/resource"
 	)
 endif()
-
-# Post-build: copy resource folder next to executable
-add_custom_command(TARGET McBetaCpp POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy_directory
-		"${CMAKE_SOURCE_DIR}/resource"
-		"$<TARGET_FILE_DIR:McBetaCpp>/resource"
-	COMMENT "Copying resource folder to output directory"
-)
+add_dependencies(McBetaCpp McBetaCppResources)
+add_dependencies(McBetaCppStress McBetaCppResources)

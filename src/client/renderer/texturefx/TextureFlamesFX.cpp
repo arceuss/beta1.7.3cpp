@@ -1,6 +1,6 @@
 #include "client/renderer/texturefx/TextureFlamesFX.h"
 
-#include <cstdlib>
+#include "java/Math.h"
 
 #include "client/renderer/texturefx/TileSize.h"
 #include "world/level/tile/FireTile.h"
@@ -32,10 +32,11 @@ void TextureFlamesFX::onTick()
 			next[x + y * TileSize::size] = total / (static_cast<float>(count) * TileSize::flameNudge);
 			if (y >= TileSize::flameHeightMinus1)
 			{
-				float r0 = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-				float r1 = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-				float r2 = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX);
-				next[x + y * TileSize::size] = r0 * r0 * r1 * 4.0f + r2 * 0.1f + 0.2f;
+				double r0 = Math::random();
+				double r1 = Math::random();
+				double r2 = Math::random();
+				double r3 = Math::random();
+				next[x + y * TileSize::size] = static_cast<float>(r0 * r1 * r2 * 4.0 + r3 * static_cast<double>(0.1f) + static_cast<double>(0.2f));
 			}
 		}
 	}

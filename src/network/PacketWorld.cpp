@@ -143,7 +143,7 @@ void Packet51MapChunk::processPacket(NetHandler &handler)
 
 int_t Packet51MapChunk::getPacketSize() const
 {
-	return 17 + chunkSize;
+	return javaIntAdd(17, chunkSize);
 }
 
 Packet52MultiBlockChange::Packet52MultiBlockChange() : Packet(52)

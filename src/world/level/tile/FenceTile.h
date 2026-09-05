@@ -10,4 +10,5 @@ public:
 	bool isCubeShaped() override;
 	bool isSolidRender() override;
 	Shape getRenderShape() override;
+	AABB *getAABB(Level &level, int_t x, int_t y, int_t z) override;
 };

@@ -13,9 +13,10 @@ public:
 
 	Shape getRenderShape() override;
 	bool isSolidRender() override;
+	bool isCubeShaped() override { return false; }
 	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;
-	int_t getResourceCount(Random &random) override;
+	int_t getResource(int_t data, Random &random) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 	void onRemove(Level &level, int_t x, int_t y, int_t z) override;
 	bool use(Level &level, int_t x, int_t y, int_t z, Player &player) override;

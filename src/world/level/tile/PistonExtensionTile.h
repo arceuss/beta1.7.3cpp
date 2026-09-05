@@ -17,6 +17,7 @@ public:
 	int_t getTexture(Facing face, int_t data) override;
 	Shape getRenderShape() override;
 	bool isSolidRender() override;
+	bool isCubeShaped() override { return false; }
 	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;
 	int_t getResourceCount(Random &random) override;

@@ -19,15 +19,23 @@ LiquidMaterial Material::lava = LiquidMaterial(MapColor::tntColor);
 
 Material Material::sponge = Material().setMapColor(MapColor::clothColor);
 Material Material::cloth = Material().flammable().setMapColor(MapColor::clothColor);
-Material Material::glass = Material().setMapColor(MapColor::airColor);
+Material Material::glass = Material().setTranslucent().setMapColor(MapColor::airColor);
 Material Material::iron = Material().noHarvest().setMapColor(MapColor::ironColor);
 Material Material::builtSnow = Material().noHarvest().setMapColor(MapColor::snowColor);
-Material Material::tnt = Material().flammable().setMapColor(MapColor::tntColor);
+Material Material::tnt = Material().flammable().setTranslucent().setMapColor(MapColor::tntColor);
 Material Material::web = Material().noHarvest().setNoPushMobility().setMapColor(MapColor::clothColor);
-Material Material::fire = Material().setNoPushMobility().setMapColor(MapColor::airColor);
+GasMaterial Material::fire = [] {
+	GasMaterial material;
+	material.setNoPushMobility().setMapColor(MapColor::airColor);
+	return material;
+}();
 Material Material::piston = Material().setImmovableMobility().setMapColor(MapColor::stoneColor);
-Material Material::leaves = Material().flammable().setNoPushMobility().setMapColor(MapColor::foliageColor);
-Material Material::portal = Material().setImmovableMobility().setMapColor(MapColor::airColor);
+Material Material::leaves = Material().flammable().setTranslucent().setNoPushMobility().setMapColor(MapColor::foliageColor);
+DecorationMaterial Material::portal = [] {
+	DecorationMaterial material(false, false, false, true);
+	material.setImmovableMobility().setMapColor(MapColor::airColor);
+	return material;
+}();
 Material Material::cakeMaterial = Material().setNoPushMobility().setMapColor(MapColor::airColor);
 Material &Material::plants()
 {
@@ -38,8 +46,7 @@ Material &Material::plants()
 
 Material &Material::cactus()
 {
-	static DecorationMaterial material(false, false, true, false);
-	material.setNoPushMobility().setMapColor(MapColor::foliageColor);
+	static Material material = Material().setTranslucent().setNoPushMobility().setMapColor(MapColor::foliageColor);
 	return material;
 }
 
@@ -53,7 +60,7 @@ Material &Material::pumpkin()
 Material &Material::snow()
 {
 	static DecorationMaterial material(false, false, false, true);
-	static bool initialized = (material.noHarvest(), true);
+	static bool initialized = (material.noHarvest().setGroundCover().setTranslucent(), true);
 	material.setNoPushMobility().setMapColor(MapColor::snowColor);
 	(void)initialized;
 	return material;
@@ -61,8 +68,7 @@ Material &Material::snow()
 
 Material &Material::ice()
 {
-	static DecorationMaterial material(true, false, true, false);
-	material.setMapColor(MapColor::iceColor);
+	static Material material = Material().setTranslucent().setMapColor(MapColor::iceColor);
 	return material;
 }
 
@@ -141,4 +147,26 @@ Material &Material::setMapColor(MapColor &color)
 {
 	mapColor = &color;
 	return *this;
+}
+
+Material &Material::setTranslucent()
+{
+	translucentFlag = true;
+	return *this;
+}
+
+Material &Material::setGroundCover()
+{
+	groundCoverFlag = true;
+	return *this;
+}
+
+bool Material::isSolidBlocking() const
+{
+	return !translucentFlag && blocksMotion();
+}
+
+bool Material::isGroundCover() const
+{
+	return groundCoverFlag;
 }

@@ -19,7 +19,6 @@ namespace
 RepeaterTile::RepeaterTile(int_t id, bool repeaterPowered)
 	: Tile(id, 6, Material::circuits()), repeaterPowered(repeaterPowered)
 {
-	setTicking(true);
 	setShape(0.0f, 0.0f, 0.0f, 1.0f, 2.0f / 16.0f, 1.0f);
 	updateCachedProperties();
 }

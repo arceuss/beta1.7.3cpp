@@ -1,6 +1,7 @@
 #include "client/level/MultiplayerLevel.h"
 
 #include <cstring>
+#include <algorithm>
 
 #include "network/NetClientHandler.h"
 #include "network/PacketCore.h"
@@ -81,7 +82,9 @@ void MultiplayerLevel::tick()
 	for (int_t i = 0; i < 10 && !pendingEntities.empty(); ++i)
 	{
 		std::shared_ptr<Entity> entity = *pendingEntities.begin();
-		if (entities.find(entity) == entities.end())
+		if (std::none_of(entities.begin(), entities.end(), [&](const std::shared_ptr<Entity> &candidate) {
+			return candidate->entityId == entity->entityId;
+		}))
 			addEntity(entity);
 	}
 

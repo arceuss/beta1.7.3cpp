@@ -13,7 +13,6 @@
 
 #include "client/Minecraft.h"
 #include "client/gamemode/GameMode.h"
-#include "network/Java6Http.h"
 #include "network/NetHandler.h"
 #include "network/Packet.h"
 #include "network/PacketCore.h"
@@ -163,7 +162,6 @@ int runNetworkSmoke()
 	bool ok = true;
 	Tile::initTiles();
 	Items::initItems();
-	ok &= expect(Java6Http::smokeTest(), "Java 6 joinserver redirect resolution");
 
 	struct PacketOracleCase
 	{
@@ -1191,16 +1189,16 @@ int runNetworkSmoke()
 	{
 		NetworkSmokeLevel level;
 		auto player = std::make_shared<Player>(level);
-		level.entities.emplace(player);
+		level.entities.push_back(player);
 		level.players.push_back(player);
 		level.players.push_back(player);
 		level.updateEntityList();
 		level.removeEntity(player);
-		ok &= expect(player->removed && level.entities.find(player) != level.entities.end()
+		ok &= expect(player->removed && std::find(level.entities.begin(), level.entities.end(), player) != level.entities.end()
 			&& level.players.size() == 1,
 			"setEntityDead removes one Java-list player entry without immediately unlinking the entity");
 		level.updateEntityList();
-		ok &= expect(level.entities.find(player) == level.entities.end(),
+		ok &= expect(std::find(level.entities.begin(), level.entities.end(), player) == level.entities.end(),
 			"updateEntityList unlinks a dead player on the next explicit entity-list flush");
 	}
 

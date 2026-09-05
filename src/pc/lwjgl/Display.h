@@ -84,7 +84,7 @@ void swapBuffers();
 
 void update(bool doProcessMessages = true);
 
-void create();
+void create(bool hidden = false);
 
 int_t getX();
 int_t getY();

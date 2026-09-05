@@ -26,10 +26,10 @@ public:
 	static Material builtSnow;
 	static Material tnt;
 	static Material web;
-	static Material fire;
+	static GasMaterial fire;
 	static Material piston;
 	static Material leaves;
-	static Material portal;
+	static DecorationMaterial portal;
 	static Material cakeMaterial;
 
 	static Material &plants();
@@ -43,6 +43,8 @@ private:
 	bool flammableFlag = false;
 	bool harvestableFlag = true;
 	int_t mobilityFlag = 0;
+	bool translucentFlag = false;
+	bool groundCoverFlag = false;
 
 public:
 	const MapColor *mapColor = nullptr;
@@ -56,10 +58,15 @@ public:
 	virtual bool blocksMotion() const;
 	virtual bool isHarvestable() const;
 	int_t getMobilityFlag() const;
+	bool isSolidBlocking() const;
+	bool isGroundCover() const;
 
 private:
 	Material &flammable();
 	Material &noHarvest();
+	Material &setTranslucent();
+protected:
+	Material &setGroundCover();
 	Material &setNoPushMobility();
 	Material &setImmovableMobility();
 

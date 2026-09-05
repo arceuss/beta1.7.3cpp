@@ -7,9 +7,9 @@ DeadBushTile::DeadBushTile(int_t id, int_t tex) : FlowerTile(id, tex)
 	updateDefaultShape();
 }
 
-int_t DeadBushTile::getResourceCount(Random &random)
+int_t DeadBushTile::getResource(int_t data, Random &random)
 {
-	return 0;
+	return -1;
 }
 
 void DeadBushTile::updateDefaultShape()

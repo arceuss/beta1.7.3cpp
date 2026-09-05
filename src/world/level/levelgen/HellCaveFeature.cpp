@@ -60,8 +60,14 @@ void HellCaveFeature::addTunnel(int_t cx, int_t cz, std::array<ubyte_t, 16 * 16 
 
 		f2 *= 0.9f;
 		f1 *= 0.75f;
-		f2 += (random.nextFloat() - random.nextFloat()) * random.nextFloat() * 2.0f;
-		f1 += (random.nextFloat() - random.nextFloat()) * random.nextFloat() * 4.0f;
+		float pitchA = random.nextFloat();
+		float pitchB = random.nextFloat();
+		float pitchScale = random.nextFloat();
+		f2 += (pitchA - pitchB) * pitchScale * 2.0f;
+		float yawA = random.nextFloat();
+		float yawB = random.nextFloat();
+		float yawScale = random.nextFloat();
+		f1 += (yawA - yawB) * yawScale * 4.0f;
 
 		if (!is_room && paramInt3 == i && paramFloat1 > 1.0f)
 		{
@@ -173,7 +179,8 @@ void HellCaveFeature::addFeature(Level &level, int_t xx, int_t zz, int_t x, int_
 		{
 			float f1 = random.nextFloat() * Mth::PI * 2.0f;
 			float f2 = (random.nextFloat() - 0.5f) * 2.0f / 8.0f;
-			float f3 = random.nextFloat() * 2.0f + random.nextFloat();
+			float width = random.nextFloat() * 2.0f;
+			float f3 = width + random.nextFloat();
 			addTunnel(x, z, blocks, d1, d2, d3, f3 * 2.0f, f1, f2, 0, 0, 0.5);
 		}
 	}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include <string>
 
 #include "java/Type.h"
@@ -16,6 +17,7 @@ public:
 	double x, y, z;
 
 	static Vec3 *newPermanent(double x, double y, double z);
+	// Temporary results are borrowed and may be overwritten after resetPool.
 	static void resetPool();
 	static Vec3 *newTemp(double x, double y, double z);
 

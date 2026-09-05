@@ -14,6 +14,8 @@
 
 #include "java/IOUtil.h"
 
+#include <stdexcept>
+
 void Tag::print(std::ostream &os) const
 {
 	print("", os);
@@ -43,19 +45,22 @@ Tag &Tag::setName(const jstring &name)
 
 Tag *Tag::readNamedTag(std::istream &is)
 {
-	byte_t type = is.get();
+	byte_t type = IOUtil::readByte(is);
 	if (type == 0)
 		return new EndTag();
 
 	std::unique_ptr<Tag> tag(newTag(type));
-	tag->name = IOUtil::readUTF(is);
+	jstring name = IOUtil::readUTF(is);
+	if (!tag)
+		throw std::runtime_error("java.lang.NullPointerException");
+	tag->name = std::move(name);
 	tag->load(is);
 	return tag.release();
 }
 
 void Tag::writeNamedTag(Tag &tag, std::ostream &os)
 {
-	os.put(tag.getId());
+	IOUtil::writeByte(os, tag.getId());
 	if (tag.getId() == 0)
 		return;
 	IOUtil::writeUTF(os, tag.getName());

@@ -53,7 +53,7 @@ bool TreeFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 
 	level.setTileNoUpdate(x, y - 1, z, Tile::dirt.id);
 
-	// Place tree swaggy style
+	// Place leaves.
 	for (int_t yy = y - 3 + height; yy <= y + height; yy++)
 	{
 		int_t off = yy - (y + height);
@@ -65,7 +65,7 @@ bool TreeFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 			for (int_t zz = z - rad; zz <= z + rad; zz++)
 			{
 				int_t dz = zz - z;
-				if (std::abs(dx) != rad || std::abs(dz) != rad || (random.nextInt(2) != 0 && off != 0) && !Tile::solid[level.getTile(xx, yy, zz)])
+				if ((std::abs(dx) != rad || std::abs(dz) != rad || (random.nextInt(2) != 0 && off != 0)) && !Tile::solid[level.getTile(xx, yy, zz)])
 					level.setTileNoUpdate(xx, yy, zz, Tile::leaves.id);
 			}
 		}

@@ -30,8 +30,7 @@ int_t MobSpawnerTile::getResourceCount(Random &random)
 
 void MobSpawnerTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (level.getTileEntity(x, y, z) == nullptr)
-		level.setTileEntity(x, y, z, Util::make_shared<MobSpawnerTileEntity>());
+	level.setTileEntity(x, y, z, Util::make_shared<MobSpawnerTileEntity>());
 }
 
 void MobSpawnerTile::onRemove(Level &level, int_t x, int_t y, int_t z)

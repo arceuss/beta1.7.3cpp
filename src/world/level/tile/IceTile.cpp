@@ -50,7 +50,3 @@ void IceTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 	}
 }
 
-bool IceTile::isTranslucent()
-{
-	return true;
-}

@@ -109,47 +109,7 @@ void LevelChunk::recalcHeightmap()
 
 void LevelChunk::lightLava()
 {
-	int_t my = 32;
-
-	for (int_t x = 0; x < 16; x++)
-	{
-		for (int_t z = 0; z < 16; z++)
-		{
-			int_t i = ((x * 16) + z) * Level::DEPTH;
-
-			// Set light emissions
-			for (int_t y = 0; y < Level::DEPTH; y++)
-			{
-				int_t emission = Tile::lightEmission[blocks[i + y]];
-				if (emission > 0)
-					blockLight.set(x, y, z, emission);
-			}
-
-			// Propogate upwards
-			int_t light = 15;
-			for (int_t y = my - 2; my < Level::DEPTH && light > 0;)
-			{
-				y++;
-
-				ubyte_t b = blocks[i + y];
-				int_t block = Tile::lightBlock[b];
-				int_t emission = Tile::lightEmission[b];
-
-				if (block == 0)
-					block = 1;
-				light -= block;
-				if (emission > light)
-					light = emission;
-				if (light < 0)
-					light = 0;
-
-				blockLight.set(x, y, z, light);
-			}
-		}
-	}
-
-	level.updateLight(LightLayer::Block, x * 16, my - 1, z * 16, x * 16 + 16, my + 1, z * 16 + 16);
-	unsaved = true;
+	// Chunk.func_4143_d is empty in Beta 1.7.3.
 }
 
 void LevelChunk::lightGaps(int_t x, int_t z)
@@ -272,17 +232,19 @@ bool LevelChunk::setTileAndData(int_t x, int_t y, int_t z, int_t tile, int_t dat
 
 	this->data.set(x, y, z, data);
 
-	if (Tile::lightBlock[tile] != 0)
+	if (!level.dimension->hasCeiling)
 	{
-		if (y >= oldHeight)
-			recalcHeight(x, y + 1, z);
+		if (Tile::lightBlock[static_cast<ubyte_t>(tile)] != 0)
+		{
+			if (y >= oldHeight)
+				recalcHeight(x, y + 1, z);
+		}
+		else if (y == oldHeight - 1)
+		{
+			recalcHeight(x, y, z);
+		}
+		level.updateLight(LightLayer::Sky, wx, y, wz, wx, y, wz);
 	}
-	else if (y == oldHeight - 1)
-	{
-		recalcHeight(x, y, z);
-	}
-
-	level.updateLight(LightLayer::Sky, wx, y, wz, wx, y, wz);
 	level.updateLight(LightLayer::Block, wx, y, wz, wx, y, wz);
 	lightGaps(x, z);
 	this->data.set(x, y, z, data);
@@ -307,7 +269,7 @@ bool LevelChunk::setTile(int_t x, int_t y, int_t z, int_t tile)
 		Tile::tiles[oldTile]->onRemove(level, wx, y, wz);
 	data.set(x, y, z, 0);
 
-	if (Tile::lightBlock[tile] != 0)
+	if (Tile::lightBlock[static_cast<ubyte_t>(tile)] != 0)
 	{
 		if (y >= oldHeight)
 			recalcHeight(x, y + 1, z);
@@ -384,7 +346,7 @@ void LevelChunk::addEntity(std::shared_ptr<Entity> entity)
 	entity->xChunk = x;
 	entity->yChunk = y;
 	entity->zChunk = z;
-	entityBlocks[y].insert(entity);
+	entityBlocks[y].push_back(entity);
 }
 
 void LevelChunk::removeEntity(std::shared_ptr<Entity> entity)
@@ -398,7 +360,12 @@ void LevelChunk::removeEntity(std::shared_ptr<Entity> entity, int_t y)
 		y = 0;
 	if (y >= static_cast<int_t>(entityBlocks.size()))
 		y = static_cast<int_t>(entityBlocks.size()) - 1;
-	entityBlocks[y].erase(entity);
+	auto &entities = entityBlocks[y];
+	auto found = std::find_if(entities.begin(), entities.end(), [&](const auto &candidate) {
+		return candidate->entityId == entity->entityId;
+	});
+	if (found != entities.end())
+		entities.erase(found);
 }
 
 bool LevelChunk::isSkyLit(int_t x, int_t y, int_t z)
@@ -419,73 +386,85 @@ void LevelChunk::skyBrightnessChanged()
 
 std::shared_ptr<TileEntity> LevelChunk::getTileEntity(int_t x, int_t y, int_t z)
 {
-	auto it = tileEntities.find(TilePos(x, y, z));
-	if (it == tileEntities.end())
+	TilePos position(x, y, z);
+	auto found = tileEntities.find(position);
+	if (found == tileEntities.end())
+	{
+		int_t tile = getTile(x, y, z);
+		if (!Tile::isEntityTile[tile])
+			return nullptr;
+		Tile::tiles[tile]->onPlace(level, this->x * 16 + x, y, this->z * 16 + z);
+		found = tileEntities.find(position);
+	}
+	if (found == tileEntities.end())
 		return nullptr;
-	return it->second;
+	auto tileEntity = found->second;
+	if (tileEntity->isRemoved())
+	{
+		tileEntities.erase(found);
+		tileEntityPositions.erase(position);
+		return nullptr;
+	}
+	return tileEntity;
 }
 
 void LevelChunk::addTileEntity(std::shared_ptr<TileEntity> tileEntity)
 {
-	if (tileEntity == nullptr)
-		return;
-	int_t localX = tileEntity->x - this->x * 16;
-	int_t localZ = tileEntity->z - this->z * 16;
-	if (localX < 0 || localX >= 16 || localZ < 0 || localZ >= 16)
-		return;
-	setTileEntity(localX, tileEntity->y, localZ, tileEntity);
+	setTileEntity(tileEntity->x - x * 16, tileEntity->y, tileEntity->z - z * 16, tileEntity);
+	if (loaded)
+		level.tileEntityList.push_back(tileEntity);
 }
 
 void LevelChunk::setTileEntity(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity)
 {
-	TilePos pos(x, y, z);
-	auto it = tileEntities.find(pos);
-	if (it != tileEntities.end() && loaded)
-		level.tileEntityList.erase(it->second);
-	if (tileEntity == nullptr)
-	{
-		tileEntities.erase(pos);
-		unsaved = true;
-		return;
-	}
 	tileEntity->level = makeLevelHandle(level);
 	tileEntity->x = this->x * 16 + x;
 	tileEntity->y = y;
 	tileEntity->z = this->z * 16 + z;
-	tileEntities[pos] = tileEntity;
-	if (loaded)
-		level.tileEntityList.insert(tileEntity);
-	unsaved = true;
+	int_t tile = getTile(x, y, z);
+	if (tile != 0 && Tile::isEntityTile[tile])
+	{
+		tileEntity->clearRemoved();
+		tileEntities[TilePos(x, y, z)] = tileEntity;
+		tileEntityPositions.emplace(x, y, z);
+	}
+	else
+		std::cout << "Attempted to place a tile entity where there was no entity tile!\n";
 }
 
 void LevelChunk::removeTileEntity(int_t x, int_t y, int_t z)
 {
-	auto it = tileEntities.find(TilePos(x, y, z));
-	if (it == tileEntities.end())
+	if (!loaded)
 		return;
-	if (loaded)
-		level.tileEntityList.erase(it->second);
-	tileEntities.erase(it);
-	unsaved = true;
+	TilePos position(x, y, z);
+	auto found = tileEntities.find(position);
+	if (found != tileEntities.end())
+	{
+		found->second->setRemoved();
+		tileEntities.erase(found);
+		tileEntityPositions.erase(position);
+	}
 }
 
 void LevelChunk::load()
 {
 	loaded = true;
-	for (auto &entry : tileEntities)
-	{
-		entry.second->level = makeLevelHandle(level);
-		level.tileEntityList.insert(entry.second);
-	}
+	std::vector<std::shared_ptr<TileEntity>> tileEntitiesToAdd;
+	tileEntitiesToAdd.reserve(tileEntities.size());
+	for (const auto &position : tileEntityPositions)
+		tileEntitiesToAdd.push_back(tileEntities.at(position));
+	level.addTileEntities(tileEntitiesToAdd);
+	for (const auto &entities : entityBlocks)
+		level.addEntities(entities);
 }
 
 void LevelChunk::unload()
 {
 	loaded = false;
-	for (auto &i : tileEntities)
-		level.tileEntityList.erase(i.second);
-	for (auto &b : entityBlocks)
-		level.removeEntities(b);
+	for (const auto &position : tileEntityPositions)
+		tileEntities.at(position)->setRemoved();
+	for (const auto &entities : entityBlocks)
+		level.removeEntities(entities);
 }
 
 void LevelChunk::markUnsaved()
@@ -523,8 +502,9 @@ void LevelChunk::getEntitiesOfCondition(bool (*condition)(Entity &), AABB &aabb,
 
 	for (int_t y = y0; y <= y1; y++)
 	{
-		for (const auto &entity : entityBlocks[y])
+		for (size_t i = 0; i < entityBlocks[y].size(); ++i)
 		{
+			auto entity = entityBlocks[y][i];
 			if (condition(*entity) && entity->bb.intersects(aabb))
 				entities.push_back(entity);
 		}
@@ -623,7 +603,19 @@ int_t LevelChunk::setBlocksAndData(const byte_t *in, int_t x0, int_t y0, int_t z
 
 Random LevelChunk::getRandom(long_t seed)
 {
-	return Random();
+	auto widen = [](uint_t value) {
+		int_t signedValue;
+		std::memcpy(&signedValue, &value, sizeof(value));
+		return static_cast<ulong_t>(static_cast<long_t>(signedValue));
+	};
+	uint_t ux = static_cast<uint_t>(x);
+	uint_t uz = static_cast<uint_t>(z);
+	ulong_t mixed = static_cast<ulong_t>(level.seed) + widen(ux * ux * 4987142U) +
+		widen(ux * 5947611U) + widen(uz * uz) * 4392871ULL + widen(uz * 389711U);
+	mixed ^= static_cast<ulong_t>(seed);
+	long_t signedSeed;
+	std::memcpy(&signedSeed, &mixed, sizeof(mixed));
+	return Random(signedSeed);
 }
 
 bool LevelChunk::isEmpty()

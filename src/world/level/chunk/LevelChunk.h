@@ -3,7 +3,6 @@
 #include <memory>
 #include <vector>
 #include <array>
-#include <unordered_set>
 #include <unordered_map>
 
 #include "world/level/chunk/DataLayer.h"
@@ -41,7 +40,12 @@ public:
 	int_t x = 0, z = 0;
 
 	std::unordered_map<TilePos, std::shared_ptr<TileEntity>> tileEntities;
-	std::array<std::unordered_set<std::shared_ptr<Entity>>, 8> entityBlocks;
+	std::array<std::vector<std::shared_ptr<Entity>>, 8> entityBlocks;
+
+private:
+	JavaTilePosSet tileEntityPositions;
+
+public:
 
 	bool terrainPopulated = false;
 	bool unsaved = false;
@@ -94,6 +98,7 @@ public:
 	virtual void addTileEntity(std::shared_ptr<TileEntity> tileEntity);
 	virtual void setTileEntity(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity);
 	virtual void removeTileEntity(int_t x, int_t y, int_t z);
+	const JavaTilePosSet &getTileEntityPositions() const { return tileEntityPositions; }
 
 	virtual void load();
 	virtual void unload();

@@ -91,15 +91,13 @@ private:
 	int_t ticks = 0;
 	int_t missTime = 0;
 
-	int_t orgWidth = 0;
-	int_t orgHeight = 0;
-
 public:
 	Gui gui = Gui(*this);
 	std::unique_ptr<class AchievementToast> achievementToast;
 	std::unique_ptr<class StatFileWriter> statFileWriter;
 
 	bool noRender = false;
+	bool unattended = false;
 
 	HitResult hitResult = HitResult();
 
@@ -143,7 +141,7 @@ public:
 
 	void onCrash(const std::string &msg, const std::exception &e);
 
-	void init();
+	void init(std::shared_ptr<File> directory = nullptr);
 	
 private:
 	void renderLoadingScreen();
@@ -186,6 +184,7 @@ public:
 	void handleGrabTexture();
 
 	void tick();
+	void stressTick();
 
 	void reloadSound();
 

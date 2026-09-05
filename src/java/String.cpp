@@ -2,6 +2,7 @@
 
 #include <locale>
 #include <codecvt>
+#include <type_traits>
 
 namespace String
 {
@@ -20,16 +21,20 @@ std::string toUTF8(const jstring &str)
 template <typename T>
 static jstring intToStringImpl(T v, int_t base)
 {
+	if (base < 2 || base > 36)
+		base = 10;
 	jstring out;
 	bool negative = v < 0;
+	typedef typename std::make_unsigned<T>::type Unsigned;
+	Unsigned magnitude = static_cast<Unsigned>(v);
 	if (negative)
-		v = -v;
+		magnitude = Unsigned(0) - magnitude;
 
-	while (v)
+	while (magnitude)
 	{
-		int_t digit = v % base;
-		v /= base;
-		out.insert(out.begin(), digit + (digit < 10 ? '0' : 'a' - 10));
+		int_t digit = static_cast<int_t>(magnitude % static_cast<Unsigned>(base));
+		magnitude /= static_cast<Unsigned>(base);
+		out.insert(out.begin(), static_cast<char16_t>(digit + (digit < 10 ? '0' : 'a' - 10)));
 	}
 
 	if (out.empty())

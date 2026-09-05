@@ -15,7 +15,6 @@ bool SandTile::fallInstantly = false;
 
 SandTile::SandTile(int_t id, int_t tex) : Tile(id, tex, Material::sand)
 {
-	setTicking(true);
 }
 
 void SandTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)

@@ -68,6 +68,7 @@ public:
 	Item *getItem() const;
 	int_t getMaxStackSize() const;
 	int_t getMaxDamage() const;
+	bool getHasSubtypes() const;
 	bool isStackable() const;
 	bool isItemDamaged() const;
 	int_t getIcon() const;

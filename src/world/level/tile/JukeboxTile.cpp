@@ -19,8 +19,7 @@ int_t JukeboxTile::getTexture(Facing face, int_t data)
 
 void JukeboxTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (level.getTileEntity(x, y, z) == nullptr)
-		level.setTileEntity(x, y, z, Util::make_shared<RecordPlayerTileEntity>());
+	level.setTileEntity(x, y, z, Util::make_shared<RecordPlayerTileEntity>());
 }
 
 void JukeboxTile::onRemove(Level &level, int_t x, int_t y, int_t z)

@@ -2,6 +2,8 @@
 
 #include "java/IOUtil.h"
 
+#include <stdexcept>
+
 void ListTag::write(std::ostream &os)
 {
 	if (list.size() > 0)
@@ -24,6 +26,8 @@ void ListTag::load(std::istream &is)
 	for (int_t i = 0; i < size; i++)
 	{
 		std::unique_ptr<Tag> tag(Tag::newTag(type));
+		if (!tag)
+			throw std::runtime_error("java.lang.NullPointerException");
 		tag->load(is);
 		list.push_back(std::move(tag));
 	}

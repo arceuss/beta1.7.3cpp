@@ -39,14 +39,10 @@ int_t TallGrassTile::getItemColor(int_t data)
 	return GrassColor::get(0.5, 1.0);
 }
 
-int_t TallGrassTile::getResourceCount(Random &random)
-{
-	return (random.nextInt(8) == 0) ? 1 : 0;
-}
 
 int_t TallGrassTile::getResource(int_t data, Random &random)
 {
-	return Items::seeds->getShiftedIndex();
+	return random.nextInt(8) == 0 ? Items::seeds->getShiftedIndex() : -1;
 }
 
 void TallGrassTile::updateDefaultShape()

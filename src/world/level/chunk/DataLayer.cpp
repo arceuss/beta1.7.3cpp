@@ -41,8 +41,6 @@ bool DataLayer::isValid()
 
 void DataLayer::setAll(int_t value)
 {
-	// I think this is meant to be an OR
-	byte_t b = (value) & (value << 4);
-	for (int_t i = 0; i < data.size(); i++)
-		data[i] = b;
+	ubyte_t nibble = static_cast<ubyte_t>(value) & 15;
+	std::fill(data.begin(), data.end(), static_cast<byte_t>(nibble | (nibble << 4)));
 }

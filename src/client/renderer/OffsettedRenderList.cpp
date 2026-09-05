@@ -1,16 +1,17 @@
 #include "client/renderer/OffsettedRenderList.h"
 
-#include <iostream>
+#include "client/renderer/Chunk.h"
 
 #include "OpenGL.h"
 
-void OffsettedRenderList::init(int_t x, int_t y, int_t z, double xOff, double yOff, double zOff)
+void OffsettedRenderList::init(int_t x, int_t y, int_t z, int_t layer, double xOff, double yOff, double zOff)
 {
 	inited = true;
-	lists.clear();
+	chunks.clear();
 	this->x = x;
 	this->y = y;
 	this->z = z;
+	this->layer = layer;
 
 	this->xOff = xOff;
 	this->yOff = yOff;
@@ -23,10 +24,10 @@ bool OffsettedRenderList::isAt(int_t x, int_t y, int_t z)
 	return this->x == x && this->y == y && this->z == z;
 }
 
-void OffsettedRenderList::add(int_t list)
+void OffsettedRenderList::add(Chunk *chunk)
 {
-	lists.push_back(list);
-	if (lists.size() == 0x10000) render();
+	chunks.push_back(chunk);
+	if (chunks.size() == 0x10000) render();
 }
 
 void OffsettedRenderList::render()
@@ -35,11 +36,12 @@ void OffsettedRenderList::render()
 	if (!rendered)
 		rendered = true;
 
-	if (!lists.empty())
+	if (!chunks.empty())
 	{
 		glPushMatrix();
-		glTranslatef(static_cast<float>(x) - xOff, static_cast<float>(y) - yOff, static_cast<float>(z) - zOff);
-		glCallLists(lists.size(), GL_UNSIGNED_INT, lists.data());
+		glTranslatef(static_cast<float>(x - xOff), static_cast<float>(y - yOff), static_cast<float>(z - zOff));
+		for (Chunk *chunk : chunks)
+			chunk->draw(layer);
 		glPopMatrix();
 	}
 }
@@ -48,5 +50,5 @@ void OffsettedRenderList::clear()
 {
 	inited = false;
 	rendered = false;
-	lists.clear();
+	chunks.clear();
 }

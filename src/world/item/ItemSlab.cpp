@@ -40,6 +40,7 @@ namespace
 
 ItemSlab::ItemSlab(int_t baseId) : Item(baseId)
 {
+	setHasSubtypes(true);
 }
 
 int_t ItemSlab::getIcon(const ItemInstance &stack) const

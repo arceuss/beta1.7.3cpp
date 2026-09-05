@@ -69,12 +69,12 @@ private:
 	{
 		size_t operator()(const TickNextTickData &data) const
 		{
-			return static_cast<size_t>((((static_cast<long long>(data.x) * 128LL * 1024LL) + static_cast<long long>(data.z) * 128LL + data.y) * 256LL) + data.tileId);
+			return static_cast<size_t>(((static_cast<uint_t>(data.x) * 128U * 1024U + static_cast<uint_t>(data.z) * 128U + static_cast<uint_t>(data.y)) * 256U) + static_cast<uint_t>(data.tileId));
 		}
 	};
 
 	static constexpr int_t MAX_TICK_TILES_PER_TICK = 1000;
-	long_t nextTickEntryId = 0;
+	static ulong_t nextTickEntryId;
 	std::set<TickNextTickData, TickNextTickOrder> tickNextTickList;
 	std::unordered_set<TickNextTickData, TickNextTickHash> tickNextTickSet;
 
@@ -93,11 +93,17 @@ public:
 	std::vector<LightUpdate> lightUpdates;
 
 public:
-	std::unordered_set<std::shared_ptr<Entity>> entities;
-	std::unordered_set<std::shared_ptr<Entity>> entitiesToRemove;
+	std::vector<std::shared_ptr<Entity>> entities;
+	std::vector<std::shared_ptr<Entity>> entitiesToRemove;
 	std::vector<std::shared_ptr<Entity>> weatherEffects;
 
-	std::unordered_set<std::shared_ptr<TileEntity>> tileEntityList;
+	std::vector<std::shared_ptr<TileEntity>> tileEntityList;
+
+private:
+	bool tickingTileEntities = false;
+	std::vector<std::shared_ptr<TileEntity>> pendingTileEntities;
+
+public:
 
 	std::vector<std::shared_ptr<Player>> players;
 
@@ -144,7 +150,7 @@ public:
 	std::shared_ptr<Dimension> dimension;
 
 protected:
-	std::unordered_set<LevelListener *> listeners;
+	std::vector<LevelListener *> listeners;
 
 private:
 	std::shared_ptr<ChunkSource> chunkSource;
@@ -190,6 +196,8 @@ public:
 private:
 	int_t delayUntilNextMoodSound = random.nextInt(12000);
 	std::vector<std::shared_ptr<Entity>> es;
+	JavaTilePosSet activeChunks;
+	void initializeStorage(File *workingDirectory);
 
 public:
 	bool isOnline = false;
@@ -210,6 +218,7 @@ public:
 	Level(File *workingDirectory, const jstring &name, long_t seed);
 	Level(File *workingDirectory, const jstring &name, const jstring &levelName, long_t seed, int_t dimension);
 	Level(File *workingDirectory, const jstring &name, long_t seed, int_t dimension);
+	static std::shared_ptr<Level> createSimulationLevel(File *workingDirectory, const jstring &name, long_t seed);
 
 protected:
 	Level(const jstring &name, int_t dimension, long_t seed, bool initializeChunkSource);
@@ -220,7 +229,6 @@ public:
 	void validateSpawn();
 	int_t getTopTile(int_t x, int_t z);
 
-	void centerChunkSource(int_t chunkX, int_t chunkZ);
 
 	void clearLoadedPlayerData();
 	virtual void setSpawnLocation();
@@ -354,6 +362,7 @@ public:
 	std::shared_ptr<TileEntity> getTileEntity(int_t x, int_t y, int_t z) override;
 	void setTileEntity(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity);
 	void removeTileEntity(int_t x, int_t y, int_t z);
+	void addTileEntities(const std::vector<std::shared_ptr<TileEntity>> &tileEntities);
 
 	bool isSolidTile(int_t x, int_t y, int_t z) override;
 	void forceSave(std::shared_ptr<ProgressListener> progressRenderer);
@@ -366,6 +375,7 @@ public:
 	void updateLight(int_t layer, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1, bool checkExpansion);
 	void updateSkyBrightness();
 
+	void setSimulationSeed(long_t seed);
 	void setSpawnSettings(bool spawnEnemies, bool spawnFriendlies);
 
 	virtual void tick();
@@ -378,14 +388,14 @@ public:
 	void animateTick(int_t x, int_t y, int_t z);
 
 	const std::vector<std::shared_ptr<Entity>> &getEntities(Entity *ignore, AABB &aabb);
-	const std::vector<std::shared_ptr<Entity>> &getEntitiesOfCondition(bool (*condition)(Entity&), AABB &aabb);
-	const std::unordered_set<std::shared_ptr<Entity>> &getAllEntities();
+	std::vector<std::shared_ptr<Entity>> getEntitiesOfCondition(bool (*condition)(Entity&), AABB &aabb);
+	const std::vector<std::shared_ptr<Entity>> &getAllEntities();
 
 	void tileEntityChanged(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity);
 
 	int_t countConditionOf(bool (*condition)(Entity&));
-	void addEntities(const std::unordered_set<std::shared_ptr<Entity>> &entities);
-	void removeEntities(const std::unordered_set<std::shared_ptr<Entity>> &entities);
+	void addEntities(const std::vector<std::shared_ptr<Entity>> &entities);
+	void removeEntities(const std::vector<std::shared_ptr<Entity>> &entities);
 
 	virtual void disconnect();
 

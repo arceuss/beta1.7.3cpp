@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <climits>
+#include <cerrno>
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -24,13 +25,15 @@
 
 static std::string ToPath(const jstring &path)
 {
-	std::string u8path = String::toUTF8(path);
-
-	static char buffer[PATH_MAX];
-	if (!::realpath(u8path.c_str(), buffer))
-		return u8path; // File probably doesn't exist yet, just use the path as-is
-	
-	return std::string(buffer);
+	std::string result;
+	for (char c : String::toUTF8(path))
+	{
+		if (c != '/' || result.empty() || result.back() != '/')
+			result.push_back(c);
+	}
+	if (result.size() > 1 && result.back() == '/')
+		result.pop_back();
+	return result;
 }
 
 static jstring FromPath(const std::string &path)
@@ -48,7 +51,8 @@ public:
 	{
 		u8path = ToPath(path);
 		this->path = FromPath(u8path);
-		std::cout << "Open " << u8path << std::endl;
+		if (this->path.find(u'\0') != jstring::npos)
+			u8path.clear();
 	}
 
 	virtual ~File_Impl()
@@ -58,7 +62,7 @@ public:
 
 	virtual bool createNewFile() const override
 	{
-		int fd = ::open(u8path.c_str(), O_CREAT | O_RDWR, 0644);
+		int fd = ::open(u8path.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
 		if (fd < 0)
 			return false;
 		::close(fd);
@@ -76,8 +80,10 @@ public:
 
 	bool renameTo(const File &dest) const override
 	{
-		const File_Impl &dest_impl = reinterpret_cast<const File_Impl&>(dest);
-		return ::rename(u8path.c_str(), dest_impl.u8path.c_str()) == 0;
+		std::string destination = ToPath(dest.toString());
+		if (destination.find('\0') != std::string::npos)
+			return false;
+		return ::rename(u8path.c_str(), destination.c_str()) == 0;
 	}
 
 	bool exists() const override
@@ -153,15 +159,15 @@ public:
 
 	File *getParentFile() const override
 	{
-		size_t npos = path.find_last_of(u"/\\");
-		if (npos != std::string::npos)
-			return new File_Impl(path.substr(0, npos));
-		return new File_Impl(u"");
+		size_t npos = path.find_last_of(u'/');
+		if (npos == jstring::npos || path == u"/")
+			return nullptr;
+		return new File_Impl(path.substr(0, npos == 0 ? 1 : npos));
 	}
 
 	bool mkdir() const override
 	{
-		return ::mkdir(u8path.c_str(), 0755) == 0;
+		return ::mkdir(u8path.c_str(), 0777) == 0;
 	}
 
 	std::istream *toStreamIn() const override
@@ -198,24 +204,30 @@ File *File::open(const File &parent, const jstring &child)
 File *File::openResourceDirectory()
 {
 	// Get the path to the executable
-	char (*path) = (char*)malloc(PATH_MAX);
-	uint32_t length = PATH_MAX;
-	#ifdef __APPLE__
-	if (_NSGetExecutablePath(path, &length) != 0)
+	std::vector<char> path(PATH_MAX);
+#ifdef __APPLE__
+	uint32_t length = static_cast<uint32_t>(path.size());
+	if (_NSGetExecutablePath(path.data(), &length) != 0)
 	{
-	  	// Buffer size is too small.
-		length = -1;
+		path.resize(length);
+		if (_NSGetExecutablePath(path.data(), &length) != 0)
+			throw std::runtime_error("Failed to get executable path");
 	}
-	#else
-	length = ::readlink("/proc/self/exe", path, sizeof(path) - 1);
-	#endif
-	if (length == -1)
-		return new File_Impl(u"");
-
-	path[length] = '\0';
-
-	// Convert to UTF-16
-	jstring u16str = FromPath(path);
+#else
+	for (;;)
+	{
+		ssize_t length = ::readlink("/proc/self/exe", path.data(), path.size() - 1);
+		if (length < 0)
+			throw std::runtime_error("Failed to get executable path");
+		if (static_cast<size_t>(length) < path.size() - 1)
+		{
+			path[static_cast<size_t>(length)] = '\0';
+			break;
+		}
+		path.resize(path.size() * 2);
+	}
+#endif
+	jstring u16str = FromPath(path.data());
 
 	// Remove the executable name
 	size_t pos = u16str.find_last_of(u'/');
@@ -223,9 +235,7 @@ File *File::openResourceDirectory()
 		return new File_Impl(u"");
 
 	// Return resource directory
-	File* file = new File_Impl(u16str.substr(0, pos) + u"/resource");
-	free(path);
-	return file;
+	return new File_Impl(u16str.substr(0, pos) + u"/resource");
 }
 
 File *File::openWorkingDirectory(const jstring &name)
@@ -239,4 +249,33 @@ File *File::openWorkingDirectory(const jstring &name)
 	jstring u16str = FromPath(path);
 
 	return new File_Impl(u16str + u"/" + name);
+}
+
+jstring File::getName() const
+{
+	size_t pos = path.find_last_of(u'/');
+	return pos == jstring::npos ? path : path.substr(pos + 1);
+}
+
+jstring File::toURL() const
+{
+	if (path.find(u'\0') != jstring::npos)
+		throw std::runtime_error("java.net.MalformedURLException: Invalid file path");
+	jstring absolute = path;
+	if (absolute.empty() || absolute.front() != u'/')
+	{
+		std::vector<char> current(PATH_MAX);
+		while (::getcwd(current.data(), current.size()) == nullptr)
+		{
+			if (errno != ERANGE)
+				throw std::runtime_error("Failed to get working directory");
+			current.resize(current.size() * 2);
+		}
+		absolute = FromPath(current.data());
+		if (!path.empty())
+			absolute += (absolute.back() == u'/' ? u"" : u"/") + path;
+	}
+	if (isDirectory() && absolute.back() != u'/')
+		absolute.push_back(u'/');
+	return u"file:" + absolute;
 }

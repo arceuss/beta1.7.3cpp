@@ -14,6 +14,9 @@ class Tile;
 
 class TileEntity : public std::enable_shared_from_this<TileEntity>
 {
+private:
+	bool removed = false;
+
 public:
 	virtual jstring getEncodeId() const { return u""; }
 
@@ -27,6 +30,9 @@ public:
 	virtual void save(CompoundTag &tag);
 
 	virtual void tick();
+	bool isRemoved() const { return removed; }
+	void setRemoved() { removed = true; }
+	void clearRemoved() { removed = false; }
 
 	static TileEntity *loadStatic(CompoundTag &tag);
 
@@ -37,7 +43,4 @@ public:
 	double distanceToSqr(double x, double y, double z);
 
 	Tile &getTile();
-
-	// TODO
-	// getUpdatePacket
 };

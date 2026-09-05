@@ -9,8 +9,10 @@ bool ReedFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 {
 	for (int_t attempt = 0; attempt < 20; ++attempt)
 	{
-		int_t placeX = x + random.nextInt(4) - random.nextInt(4);
-		int_t placeZ = z + random.nextInt(4) - random.nextInt(4);
+		int_t placeX = x + random.nextInt(4);
+		placeX -= random.nextInt(4);
+		int_t placeZ = z + random.nextInt(4);
+		placeZ -= random.nextInt(4);
 		if (!level.isEmptyTile(placeX, y, placeZ))
 			continue;
 

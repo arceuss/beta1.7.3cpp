@@ -591,12 +591,8 @@ int_t LevelRenderer::renderChunks(int_t from, int_t to, int_t layer, double alph
 
 		if (!sortedChunks[i]->empty[layer] && sortedChunks[i]->visible && sortedChunks[i]->occlusion_visible)
 		{
-			int_t list = sortedChunks[i]->getList(layer);
-			if (list >= 0)
-			{
-				renderChunksList.push_back(sortedChunks[i]);
-				count++;
-			}
+			renderChunksList.push_back(sortedChunks[i]);
+			count++;
 		}
 	}
 
@@ -624,10 +620,10 @@ int_t LevelRenderer::renderChunks(int_t from, int_t to, int_t layer, double alph
 		if (list < 0)
 		{
 			list = lists++;
-			renderLists[list].init(chunk->xRender, chunk->yRender, chunk->zRender, xOff, yOff, zOff);
+			renderLists[list].init(chunk->xRender, chunk->yRender, chunk->zRender, layer, xOff, yOff, zOff);
 		}
 
-		renderLists[list].add(chunk->getList(layer));
+		renderLists[list].add(chunk.get());
 	}
 
 	renderSameAsLast(layer, alpha);
@@ -1051,7 +1047,8 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 	{
 		DirtyChunkSorter dirtyChunkSorter(player);
 
-		std::array<std::shared_ptr<Chunk>, 3> toAdd = {};
+		// RenderGlobal.updateRenderers: two far slots, 16-block near radius.
+		std::array<std::shared_ptr<Chunk>, 2> toAdd = {};
 		std::vector<std::shared_ptr<Chunk>> nearChunks;
 
 		int_t pendingChunkSize = dirtyChunks.size();
@@ -1062,10 +1059,10 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 			std::shared_ptr<Chunk> chunk = dirtyChunks[i];
 			if (!force)
 			{
-				if (chunk->distanceToSqr(player) > 1024.0f)
+				if (chunk->distanceToSqr(player) > 256.0f)
 				{
 					int_t index;
-					for (index = 0; index < 3 && (toAdd[index] == nullptr || dirtyChunkSorter(toAdd[index], chunk)); index++);
+					for (index = 0; index < 2 && (toAdd[index] == nullptr || dirtyChunkSorter(toAdd[index], chunk)); index++);
 					index--;
 					if (index > 0)
 					{
@@ -1100,12 +1097,12 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 		}
 
 		int_t secondaryRemoved = 0;
-		for (int_t j = 2; j >= 0; j--)
+		for (int_t j = 1; j >= 0; j--)
 		{
 			std::shared_ptr<Chunk> chunk = toAdd[j];
 			if (chunk != nullptr)
 			{
-				if (!chunk->visible && j != 2)
+				if (!chunk->visible && j != 1)
 				{
 					toAdd[j] = nullptr;
 					toAdd[0] = nullptr;
@@ -1123,7 +1120,7 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 		while (cursor != arraySize)
 		{
 			std::shared_ptr<Chunk> chunk = dirtyChunks[cursor];
-			if (chunk != nullptr && chunk != toAdd[0] && chunk != toAdd[1] && chunk != toAdd[2])
+			if (chunk != nullptr && chunk != toAdd[0] && chunk != toAdd[1])
 			{
 				if (target != cursor)
 					dirtyChunks[target] = chunk;

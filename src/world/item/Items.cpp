@@ -34,6 +34,10 @@
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/CakeTile.h"
+#include "world/level/tile/SaplingTile.h"
+#include "world/level/tile/TreeTile.h"
+#include "world/level/tile/LeafTile.h"
+#include "world/level/tile/ClothTile.h"
 
 namespace Items
 {
@@ -153,6 +157,10 @@ namespace Items
 		if (initialized)
 			return;
 		initialized = true;
+
+		// These block items are represented by tiles in the native inventory.
+		for (int_t id : {Tile::sapling.id, Tile::treeTrunk.id, Tile::leaves.id, Tile::wool.id})
+			Item::subtypeItems[id] = true;
 
 		flintAndSteel = new ItemFlintAndSteel(3);
 
@@ -357,7 +365,7 @@ namespace Items
 		recordCat->setIconIndex(241).setDescriptionId(u"item.record");
 
 		coal = new Item(7);
-		coal->setIconIndex(7).setDescriptionId(u"item.coal");
+		coal->setIconIndex(7).setDescriptionId(u"item.coal").setHasSubtypes(true);
 
 		diamond = new Item(8);
 		diamond->setIconIndex(55).setDescriptionId(u"item.emerald");

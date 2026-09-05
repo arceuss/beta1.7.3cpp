@@ -37,12 +37,12 @@ void Container::updateCraftingResults()
 
 Slot &Container::getSlot(int_t slot)
 {
-	return *slots[static_cast<std::size_t>(slot)];
+	return *slots.at(static_cast<std::size_t>(slot));
 }
 
 const Slot &Container::getSlot(int_t slot) const
 {
-	return *slots[static_cast<std::size_t>(slot)];
+	return *slots.at(static_cast<std::size_t>(slot));
 }
 
 std::unique_ptr<ItemInstance> Container::click(int_t slotNumber, int_t button, bool shiftClick, Player &player)
@@ -120,7 +120,8 @@ std::unique_ptr<ItemInstance> Container::click(int_t slotNumber, int_t button, b
 	}
 	else if (slot.mayPlace(*carried))
 	{
-		if (!slotItem->sameItem(*carried))
+		if (slotItem->itemID != carried->itemID
+			|| (slotItem->getHasSubtypes() && slotItem->itemDamage != carried->itemDamage))
 		{
 			if (carried->stackSize <= slot.getMaxStackSize())
 			{
@@ -142,7 +143,8 @@ std::unique_ptr<ItemInstance> Container::click(int_t slotNumber, int_t button, b
 			slotItem->stackSize += count;
 		}
 	}
-	else if (slotItem->sameItem(*carried) && carried->getMaxStackSize() > 1)
+	else if (slotItem->itemID == carried->itemID && carried->getMaxStackSize() > 1
+		&& (!slotItem->getHasSubtypes() || slotItem->itemDamage == carried->itemDamage))
 	{
 		int_t count = slotItem->stackSize;
 		if (count > 0 && count + carried->stackSize <= carried->getMaxStackSize())
@@ -247,7 +249,8 @@ bool Container::moveItemStackTo(ItemInstance &item, int_t firstSlot, int_t lastS
 		{
 			Slot &slot = getSlot(slotIndex);
 			ItemInstance *slotItem = slot.getItem();
-			if (slotItem != nullptr && slotItem->sameItem(item))
+			if (slotItem != nullptr && slotItem->itemID == item.itemID
+				&& (!item.getHasSubtypes() || slotItem->itemDamage == item.itemDamage))
 			{
 				int_t total = slotItem->stackSize + item.stackSize;
 				if (total <= item.getMaxStackSize())

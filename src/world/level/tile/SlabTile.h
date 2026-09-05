@@ -11,6 +11,7 @@ public:
 	SlabTile(int_t id, bool fullBlock);
 
 	int_t getTexture(Facing face, int_t data) override;
+	int_t getTexture(Facing face) override { return getTexture(face, 0); }
 	bool isCubeShaped() override;
 	bool isSolidRender() override;
 	bool shouldRenderFace(LevelSource &level, int_t x, int_t y, int_t z, Facing face) override;

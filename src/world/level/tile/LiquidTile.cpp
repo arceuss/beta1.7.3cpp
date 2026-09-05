@@ -4,7 +4,10 @@
 #include "world/level/LevelSource.h"
 #include "world/level/material/LiquidMaterial.h"
 #include "world/level/material/GasMaterial.h"
+#include "world/level/tile/DoorTile.h"
+#include "world/level/tile/LadderTile.h"
 #include "world/level/tile/ReedTile.h"
+#include "world/level/tile/SignTile.h"
 
 #include "util/Mth.h"
 #include <algorithm>
@@ -97,10 +100,6 @@ bool LiquidTile::mayPick(int_t data, bool canPickLiquid)
 	return canPickLiquid && data == 0;
 }
 
-bool LiquidTile::mayPick()
-{
-	return false;
-}
 
 int_t LiquidTile::getResource(int_t data, Random &random)
 {
@@ -340,7 +339,7 @@ void LiquidTileDynamic::tick(Level &level, int_t x, int_t y, int_t z, Random &ra
 
 		if (adjacentSourceCount >= 2 && &material == static_cast<const Material *>(&Material::water))
 		{
-			if (level.isSolidTile(x, y - 1, z))
+			if (level.getMaterial(x, y - 1, z).isSolid())
 				nextDepth = 0;
 			else if (&level.getMaterial(x, y - 1, z) == &material && level.getData(x, y, z) == 0)
 				nextDepth = 0;
@@ -385,7 +384,7 @@ void LiquidTileDynamic::tick(Level &level, int_t x, int_t y, int_t z, Random &ra
 	}
 	else if (depth >= 0 && (depth == 0 || blocksLiquidFlow(level, x, y - 1, z)))
 	{
-		std::array<bool, 4> spread = getSpread(level, x, y, z);
+		const std::array<bool, 4> &spread = getSpread(level, x, y, z);
 		int_t spreadDepth = depth + depthStep;
 		if (depth >= 8)
 			spreadDepth = 1;
@@ -455,7 +454,7 @@ int_t LiquidTileDynamic::getSlopeDistance(Level &level, int_t x, int_t y, int_t 
 	return best;
 }
 
-std::array<bool, 4> LiquidTileDynamic::getSpread(Level &level, int_t x, int_t y, int_t z)
+const std::array<bool, 4> &LiquidTileDynamic::getSpread(Level &level, int_t x, int_t y, int_t z)
 {
 	for (int_t direction = 0; direction < 4; direction++)
 	{
@@ -494,7 +493,8 @@ std::array<bool, 4> LiquidTileDynamic::getSpread(Level &level, int_t x, int_t y,
 bool LiquidTileDynamic::blocksLiquidFlow(Level &level, int_t x, int_t y, int_t z)
 {
 	int_t tile = level.getTile(x, y, z);
-	if (tile == Tile::reed.id)
+	// BlockFlowing.blockBlocksFlow: these non-solid blocks still stop liquid.
+	if (tile == Tile::doorWood.id || tile == Tile::doorIron.id || tile == Tile::signPost.id || tile == Tile::ladder.id || tile == Tile::reed.id)
 		return true;
 	if (tile == 0)
 		return false;

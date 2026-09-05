@@ -1,7 +1,7 @@
 #include "client/renderer/texturefx/TextureWatchFX.h"
 
 #include <cmath>
-#include <cstdlib>
+#include "java/Math.h"
 
 #include "client/Minecraft.h"
 #include "client/renderer/texturefx/TextureItemFX.h"
@@ -27,16 +27,16 @@ void TextureWatchFX::onTick()
 	double angle = 0.0;
 	if (minecraft.level != nullptr && minecraft.player != nullptr)
 	{
-		angle = -static_cast<double>(minecraft.level->getTimeOfDay(1.0f)) * Mth::PI * 2.0;
-		if (minecraft.level->dimension != nullptr && minecraft.level->dimension->id == Dimension::Id_Hell)
-			angle = (static_cast<double>(std::rand()) / RAND_MAX) * Mth::PI * 2.0;
+		angle = static_cast<double>(-minecraft.level->getTimeOfDay(1.0f) * Mth::PI * 2.0f);
+		if (minecraft.level->dimension != nullptr && minecraft.level->dimension->foggy)
+			angle = Math::random() * static_cast<double>(Mth::PI) * 2.0;
 	}
 
 	double delta = angle - rotation;
-	while (delta < -Mth::PI)
-		delta += Mth::PI * 2.0;
-	while (delta >= Mth::PI)
-		delta -= Mth::PI * 2.0;
+	while (delta < -3.141592653589793)
+		delta += 6.283185307179586;
+	while (delta >= 3.141592653589793)
+		delta -= 6.283185307179586;
 	if (delta < -1.0)
 		delta = -1.0;
 	if (delta > 1.0)

@@ -15,6 +15,7 @@ namespace
 
 ItemDye::ItemDye(int_t baseId) : Item(baseId)
 {
+	setHasSubtypes(true);
 	setMaxDamage(0);
 	setMaxStackSize(64);
 }

@@ -72,8 +72,7 @@ int_t DispenserTile::getTexture(Facing face, int_t data)
 
 void DispenserTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (level.getTileEntity(x, y, z) == nullptr)
-		level.setTileEntity(x, y, z, Util::make_shared<DispenserTileEntity>());
+	level.setTileEntity(x, y, z, Util::make_shared<DispenserTileEntity>());
 	setDefaultDirection(level, x, y, z);
 }
 

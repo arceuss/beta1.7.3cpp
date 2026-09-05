@@ -145,10 +145,10 @@ void OldChunkStorage::save(LevelChunk &chunk, Level &level, CompoundTag &tag)
 	tag.put(u"Entities", entityTags);
 
 	std::shared_ptr<ListTag> tileEntityTags = Util::make_shared<ListTag>();
-	for (auto &e : chunk.tileEntities)
+	for (const auto &position : chunk.getTileEntityPositions())
 	{
 		std::shared_ptr<CompoundTag> tileEntityTag = Util::make_shared<CompoundTag>();
-		e.second->save(*tileEntityTag);
+		chunk.tileEntities.at(position)->save(*tileEntityTag);
 		tileEntityTags->add(tileEntityTag);
 	}
 	tag.put(u"TileEntities", tileEntityTags);

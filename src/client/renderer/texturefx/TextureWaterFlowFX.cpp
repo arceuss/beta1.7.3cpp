@@ -1,7 +1,7 @@
 #include "client/renderer/texturefx/TextureWaterFlowFX.h"
 
-#include <cmath>
-#include <cstdlib>
+#include "java/Math.h"
+#include "java/Number.h"
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
@@ -15,7 +15,7 @@ TextureWaterFlowFX::TextureWaterFlowFX() : TextureFX(Tile::water.tex + 1),
 
 void TextureWaterFlowFX::onTick()
 {
-	++tickCounter;
+	tickCounter = Java::intFromBits(static_cast<uint_t>(tickCounter) + 1u);
 
 	for (int_t x = 0; x < TileSize::size; ++x)
 	{
@@ -43,7 +43,7 @@ void TextureWaterFlowFX::onTick()
 				green0[x + y * TileSize::size] = 0.0f;
 
 			green1[x + y * TileSize::size] -= 0.3f;
-			if ((static_cast<double>(std::rand()) / RAND_MAX) < 0.2)
+			if (Math::random() < 0.2)
 				green1[x + y * TileSize::size] = 0.5f;
 		}
 	}
@@ -53,7 +53,7 @@ void TextureWaterFlowFX::onTick()
 
 	for (int_t i = 0; i < TileSize::numPixels; ++i)
 	{
-		float val = red0[i - tickCounter * TileSize::size & TileSize::numPixelsMinus1];
+		float val = red0[(static_cast<uint_t>(i) - static_cast<uint_t>(tickCounter) * static_cast<uint_t>(TileSize::size)) & static_cast<uint_t>(TileSize::numPixelsMinus1)];
 		if (val > 1.0f) val = 1.0f;
 		if (val < 0.0f) val = 0.0f;
 

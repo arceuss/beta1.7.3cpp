@@ -1,11 +1,7 @@
 #include "client/renderer/texturefx/TextureLavaFX.h"
 
-#include <cmath>
-#include <cstdlib>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include "java/Math.h"
+#include "util/Mth.h"
 
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/LiquidTile.h"
@@ -23,8 +19,8 @@ void TextureLavaFX::onTick()
 		for (int_t y = 0; y < TileSize::size; ++y)
 		{
 			float val = 0.0f;
-			int_t sinY = static_cast<int_t>(std::sin(static_cast<float>(y) * static_cast<float>(M_PI) * 2.0f / TileSize::sizeFloat) * 1.2f);
-			int_t sinX = static_cast<int_t>(std::sin(static_cast<float>(x) * static_cast<float>(M_PI) * 2.0f / TileSize::sizeFloat) * 1.2f);
+			int_t sinY = static_cast<int_t>(Mth::sin(static_cast<float>(y) * Mth::PI * 2.0f / TileSize::sizeFloat) * 1.2f);
+			int_t sinX = static_cast<int_t>(Mth::sin(static_cast<float>(x) * Mth::PI * 2.0f / TileSize::sizeFloat) * 1.2f);
 
 			for (int_t xx = x - 1; xx <= x + 1; ++xx)
 			{
@@ -47,7 +43,7 @@ void TextureLavaFX::onTick()
 				green0[x + y * TileSize::size] = 0.0f;
 
 			green1[x + y * TileSize::size] -= 0.06f;
-			if ((static_cast<double>(std::rand()) / RAND_MAX) < 0.005)
+			if (Math::random() < 0.005)
 				green1[x + y * TileSize::size] = 1.5f;
 		}
 	}

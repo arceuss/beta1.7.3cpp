@@ -6,11 +6,7 @@
 #include "world/level/material/Material.h"
 #include "world/level/material/LiquidMaterial.h"
 
-#include <cmath>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include "util/Mth.h"
 ClayFeature::ClayFeature(int_t count) : count(count)
 {
 }
@@ -20,11 +16,11 @@ bool ClayFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 	if (&level.getMaterial(x, y, z) != &Material::water)
 		return false;
 
-	float var6 = random.nextFloat() * (float)M_PI;
-	double var7 = (double)((float)(x + 8) + std::sin(var6) * (float)count / 8.0f);
-	double var9 = (double)((float)(x + 8) - std::sin(var6) * (float)count / 8.0f);
-	double var11 = (double)((float)(z + 8) + std::cos(var6) * (float)count / 8.0f);
-	double var13 = (double)((float)(z + 8) - std::cos(var6) * (float)count / 8.0f);
+	float var6 = random.nextFloat() * Mth::PI;
+	double var7 = (double)((float)(x + 8) + Mth::sin(var6) * (float)count / 8.0f);
+	double var9 = (double)((float)(x + 8) - Mth::sin(var6) * (float)count / 8.0f);
+	double var11 = (double)((float)(z + 8) + Mth::cos(var6) * (float)count / 8.0f);
+	double var13 = (double)((float)(z + 8) - Mth::cos(var6) * (float)count / 8.0f);
 	double var15 = (double)(y + random.nextInt(3) + 2);
 	double var17 = (double)(y + random.nextInt(3) + 2);
 
@@ -34,14 +30,14 @@ bool ClayFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 		double var22 = var15 + (var17 - var15) * (double)i / (double)count;
 		double var24 = var11 + (var13 - var11) * (double)i / (double)count;
 		double var26 = random.nextDouble() * (double)count / 16.0;
-		double var28 = (double)(std::sin((float)i * (float)M_PI / (float)count) + 1.0f) * var26 + 1.0;
-		double var30 = (double)(std::sin((float)i * (float)M_PI / (float)count) + 1.0f) * var26 + 1.0;
-		int_t var32 = (int_t)std::floor(var20 - var28 / 2.0);
-		int_t var33 = (int_t)std::floor(var20 + var28 / 2.0);
-		int_t var34 = (int_t)std::floor(var22 - var30 / 2.0);
-		int_t var35 = (int_t)std::floor(var22 + var30 / 2.0);
-		int_t var36 = (int_t)std::floor(var24 - var28 / 2.0);
-		int_t var37 = (int_t)std::floor(var24 + var28 / 2.0);
+		double var28 = (double)(Mth::sin((float)i * Mth::PI / (float)count) + 1.0f) * var26 + 1.0;
+		double var30 = (double)(Mth::sin((float)i * Mth::PI / (float)count) + 1.0f) * var26 + 1.0;
+		int_t var32 = Mth::floor(var20 - var28 / 2.0);
+		int_t var33 = Mth::floor(var20 + var28 / 2.0);
+		int_t var34 = Mth::floor(var22 - var30 / 2.0);
+		int_t var35 = Mth::floor(var22 + var30 / 2.0);
+		int_t var36 = Mth::floor(var24 - var28 / 2.0);
+		int_t var37 = Mth::floor(var24 + var28 / 2.0);
 
 		for (int_t bx = var32; bx <= var33; ++bx)
 		{

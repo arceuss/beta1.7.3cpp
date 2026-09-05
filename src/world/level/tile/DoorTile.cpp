@@ -6,7 +6,6 @@
 
 DoorTile::DoorTile(int_t id, int_t tex, const Material &material, bool iron) : Tile(id, tex, material), iron(iron)
 {
-	updateDefaultShape();
 	updateCachedProperties();
 }
 

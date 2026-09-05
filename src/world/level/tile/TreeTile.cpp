@@ -5,7 +5,7 @@
 
 TreeTile::TreeTile(int_t id) : Tile(id, Material::wood)
 {
-
+	tex = 20;
 }
 
 int_t TreeTile::getResourceCount(Random &random)
@@ -56,5 +56,5 @@ int_t TreeTile::getTexture(Facing face, int_t data)
 
 int_t TreeTile::getSpawnResourcesAuxValue(int_t data)
 {
-	return data & TRUNK_TYPE_MASK;
+	return data;
 }

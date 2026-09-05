@@ -1,12 +1,14 @@
 #include "java/Random.h"
+#include "java/Number.h"
+#include "java/StrictMath.h"
 
 #include <chrono>
 #include <cmath>
 #include <stdexcept>
 
-static constexpr long_t RANDOM_MUL = 0x5DEECE66DLL;
-static constexpr long_t RANDOM_ADD = 0xBLL;
-static constexpr long_t RANDOM_AND = (1LL << 48) - 1;
+static const ulong_t RANDOM_MUL = 0x5DEECE66DULL;
+static const ulong_t RANDOM_ADD = 0xBULL;
+static const ulong_t RANDOM_AND = (1ULL << 48) - 1;
 
 Random::Random()
 {
@@ -22,14 +24,15 @@ Random::Random(long_t set_seed)
 
 void Random::setSeed(long_t set_seed)
 {
-	seed = (set_seed ^ RANDOM_MUL) & RANDOM_AND;
+	seed = (static_cast<ulong_t>(set_seed) ^ RANDOM_MUL) & RANDOM_AND;
 	haveNextNextGaussian = false;
 }
 
 int_t Random::next(int_t bits)
 {
+	// B173 - Java wraps this multiply; unsigned arithmetic preserves its low bits.
 	seed = (seed * RANDOM_MUL + RANDOM_ADD) & RANDOM_AND;
-	return (int32_t)((uint64_t)seed >> (48 - bits));
+	return Java::intFromBits(static_cast<uint_t>(seed >> (48 - bits)));
 }
 
 bool Random::nextBoolean()
@@ -44,27 +47,37 @@ int_t Random::nextInt()
 
 int_t Random::nextInt(int_t bound)
 {
-	// Verify that our bound is positive and non-zero
 	if (bound <= 0)
 		throw std::invalid_argument("bound must be positive");
 	
 	int_t r = next(31);
 	int_t m = bound - 1;
-	if ((bound & m) == 0)  // ie Bound is a power of 2
+	if ((bound & m) == 0)
 	{
 		r = static_cast<int_t>((bound * static_cast<long_t>(r)) >> 31);
 	}
 	else
 	{
-		// Reject over-represented candidates
-		for (int32_t u = r; u - (r = u % bound) + m < 0; u = next(31));
+		int_t u = r;
+		while (true)
+		{
+			r = u % bound;
+			if (static_cast<uint_t>(u) - static_cast<uint_t>(r) + static_cast<uint_t>(m) < 0x80000000U)
+				break;
+			u = next(31);
+		}
 	}
 	return r;
 }
 
 long_t Random::nextLong()
 {
-	return (static_cast<long_t>(next(32)) << 32) + next(32);
+	// B173 - Keep draw order and Java's sign extension of the low word.
+	int_t high = next(32);
+	int_t low = next(32);
+	ulong_t bits = (static_cast<ulong_t>(static_cast<long_t>(high)) << 32)
+		+ static_cast<ulong_t>(static_cast<long_t>(low));
+	return Java::longFromBits(bits);
 }
 
 float Random::nextFloat()
@@ -74,7 +87,10 @@ float Random::nextFloat()
 
 double Random::nextDouble()
 {
-	return ((static_cast<long_t>(next(27)) << 27) + next(27)) / static_cast<double>(1LL << 54);
+	int_t high = next(26);
+	int_t low = next(27);
+	return ((static_cast<ulong_t>(high) << 27) + static_cast<ulong_t>(low))
+		/ static_cast<double>(1ULL << 53);
 }
 
 
@@ -96,7 +112,7 @@ double Random::nextGaussian()
 		s = v1 * v1 + v2 * v2;
 	} while (s >= 1.0 || s == 0.0);
 
-	double multiplier = std::sqrt(-2.0 * std::log(s) / s);
+	double multiplier = std::sqrt(-2.0 * StrictMath::log(s) / s);
 	nextNextGaussian = v2 * multiplier;
 	haveNextNextGaussian = true;
 	return v1 * multiplier;

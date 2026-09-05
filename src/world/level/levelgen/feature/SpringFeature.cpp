@@ -27,6 +27,9 @@ bool SpringFeature::place(Level &level, Random &random, int_t x, int_t y, int_t 
 
 	if (stoneCount == 3 && airCount == 1) {
 		level.setTile(x, y, z, blockId);
+		level.instaTick = true;
+		Tile::tiles[blockId]->tick(level, x, y, z, random);
+		level.instaTick = false;
 	}
 
 	return true;

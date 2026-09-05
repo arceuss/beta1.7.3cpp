@@ -9,7 +9,7 @@ PistonExtensionTile::PistonExtensionTile(int_t id, int_t tex) : Tile(id, tex, Ma
 {
 	setDestroyTime(0.5f);
 	setSoundType(soundStoneFootstep);
-	setLightBlock(0);
+	updateCachedProperties();
 }
 
 void PistonExtensionTile::setHeadTexture(int_t tex)
@@ -98,6 +98,11 @@ void PistonExtensionTile::addAABBs(Level &level, int_t x, int_t y, int_t z, AABB
 {
 	int_t data = level.getData(x, y, z);
 	int_t dir = getDirection(data);
+	if (dir > 5)
+	{
+		setShape(0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f);
+		return;
+	}
 
 	updateShape(level, x, y, z);
 	AABB *aabb = getAABB(level, x, y, z);

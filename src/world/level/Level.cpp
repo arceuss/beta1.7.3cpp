@@ -46,8 +46,17 @@
 #include "world/entity/EntityLightningBolt.h"
 #include "world/level/Explosion.h"
 #include "util/Mth.h"
+#include "util/Profiler.h"
 
 int_t Level::maxLoop = 0;
+ulong_t Level::nextTickEntryId = 0;
+
+struct LevelLightRecursion
+{
+	int_t &depth;
+	explicit LevelLightRecursion(int_t &depth) : depth(depth) { ++depth; }
+	~LevelLightRecursion() { --depth; }
+};
 
 namespace
 {
@@ -290,22 +299,36 @@ Level::Level(File *workingDirectory, const jstring &name, long_t seed) : Level(w
 
 }
 
-Level::Level(File *workingDirectory, const jstring &name, const jstring &levelName, long_t seed, int_t dimension)
+void Level::initializeStorage(File *workingDirectory)
 {
-	this->workDir.reset(workingDirectory);
-	this->name = name;
-	this->levelName = levelName;
-
+	workDir.reset(workingDirectory);
 	workingDirectory->mkdirs();
 	dir.reset(File::open(*workingDirectory, name));
 	dir->mkdirs();
-	{
-		std::unique_ptr<File> session_lock(File::open(*dir, u"session.lock"));
-		std::unique_ptr<std::ostream> os(session_lock->toStreamOut());
-		if (!os)
-			throw std::runtime_error("Failed to check session lock, aborting");
-		IOUtil::writeLong(*os, sessionId);
-	}
+	std::unique_ptr<File> sessionLock(File::open(*dir, u"session.lock"));
+	std::unique_ptr<std::ostream> output(sessionLock->toStreamOut());
+	if (!output)
+		throw std::runtime_error("Failed to check session lock, aborting");
+	IOUtil::writeLong(*output, sessionId);
+}
+
+std::shared_ptr<Level> Level::createSimulationLevel(File *workingDirectory, const jstring &name, long_t seed)
+{
+	auto level = std::shared_ptr<Level>(new Level(name, Dimension::Id_Normal, seed, false));
+	level->initializeStorage(workingDirectory);
+	level->setSimulationSeed(seed);
+	level->chunkSource.reset(level->createChunkSource(level->dir));
+	level->xSpawn = 0;
+	level->ySpawn = 96;
+	level->zSpawn = 0;
+	return level;
+}
+
+Level::Level(File *workingDirectory, const jstring &name, const jstring &levelName, long_t seed, int_t dimension)
+{
+	this->name = name;
+	this->levelName = levelName;
+	initializeStorage(workingDirectory);
 
 	int_t new_dimension = Dimension::Id_Normal;
 	// SaveHandler.loadWorldInfo semantics: level.dat, then level.dat_old;
@@ -429,60 +452,49 @@ void Level::setSpawnLocation()
 
 void Level::updateEntityList()
 {
-	for (const auto &entity : entitiesToRemove)
-		entities.erase(entity);
+	entities.erase(std::remove_if(entities.begin(), entities.end(), [&](const auto &entity) {
+		return std::any_of(entitiesToRemove.begin(), entitiesToRemove.end(), [&](const auto &removed) {
+			return entity->entityId == removed->entityId;
+		});
+	}), entities.end());
 
-	for (const auto &entity : entitiesToRemove)
+	for (size_t i = 0; i < entitiesToRemove.size(); ++i)
 	{
-		int_t chunkX = entity->xChunk;
-		int_t chunkZ = entity->zChunk;
-		if (entity->inChunk && hasChunk(chunkX, chunkZ))
-			getChunk(chunkX, chunkZ)->removeEntity(entity);
+		auto entity = entitiesToRemove[i];
+		if (entity->inChunk && hasChunk(entity->xChunk, entity->zChunk))
+			getChunk(entity->xChunk, entity->zChunk)->removeEntity(entity);
 	}
-
-	for (const auto &entity : entitiesToRemove)
-		entityRemoved(entity);
-
+	for (size_t i = 0; i < entitiesToRemove.size(); ++i)
+		entityRemoved(entitiesToRemove[i]);
 	entitiesToRemove.clear();
 
-	for (auto it = entities.begin(); it != entities.end();)
+	for (size_t i = 0; i < entities.size();)
 	{
-		std::shared_ptr<Entity> entity = *it;
+		auto entity = entities[i];
 		if (entity->riding != nullptr)
 		{
 			if (!entity->riding->removed && entity->riding->rider == entity)
 			{
-				++it;
+				++i;
 				continue;
 			}
-
 			entity->riding->rider = nullptr;
 			entity->riding = nullptr;
 		}
-
 		if (!entity->removed)
 		{
-			++it;
+			++i;
 			continue;
 		}
-
-		int_t chunkX = entity->xChunk;
-		int_t chunkZ = entity->zChunk;
-		if (entity->inChunk && hasChunk(chunkX, chunkZ))
-			getChunk(chunkX, chunkZ)->removeEntity(entity);
-		it = entities.erase(it);
+		if (entity->inChunk && hasChunk(entity->xChunk, entity->zChunk))
+			getChunk(entity->xChunk, entity->zChunk)->removeEntity(entity);
+		if (i >= entities.size())
+			throw std::out_of_range("Entity list index removed during update");
+		entities.erase(entities.begin() + i);
 		entityRemoved(entity);
 	}
 }
 
-void Level::centerChunkSource(int_t chunkX, int_t chunkZ)
-{
-	if (chunkSource->isChunkCache())
-	{
-		ChunkCache &chunkCache = static_cast<ChunkCache &>(*chunkSource);
-		chunkCache.centerOn(chunkX, chunkZ);
-	}
-}
 
 
 void Level::loadPlayer(std::shared_ptr<Player> player)
@@ -493,13 +505,6 @@ void Level::loadPlayer(std::shared_ptr<Player> player)
 		loadedPlayerTag = nullptr;
 	}
 
-	if (chunkSource->isChunkCache())
-	{
-		ChunkCache &chunkCache = static_cast<ChunkCache &>(*chunkSource);
-		int_t x = Mth::floor(static_cast<float>(static_cast<int_t>(player->x))) >> 4;
-		int_t z = Mth::floor(static_cast<float>(static_cast<int_t>(player->z))) >> 4;
-		chunkCache.centerOn(x, z);
-	}
 
 	addEntity(player);
 }
@@ -666,7 +671,13 @@ int_t Level::getData(int_t x, int_t y, int_t z)
 void Level::setData(int_t x, int_t y, int_t z, int_t data)
 {
 	if (setDataNoUpdate(x, y, z, data))
-		notifyBlockChange(x, y, z, getTile(x, y, z));
+	{
+		int_t tile = getTile(x, y, z);
+		if (Tile::notifyRenderOnDataChange[tile & 255])
+			notifyBlockChange(x, y, z, tile);
+		else
+			notifyBlocksOfNeighborChange(x, y, z, tile);
+	}
 }
 
 bool Level::setDataNoUpdate(int_t x, int_t y, int_t z, int_t data)
@@ -704,8 +715,8 @@ bool Level::setTileAndData(int_t x, int_t y, int_t z, int_t tile, int_t data)
 
 void Level::sendTileUpdated(int_t x, int_t y, int_t z)
 {
-	for (auto &l : listeners)
-		l->tileChanged(x, y, z);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->tileChanged(x, y, z);
 }
 
 void Level::tileUpdated(int_t x, int_t y, int_t z, int_t tile)
@@ -727,14 +738,14 @@ void Level::lightColumnChanged(int_t x, int_t z, int_t y0, int_t y1)
 
 void Level::setTileDirty(int_t x, int_t y, int_t z)
 {
-	for (auto &l : listeners)
-		l->setTilesDirty(x, y, z, x, y, z);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->setTilesDirty(x, y, z, x, y, z);
 }
 
 void Level::setTilesDirty(int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1)
 {
-	for (auto &l : listeners)
-		l->setTilesDirty(x0, y0, z0, x1, y1, z1);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->setTilesDirty(x0, y0, z0, x1, y1, z1);
 }
 
 void Level::swap(int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1)
@@ -783,7 +794,7 @@ bool Level::isBlockNormalCube(int_t x, int_t y, int_t z)
 	Tile *t = Tile::tiles[id];
 	if (t == nullptr)
 		return false;
-	return t->material.isSolid() && t->isCubeShaped();
+	return t->material.isSolidBlocking() && t->isCubeShaped();
 }
 
 // b1.2 Level.getDirectSignal - the strong query (MCP misnames this pair
@@ -1013,7 +1024,11 @@ void Level::updateLightIfOtherThan(int_t layer, int_t x, int_t y, int_t z, int_t
 
 int_t Level::getBrightness(int_t layer, int_t x, int_t y, int_t z)
 {
-	if (y < 0 || y >= DEPTH || x < -MAX_LEVEL_SIZE || z < -MAX_LEVEL_SIZE || x >= MAX_LEVEL_SIZE || z >= MAX_LEVEL_SIZE)
+	if (y < 0)
+		y = 0;
+	if (y >= DEPTH)
+		y = DEPTH - 1;
+	if (x < -MAX_LEVEL_SIZE || z < -MAX_LEVEL_SIZE || x >= MAX_LEVEL_SIZE || z > MAX_LEVEL_SIZE)
 		return LightLayer::surrounding(layer);
 
 	int_t xc = x >> 4;
@@ -1037,8 +1052,8 @@ void Level::setBrightness(int_t layer, int_t x, int_t y, int_t z, int_t brightne
 
 	getChunk(x >> 4, z >> 4)->setBrightness(layer, x & 0xF, y, z & 0xF, brightness);
 
-	for (auto &l : listeners)
-		l->tileChanged(x, y, z);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->tileChanged(x, y, z);
 }
 
 float Level::getBrightness(int_t x, int_t y, int_t z)
@@ -1263,7 +1278,7 @@ bool Level::addEntity(std::shared_ptr<Entity> entity)
 	}
 
 	getChunk(cx, cz)->addEntity(entity);
-	entities.emplace(entity);
+	entities.push_back(entity);
 	entityAdded(entity);
 
 	return true;
@@ -1282,14 +1297,14 @@ const std::vector<std::shared_ptr<Entity>> &Level::getWeatherEffects() const
 
 void Level::entityAdded(std::shared_ptr<Entity> entity)
 {
-	for (auto &l : listeners)
-		l->entityAdded(entity);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->entityAdded(entity);
 }
 
 void Level::entityRemoved(std::shared_ptr<Entity> entity)
 {
-	for (auto &l : listeners)
-		l->entityRemoved(entity);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->entityRemoved(entity);
 }
 
 void Level::removeEntity(std::shared_ptr<Entity> entity)
@@ -1301,7 +1316,7 @@ void Level::removeEntity(std::shared_ptr<Entity> entity)
 	entity->remove();
 	if (entity->isPlayer())
 	{
-		auto found = std::find(players.begin(), players.end(), std::static_pointer_cast<Player>(entity));
+		auto found = std::find_if(players.begin(), players.end(), [&](const auto &player) { return player->entityId == entity->entityId; });
 		if (found != players.end())
 			players.erase(found);
 		updateAllPlayersSleepingFlag();
@@ -1313,7 +1328,7 @@ void Level::removeEntityImmediately(std::shared_ptr<Entity> entity)
 	entity->remove();
 	if (entity->isPlayer())
 	{
-		auto found = std::find(players.begin(), players.end(), std::static_pointer_cast<Player>(entity));
+		auto found = std::find_if(players.begin(), players.end(), [&](const auto &player) { return player->entityId == entity->entityId; });
 		if (found != players.end())
 			players.erase(found);
 		updateAllPlayersSleepingFlag();
@@ -1322,44 +1337,48 @@ void Level::removeEntityImmediately(std::shared_ptr<Entity> entity)
 	int_t cz = entity->zChunk;
 	if (entity->inChunk && hasChunk(cx, cz))
 		getChunk(cx, cz)->removeEntity(entity);
-	entities.erase(entity);
+	auto found = std::find_if(entities.begin(), entities.end(), [&](const auto &candidate) { return candidate->entityId == entity->entityId; });
+	if (found != entities.end())
+		entities.erase(found);
 	entityRemoved(entity);
 }
 
 void Level::addListener(LevelListener &listener)
 {
-	listeners.emplace(&listener);
+	listeners.push_back(&listener);
 }
 
 void Level::removeListener(LevelListener &listener)
 {
-	listeners.erase(&listener);
+	auto found = std::find(listeners.begin(), listeners.end(), &listener);
+	if (found != listeners.end())
+		listeners.erase(found);
 }
 
 // World.java:855-860
 void Level::playSoundAtEntity(Entity &entity, const jstring &name, float volume, float pitch)
 {
-	for (LevelListener *listener : listeners)
-		listener->playSound(name, entity.x, entity.y - (double)entity.heightOffset, entity.z, volume, pitch);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->playSound(name, entity.x, entity.y - (double)entity.heightOffset, entity.z, volume, pitch);
 }
 
 // World.java:862-867
 void Level::playSoundEffect(double x, double y, double z, const jstring &name, float volume, float pitch)
 {
-	for (LevelListener *listener : listeners)
-		listener->playSound(name, x, y, z, volume, pitch);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->playSound(name, x, y, z, volume, pitch);
 }
 
 // World.java:869-874
 void Level::playRecord(const jstring &name, int_t x, int_t y, int_t z)
 {
-	for (LevelListener *listener : listeners)
-		listener->playStreamingMusic(name, x, y, z);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->playStreamingMusic(name, x, y, z);
 }
 void Level::addParticle(const jstring &name, double x, double y, double z, double xa, double ya, double za)
 {
-	for (LevelListener *listener : listeners)
-		listener->addParticle(name, x, y, z, xa, ya, za);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->addParticle(name, x, y, z, xa, ya, za);
 }
 
 void Level::levelEvent(int_t event, int_t x, int_t y, int_t z, int_t data)
@@ -1369,8 +1388,8 @@ void Level::levelEvent(int_t event, int_t x, int_t y, int_t z, int_t data)
 
 void Level::levelEvent(Player *player, int_t event, int_t x, int_t y, int_t z, int_t data)
 {
-	for (LevelListener *listener : listeners)
-		listener->levelEvent(player, event, x, y, z, data);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->levelEvent(player, event, x, y, z, data);
 }
 
 const std::vector<AABB *> &Level::getCubes(Entity &entity, AABB &bb)
@@ -1386,9 +1405,11 @@ const std::vector<AABB *> &Level::getCubes(Entity &entity, AABB &bb)
 
 	for (int_t x = x0; x < x1; x++)
 	{
-		for (int_t y = y0; y < y1; y++)
+		for (int_t z = z0; z < z1; z++)
 		{
-			for (int_t z = z0; z < z1; z++)
+			if (!hasChunkAt(x, 64, z))
+				continue;
+			for (int_t y = y0 - 1; y < y1; y++)
 			{
 				Tile *tile = Tile::tiles[getTile(x, y, z)];
 				if (tile != nullptr)
@@ -1400,12 +1421,14 @@ const std::vector<AABB *> &Level::getCubes(Entity &entity, AABB &bb)
 	double skin = 0.25;
 	const auto &overlapEntities = getEntities(&entity, *bb.grow(skin, skin, skin));
 
-	for (auto &other : overlapEntities)
+	for (size_t i = 0; i < overlapEntities.size(); ++i)
 	{
+		auto other = overlapEntities.at(i);
 		AABB *ebb = other->getCollideBox();
 		if (ebb != nullptr && ebb->intersects(bb))
 			boxes.push_back(ebb);
 
+		other = overlapEntities.at(i);
 		ebb = entity.getCollideAgainstBox(*other);
 		if (ebb != nullptr && ebb->intersects(bb))
 			boxes.push_back(ebb);
@@ -1637,7 +1660,8 @@ void Level::addToTickNextTick(int_t x, int_t y, int_t z, int_t tileId)
 	entry.y = y;
 	entry.z = z;
 	entry.tileId = tileId;
-	entry.order = nextTickEntryId++;
+	ulong_t order = nextTickEntryId++;
+	std::memcpy(&entry.order, &order, sizeof(order));
 
 	constexpr int_t chunkRadius = 8;
 	if (instaTick)
@@ -1655,7 +1679,10 @@ void Level::addToTickNextTick(int_t x, int_t y, int_t z, int_t tileId)
 		return;
 
 	if (tileId > 0 && Tile::tiles[tileId] != nullptr)
-		entry.delay = static_cast<long_t>(Tile::tiles[tileId]->getTickDelay()) + time;
+	{
+		ulong_t delay = static_cast<ulong_t>(time) + static_cast<ulong_t>(Tile::tiles[tileId]->getTickDelay());
+		std::memcpy(&entry.delay, &delay, sizeof(delay));
+	}
 
 	if (tickNextTickSet.find(entry) != tickNextTickSet.end())
 		return;
@@ -1666,81 +1693,95 @@ void Level::addToTickNextTick(int_t x, int_t y, int_t z, int_t tileId)
 
 void Level::tickEntities()
 {
-	for (auto it = weatherEffects.begin(); it != weatherEffects.end();)
+	Profiler::Scope profile(Profiler::Section::EntityTick);
+	for (size_t i = 0; i < weatherEffects.size();)
 	{
-		(*it)->tick();
-		if ((*it)->removed)
-			it = weatherEffects.erase(it);
-		else
-			++it;
-	}
-
-	// Remove entities queued to remove
-	for (auto &entity : entitiesToRemove)
-		entities.erase(entity);
-
-	for (auto &entity : entitiesToRemove)
-	{
-		int_t xc = entity->xChunk;
-		int_t zc = entity->zChunk;
-		if (entity->inChunk && hasChunk(xc, zc))
-			getChunk(xc, zc)->removeEntity(entity);
-	}
-
-	for (auto &entity : entitiesToRemove)
-		entityRemoved(entity);
-
-	entitiesToRemove.clear();
-
-	// Tick all entities
-	for (auto it = entities.begin(); it != entities.end();)
-	{
-		std::shared_ptr<Entity> entity = *it;
-
-		if (entity->riding != nullptr)
-		{
-			if (entity->riding->removed || entity->riding->rider != entity)
-			{
-				entity->riding->rider = nullptr;
-				entity->riding = nullptr;
-			}
-			else
-			{
-				it++;
-				continue;
-			}
-		}
-
-		if (!entity->removed)
-			tick(entity);
-
+		auto entity = weatherEffects[i];
+		entity->tick();
 		if (entity->removed)
 		{
-			int_t xc = entity->xChunk;
-			int_t zc = entity->zChunk;
-			if (entity->inChunk && hasChunk(xc, zc))
-				getChunk(xc, zc)->removeEntity(entity);
-			it = entities.erase(it);
-			entityRemoved(entity);
-			continue;
+			if (i >= weatherEffects.size())
+				throw std::out_of_range("Weather list index removed during update");
+			weatherEffects.erase(weatherEffects.begin() + i);
 		}
-
-		it++;
-		continue;
+		else
+			++i;
 	}
 
-	// Tick tile entities from a snapshot because some updates, like furnace relighting,
-	// temporarily replace the block and mutate tileEntityList mid-tick.
-	std::vector<std::shared_ptr<TileEntity>> tileEntities(tileEntityList.begin(), tileEntityList.end());
-	for (auto &tileEntity : tileEntities)
+	entities.erase(std::remove_if(entities.begin(), entities.end(), [&](const auto &entity) {
+		return std::any_of(entitiesToRemove.begin(), entitiesToRemove.end(), [&](const auto &removed) {
+			return entity->entityId == removed->entityId;
+		});
+	}), entities.end());
+	for (size_t i = 0; i < entitiesToRemove.size(); ++i)
 	{
-		if (tileEntity == nullptr || !hasChunk(tileEntity->x >> 4, tileEntity->z >> 4))
-			continue;
-		auto current = getTileEntity(tileEntity->x, tileEntity->y, tileEntity->z);
-		if (current.get() != tileEntity.get())
-			continue;
-		tileEntity->tick();
+		auto entity = entitiesToRemove[i];
+		if (entity->inChunk && hasChunk(entity->xChunk, entity->zChunk))
+			getChunk(entity->xChunk, entity->zChunk)->removeEntity(entity);
 	}
+	for (size_t i = 0; i < entitiesToRemove.size(); ++i)
+		entityRemoved(entitiesToRemove[i]);
+	entitiesToRemove.clear();
+
+	// Java indexes the live list, so entities appended by a tick run this tick.
+	for (size_t i = 0; i < entities.size();)
+	{
+		auto entity = entities[i];
+		if (entity->riding != nullptr)
+		{
+			if (!entity->riding->removed && entity->riding->rider == entity)
+			{
+				++i;
+				continue;
+			}
+			entity->riding->rider = nullptr;
+			entity->riding = nullptr;
+		}
+		if (!entity->removed)
+			tick(entity);
+		if (entity->removed)
+		{
+			if (entity->inChunk && hasChunk(entity->xChunk, entity->zChunk))
+				getChunk(entity->xChunk, entity->zChunk)->removeEntity(entity);
+			if (i >= entities.size())
+				throw std::out_of_range("Entity list index removed during update");
+			entities.erase(entities.begin() + i);
+			entityRemoved(entity);
+		}
+		else
+			++i;
+	}
+
+	tickingTileEntities = true;
+	for (size_t i = 0; i < tileEntityList.size();)
+	{
+		auto tileEntity = tileEntityList[i];
+		if (!tileEntity->isRemoved())
+			tileEntity->tick();
+		if (tileEntity->isRemoved())
+		{
+			tileEntityList.erase(tileEntityList.begin() + i);
+			auto chunk = getChunk(tileEntity->x >> 4, tileEntity->z >> 4);
+			if (chunk != nullptr)
+				chunk->removeTileEntity(tileEntity->x & 15, tileEntity->y, tileEntity->z & 15);
+		}
+		else
+			++i;
+	}
+	tickingTileEntities = false;
+	for (size_t i = 0; i < pendingTileEntities.size(); ++i)
+	{
+		auto tileEntity = pendingTileEntities[i];
+		if (tileEntity->isRemoved())
+			continue;
+		if (std::find(tileEntityList.begin(), tileEntityList.end(), tileEntity) == tileEntityList.end())
+			tileEntityList.push_back(tileEntity);
+		auto chunk = getChunk(tileEntity->x >> 4, tileEntity->z >> 4);
+		if (chunk != nullptr)
+			chunk->setTileEntity(tileEntity->x & 15, tileEntity->y, tileEntity->z & 15, tileEntity);
+		sendTileUpdated(tileEntity->x, tileEntity->y, tileEntity->z);
+	}
+	pendingTileEntities.clear();
 }
 
 void Level::tick(std::shared_ptr<Entity> entity)
@@ -1999,16 +2040,47 @@ std::shared_ptr<TileEntity> Level::getTileEntity(int_t x, int_t y, int_t z)
 
 void Level::setTileEntity(int_t x, int_t y, int_t z, std::shared_ptr<TileEntity> tileEntity)
 {
-	std::shared_ptr<LevelChunk> chunk = getChunk(x >> 4, z >> 4);
-	if (chunk != nullptr)
-		chunk->setTileEntity(x & 0xF, y, z & 0xF, tileEntity);
+	if (tileEntity->isRemoved())
+		return;
+	if (tickingTileEntities)
+	{
+		tileEntity->x = x;
+		tileEntity->y = y;
+		tileEntity->z = z;
+		pendingTileEntities.push_back(tileEntity);
+	}
+	else
+	{
+		tileEntityList.push_back(tileEntity);
+		auto chunk = getChunk(x >> 4, z >> 4);
+		if (chunk != nullptr)
+			chunk->setTileEntity(x & 15, y, z & 15, tileEntity);
+	}
 }
 
 void Level::removeTileEntity(int_t x, int_t y, int_t z)
 {
-	std::shared_ptr<LevelChunk> chunk = getChunk(x >> 4, z >> 4);
+	auto tileEntity = getTileEntity(x, y, z);
+	if (tileEntity != nullptr && tickingTileEntities)
+	{
+		tileEntity->setRemoved();
+		return;
+	}
+	if (tileEntity != nullptr)
+	{
+		auto found = std::find(tileEntityList.begin(), tileEntityList.end(), tileEntity);
+		if (found != tileEntityList.end())
+			tileEntityList.erase(found);
+	}
+	auto chunk = getChunk(x >> 4, z >> 4);
 	if (chunk != nullptr)
-		chunk->removeTileEntity(x & 0xF, y, z & 0xF);
+		chunk->removeTileEntity(x & 15, y, z & 15);
+}
+
+void Level::addTileEntities(const std::vector<std::shared_ptr<TileEntity>> &tileEntities)
+{
+	auto &destination = tickingTileEntities ? pendingTileEntities : tileEntityList;
+	destination.insert(destination.end(), tileEntities.begin(), tileEntities.end());
 }
 
 bool Level::isSolidTile(int_t x, int_t y, int_t z)
@@ -2028,16 +2100,16 @@ int_t Level::getLightsToUpdate()
 
 bool Level::updateLights()
 {
+	Profiler::Scope profile(Profiler::Section::Lighting);
 	if (maxRecurse >= 50)
 		return false;
-	maxRecurse++;
+	LevelLightRecursion recursion(maxRecurse);
 
 	int_t limit = 500;
 	while (!lightUpdates.empty())
 	{
 		if (--limit <= 0)
 		{
-			maxRecurse--;
 			return true;
 		}
 
@@ -2047,7 +2119,6 @@ bool Level::updateLights()
 		update.update(*this);
 	}
 
-	maxRecurse--;
 	return false;
 }
 
@@ -2061,22 +2132,21 @@ void Level::updateLight(int_t layer, int_t x0, int_t y0, int_t z0, int_t x1, int
 	if (dimension->hasCeiling && layer == LightLayer::Sky)
 		return;
 
-	if (++maxLoop == 50)
-	{
-		maxLoop--;
+	LevelLightRecursion recursion(maxLoop);
+	if (maxLoop == 50)
 		return;
-	}
 
 	int_t xm = (x1 + x0) / 2;
 	int_t zm = (z1 + z0) / 2;
 	if (!hasChunkAt(xm, 64, zm))
 	{
-		maxLoop--;
 		return;
 	}
 
 	if (getChunkAt(xm, zm)->isEmpty())
+	{
 		return;
+	}
 
 	int_t updates = lightUpdates.size();
 	if (checkExpansion)
@@ -2091,7 +2161,6 @@ void Level::updateLight(int_t layer, int_t x0, int_t y0, int_t z0, int_t x1, int
 			LightUpdate &other = lightUpdates[lightUpdates.size() - i - 1];
 			if (other.layer == layer && other.expandToContain(x0, y0, z0, x1, y1, z1))
 			{
-				maxLoop--;
 				return;
 			}
 		}
@@ -2107,7 +2176,18 @@ void Level::updateLight(int_t layer, int_t x0, int_t y0, int_t z0, int_t x1, int
 		lightUpdates.clear();
 	}
 
-	maxLoop--;
+}
+
+void Level::setSimulationSeed(long_t seed)
+{
+	random.setSeed(seed);
+	randValue = random.nextInt();
+	delayUntilNextMoodSound = random.nextInt(12000);
+	raining = false;
+	thundering = false;
+	rainTime = thunderTime = 0;
+	previousRainingStrength = rainingStrength = 0.0f;
+	previousThunderingStrength = thunderingStrength = 0.0f;
 }
 
 void Level::updateSkyBrightness()
@@ -2579,8 +2659,8 @@ void Level::tick()
 	if (newDarken != skyDarken)
 	{
 		skyDarken = newDarken;
-		for (auto &l : listeners)
-			l->skyColorChanged();
+		for (size_t i = 0; i < listeners.size(); ++i)
+			listeners[i]->skyColorChanged();
 	}
 
 	time++;
@@ -2709,154 +2789,90 @@ bool Level::isAllPlayersFullyAsleep()
 
 void Level::tickTiles()
 {
-	constexpr int_t activeChunkRadius = 9;
-	constexpr int_t moodSearchRadius = 8;
-	constexpr int_t maxMoodSoundAttempts = 32;
-	constexpr int_t randomTicksPerChunk = 80;
-
-	std::set<std::pair<int_t, int_t>> activeChunks;
-	int_t activePlayers = 0;
+	activeChunks.clear();
 	for (const auto &player : players)
 	{
-		if (player == nullptr || player->removed)
-			continue;
-		activePlayers++;
 		int_t chunkX = Mth::floor(player->x / 16.0);
 		int_t chunkZ = Mth::floor(player->z / 16.0);
-		for (int_t dx = -activeChunkRadius; dx <= activeChunkRadius; ++dx)
-		{
-			for (int_t dz = -activeChunkRadius; dz <= activeChunkRadius; ++dz)
-				activeChunks.insert(std::make_pair(chunkX + dx, chunkZ + dz));
-		}
+		for (int_t dx = -9; dx <= 9; ++dx)
+			for (int_t dz = -9; dz <= 9; ++dz)
+				activeChunks.emplaceChunk(chunkX + dx, chunkZ + dz);
 	}
-	if (activePlayers == 0)
-		return;
-
 	if (delayUntilNextMoodSound > 0)
-		delayUntilNextMoodSound--;
+		--delayUntilNextMoodSound;
 
-	if (delayUntilNextMoodSound == 0)
+	auto nextPosition = [&]() {
+		uint_t value = static_cast<uint_t>(randValue) * 3U + static_cast<uint_t>(addend);
+		std::memcpy(&randValue, &value, sizeof(value));
+		return value >> 2;
+	};
+	for (const auto &position : activeChunks)
 	{
-		for (int_t attempt = 0; attempt < maxMoodSoundAttempts; attempt++)
+		int_t baseX = position.x * 16;
+		int_t baseZ = position.z * 16;
+		auto chunk = getChunk(position.x, position.z);
+		if (delayUntilNextMoodSound == 0)
 		{
-			std::shared_ptr<Player> anchorPlayer;
-			int_t choice = random.nextInt(activePlayers);
-			for (const auto &player : players)
+			uint_t value = nextPosition();
+			int_t x = value & 15;
+			int_t z = (value >> 8) & 15;
+			int_t y = (value >> 16) & 127;
+			int_t tile = chunk->getTile(x, y, z);
+			x += baseX;
+			z += baseZ;
+			if (tile == 0 && getFullBrightness(x, y, z) <= random.nextInt(8) &&
+				getBrightness(LightLayer::Sky, x, y, z) <= 0)
 			{
-				if (player == nullptr || player->removed)
-					continue;
-				if (choice-- != 0)
-					continue;
-
-				anchorPlayer = player;
-				break;
+				auto player = getNearestPlayer(x + 0.5, y + 0.5, z + 0.5, 8.0);
+				if (player != nullptr && player->distanceToSqr(x + 0.5, y + 0.5, z + 0.5) > 4.0)
+				{
+					playSoundEffect(x + 0.5, y + 0.5, z + 0.5, u"ambient.cave.cave", 0.7f, 0.8f + random.nextFloat() * 0.2f);
+					delayUntilNextMoodSound = random.nextInt(12000) + 6000;
+				}
 			}
-
-			if (anchorPlayer == nullptr)
-				continue;
-
-			int_t chunkX = Mth::floor(anchorPlayer->x / 16.0) + random.nextInt(moodSearchRadius * 2 + 1) - moodSearchRadius;
-			int_t chunkZ = Mth::floor(anchorPlayer->z / 16.0) + random.nextInt(moodSearchRadius * 2 + 1) - moodSearchRadius;
-			if (!hasChunk(chunkX, chunkZ))
-				continue;
-
-			randValue = randValue * 3 + addend;
-			int_t moodValue = randValue >> 2;
-			int_t x = (chunkX << 4) + (moodValue & 15);
-			int_t y = (moodValue >> 16) & (DEPTH - 1);
-			int_t z = (chunkZ << 4) + ((moodValue >> 8) & 15);
-
-			if (!hasChunkAt(x, y, z) || !isEmptyTile(x, y, z))
-				continue;
-			if (getBrightness(LightLayer::Sky, x, y, z) > 0)
-				continue;
-			if (getRawBrightness(x, y, z) > random.nextInt(8))
-				continue;
-
-			double soundX = static_cast<double>(x) + 0.5;
-			double soundY = static_cast<double>(y) + 0.5;
-			double soundZ = static_cast<double>(z) + 0.5;
-			double nearestPlayerDistSqr = 64.0;
-			for (const auto &player : players)
-			{
-				if (player == nullptr || player->removed)
-					continue;
-				double distSqr = player->distanceToSqr(soundX, soundY, soundZ);
-				if (distSqr < nearestPlayerDistSqr)
-					nearestPlayerDistSqr = distSqr;
-			}
-			if (nearestPlayerDistSqr <= 4.0 || nearestPlayerDistSqr >= 64.0)
-				continue;
-
-			playSoundEffect(soundX, soundY, soundZ, u"ambient.cave.cave", 0.7f, 0.8f + random.nextFloat() * 0.2f);
-			delayUntilNextMoodSound = random.nextInt(12000) + 6000;
-			break;
 		}
-	}
 
-	for (const auto &chunkPos : activeChunks)
-	{
-		if (!hasChunk(chunkPos.first, chunkPos.second))
-			continue;
-
-		std::shared_ptr<LevelChunk> chunk = getChunk(chunkPos.first, chunkPos.second);
-		if (chunk == nullptr)
-			continue;
-
-		int_t baseX = chunkPos.first * 16;
-		int_t baseZ = chunkPos.second * 16;
-
-		// World.updateBlocksAndPlayCaveSounds - lightning strikes during thunderstorms
 		if (random.nextInt(100000) == 0 && isRaining() && isThundering())
 		{
-			randValue = randValue * 3 + addend;
-			int_t value = randValue >> 2;
-			int_t boltX = baseX + (value & 15);
-			int_t boltZ = baseZ + ((value >> 8) & 15);
-			int_t boltY = getTopSolidBlock(boltX, boltZ);
-			if (canBlockBeRainedOn(boltX, boltY, boltZ))
+			uint_t value = nextPosition();
+			int_t x = baseX + (value & 15);
+			int_t z = baseZ + ((value >> 8) & 15);
+			int_t y = findTopSolidBlock(x, z);
+			if (canBlockBeRainedOn(x, y, z))
 			{
-				addWeatherEffect(std::make_shared<EntityLightningBolt>(*this, boltX, boltY, boltZ));
+				addWeatherEffect(std::make_shared<EntityLightningBolt>(*this, x, y, z));
 				lastLightningBolt = 2;
 			}
 		}
 
-		// snow layer / ice formation while it rains in snowy biomes
 		if (random.nextInt(16) == 0)
 		{
-			randValue = randValue * 3 + addend;
-			int_t value = randValue >> 2;
-			int_t localX = value & 15;
-			int_t localZ = (value >> 8) & 15;
-			int_t topY = getTopSolidBlock(localX + baseX, localZ + baseZ);
-			if (getBiomeSource().getBiomeInfo(getBiomeSource().getBiome(localX + baseX, localZ + baseZ)).enableSnow
-				&& topY >= 0 && topY < DEPTH
-				&& chunk->getBrightness(LightLayer::Block, localX, topY, localZ) < 10)
+			uint_t value = nextPosition();
+			int_t x = value & 15;
+			int_t z = (value >> 8) & 15;
+			int_t y = findTopSolidBlock(x + baseX, z + baseZ);
+			if (getBiomeSource().getBiomeInfo(getBiomeSource().getBiome(x + baseX, z + baseZ)).enableSnow &&
+				y >= 0 && y < DEPTH && chunk->getBrightness(LightLayer::Block, x, y, z) < 10)
 			{
-				int_t below = chunk->getTile(localX, topY - 1, localZ);
-				int_t at = chunk->getTile(localX, topY, localZ);
-				if (isRaining() && at == 0 && Tile::snow.mayPlace(*this, localX + baseX, topY, localZ + baseZ)
-					&& below != 0 && below != Tile::ice.id && Tile::tiles[below]->material.blocksMotion())
-				{
-					setTile(localX + baseX, topY, localZ + baseZ, Tile::snow.id);
-				}
-
-				if (below == Tile::calmWater.id && chunk->getData(localX, topY - 1, localZ) == 0)
-					setTile(localX + baseX, topY - 1, localZ + baseZ, Tile::ice.id);
+				int_t below = chunk->getTile(x, y - 1, z);
+				int_t at = chunk->getTile(x, y, z);
+				if (isRaining() && at == 0 && Tile::snow.mayPlace(*this, x + baseX, y, z + baseZ) &&
+					below != 0 && below != Tile::ice.id && Tile::tiles[below]->material.isSolid())
+					setTile(x + baseX, y, z + baseZ, Tile::snow.id);
+				if (below == Tile::calmWater.id && chunk->getData(x, y - 1, z) == 0)
+					setTile(x + baseX, y - 1, z + baseZ, Tile::ice.id);
 			}
 		}
 
-		for (int_t i = 0; i < randomTicksPerChunk; ++i)
+		for (int_t i = 0; i < 80; ++i)
 		{
-			randValue = randValue * 3 + addend;
-			int_t tickValue = randValue >> 2;
-			int_t localX = tickValue & 15;
-			int_t localZ = (tickValue >> 8) & 15;
-			int_t y = (tickValue >> 16) & (DEPTH - 1);
-			int_t tile = chunk->getTile(localX, y, localZ);
-			if (tile <= 0 || !Tile::shouldTick[tile] || Tile::tiles[tile] == nullptr)
-				continue;
-			Tile::tiles[tile]->tick(*this, (chunkPos.first << 4) + localX, y, (chunkPos.second << 4) + localZ, random);
+			uint_t value = nextPosition();
+			int_t x = value & 15;
+			int_t z = (value >> 8) & 15;
+			int_t y = (value >> 16) & 127;
+			int_t tile = chunk->getTile(x, y, z);
+			if (Tile::shouldTick[tile])
+				Tile::tiles[tile]->tick(*this, x + baseX, y, z + baseZ, random);
 		}
 	}
 }
@@ -2926,14 +2942,15 @@ const std::vector<std::shared_ptr<Entity>> &Level::getEntities(Entity *ignore, A
 
 	for (int_t cx = x0; cx <= x1; cx++)
 		for (int_t cz = z0; cz <= z1; cz++)
-			getChunk(cx, cz)->getEntities(ignore, aabb, es);
+			if (hasChunk(cx, cz))
+				getChunk(cx, cz)->getEntities(ignore, aabb, es);
 
 	return es;
 }
 
-const std::vector<std::shared_ptr<Entity>> &Level::getEntitiesOfCondition(bool (*condition)(Entity &), AABB &aabb)
+std::vector<std::shared_ptr<Entity>> Level::getEntitiesOfCondition(bool (*condition)(Entity &), AABB &aabb)
 {
-	es.clear();
+	std::vector<std::shared_ptr<Entity>> result;
 
 	int_t x0 = Mth::floor((aabb.x0 - 2.0) / 16.0);
 	int_t x1 = Mth::floor((aabb.x1 + 2.0) / 16.0);
@@ -2942,12 +2959,13 @@ const std::vector<std::shared_ptr<Entity>> &Level::getEntitiesOfCondition(bool (
 
 	for (int_t cx = x0; cx <= x1; cx++)
 		for (int_t cz = z0; cz <= z1; cz++)
-			getChunk(cx, cz)->getEntitiesOfCondition(condition, aabb, es);
+			if (hasChunk(cx, cz))
+				getChunk(cx, cz)->getEntitiesOfCondition(condition, aabb, result);
 
-	return es;
+	return result;
 }
 
-const std::unordered_set<std::shared_ptr<Entity>> &Level::getAllEntities()
+const std::vector<std::shared_ptr<Entity>> &Level::getAllEntities()
 {
 	return entities;
 }
@@ -2956,29 +2974,32 @@ void Level::tileEntityChanged(int_t x, int_t y, int_t z, std::shared_ptr<TileEnt
 {
 	if (hasChunkAt(x, y, z))
 		getChunkAt(x, z)->markUnsaved();
-	for (auto &l : listeners)
-		l->tileEntityChanged(x, y, z, tileEntity);
+	for (size_t i = 0; i < listeners.size(); ++i)
+		listeners[i]->tileEntityChanged(x, y, z, tileEntity);
 }
 
 int_t Level::countConditionOf(bool (*condition)(Entity &))
 {
 	int_t count = 0;
-	for (auto &i : entities)
-		if (condition(*i))
-			count++;
+	for (size_t i = 0; i < entities.size(); ++i)
+	{
+		auto entity = entities[i];
+		if (condition(*entity))
+			++count;
+	}
 	return count;
 }
 
-void Level::addEntities(const std::unordered_set<std::shared_ptr<Entity>> &entities)
+void Level::addEntities(const std::vector<std::shared_ptr<Entity>> &entities)
 {
-	this->entities.insert(entities.begin(), entities.end());
-	for (auto &i : entities)
-		entityAdded(i);
+	this->entities.insert(this->entities.end(), entities.begin(), entities.end());
+	for (size_t i = 0; i < entities.size(); ++i)
+		entityAdded(entities[i]);
 }
 
-void Level::removeEntities(const std::unordered_set<std::shared_ptr<Entity>> &entities)
+void Level::removeEntities(const std::vector<std::shared_ptr<Entity>> &entities)
 {
-	entitiesToRemove.insert(entities.begin(), entities.end());
+	entitiesToRemove.insert(entitiesToRemove.end(), entities.begin(), entities.end());
 }
 
 void Level::disconnect()
@@ -3013,9 +3034,9 @@ void Level::ensureAdded(std::shared_ptr<Entity> entity)
 			getChunk(cx, cz);
 
 	for (auto &i : entities)
-		if (i == entity)
+		if (i->entityId == entity->entityId)
 			return;
-	entities.emplace(entity);
+	entities.push_back(entity);
 }
 
 bool Level::mayInteract(std::shared_ptr<Player> player, int_t x, int_t y, int_t z)

@@ -17,7 +17,7 @@ PistonBaseTile::PistonBaseTile(int_t id, int_t tex, bool sticky) : Tile(id, tex,
 	isSticky = sticky;
 	setDestroyTime(0.5f);
 	setSoundType(soundStoneFootstep);
-	setLightBlock(0);
+	updateCachedProperties();
 }
 
 int_t PistonBaseTile::getTexture(Facing face, int_t data)
@@ -62,19 +62,20 @@ void PistonBaseTile::setPlacedBy(Level &level, int_t x, int_t y, int_t z, Player
 {
 	int_t dir = getPlacementDirection(level, x, y, z, player);
 	level.setData(x, y, z, dir);
-	checkState(level, x, y, z);
+	if (!level.isOnline)
+		checkState(level, x, y, z);
 }
 
 void PistonBaseTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
 	(void)tile;
-	if (!suppressNeighborUpdates)
+	if (!level.isOnline && !suppressNeighborUpdates)
 		checkState(level, x, y, z);
 }
 
 void PistonBaseTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (level.getTileEntity(x, y, z) == nullptr)
+	if (!level.isOnline && level.getTileEntity(x, y, z) == nullptr)
 		checkState(level, x, y, z);
 }
 

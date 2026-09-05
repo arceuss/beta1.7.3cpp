@@ -109,7 +109,6 @@ void SurvivalMode::continueDestroyBlock(int_t x, int_t y, int_t z, Facing face)
 
 void SurvivalMode::render(float a)
 {
-	// TODO
 	if (destroyProgress <= 0.0f)
 	{
 		minecraft.gui.progress = 0.0f;

@@ -52,7 +52,7 @@ Tile::Shape StairTile::getRenderShape()
 void StairTile::addAABBs(Level &level, int_t x, int_t y, int_t z, AABB &bb, std::vector<AABB *> &aabbList)
 {
 	int_t data = level.getData(x, y, z);
-	for (int_t piece = 0; piece < 2; ++piece)
+	for (int_t piece = 0; piece < 2 && data >= 0 && data <= 3; ++piece)
 	{
 		setPieceShape(*this, data, piece);
 		Tile::addAABBs(level, x, y, z, bb, aabbList);

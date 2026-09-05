@@ -108,7 +108,7 @@ bool LakeFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 			{
 				if (shape[(sx * 16 + sz) * 8 + sy] &&
 					level.getTile(x + sx, y + sy - 1, z + sz) == Tile::dirt.id &&
-					level.getBrightness(x + sx, y + sy, z + sz) > 0)
+					level.getBrightness(LightLayer::Sky, x + sx, y + sy, z + sz) > 0)
 				{
 					level.setTileNoUpdate(x + sx, y + sy - 1, z + sz, Tile::grass.id);
 				}

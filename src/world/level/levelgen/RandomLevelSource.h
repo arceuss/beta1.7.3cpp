@@ -5,6 +5,7 @@
 #include <array>
 
 #include "world/level/levelgen/synth/PerlinNoise.h"
+#include "world/level/levelgen/LargeCaveFeature.h"
 
 #include "java/Random.h"
 
@@ -36,10 +37,12 @@ private:
 	PerlinNoise forestNoise;
 
 	Level &level;
+	LargeCaveFeature caveFeature;
 
 	std::array<double, 16 * 16> sandBuffer = {};
 	std::array<double, 16 * 16> gravelBuffer = {};
 	std::array<double, 16 * 16> depthBuffer = {};
+	std::array<double, 16 * 16> generatedTemperatures = {};
 
 	static constexpr int_t BUFFER_WIDTH = 16 / CHUNK_WIDTH;
 	static constexpr int_t BUFFER_HEIGHT = 128 / CHUNK_HEIGHT;

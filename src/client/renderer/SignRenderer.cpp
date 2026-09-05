@@ -7,7 +7,7 @@
 #include "world/level/tile/Tile.h"
 #include "world/level/tile/entity/SignTileEntity.h"
 
-#include "glad/glad.h"
+#include "OpenGL.h"
 
 namespace
 {

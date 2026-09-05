@@ -8,7 +8,7 @@
 #include "world/level/tile/PistonBaseTile.h"
 #include "world/level/tile/PistonExtensionTile.h"
 
-#include <glad/glad.h>
+#include "OpenGL.h"
 
 void PistonTileEntityRenderer::setLevel(LevelSource *level)
 {

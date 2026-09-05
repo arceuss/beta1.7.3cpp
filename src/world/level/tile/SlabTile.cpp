@@ -13,8 +13,11 @@ namespace
 	constexpr int_t COBBLESTONE_TEXTURE = 16;
 }
 
-SlabTile::SlabTile(int_t id, bool fullBlock) : Tile(id, STONE_TOP_TEXTURE, Material::stone), fullBlock(fullBlock)
+SlabTile::SlabTile(int_t id, bool fullBlock) : Tile(id, STONE_TOP_TEXTURE, Material::stone)
 {
+	// Java's base constructor observes blockType before the subclass assigns it.
+	updateCachedProperties();
+	this->fullBlock = fullBlock;
 	if (!fullBlock)
 		updateDefaultShape();
 	setLightBlock(255);
@@ -22,7 +25,7 @@ SlabTile::SlabTile(int_t id, bool fullBlock) : Tile(id, STONE_TOP_TEXTURE, Mater
 
 int_t SlabTile::getTexture(Facing face, int_t data)
 {
-	switch (data & 3)
+	switch (data)
 	{
 	case 0:
 		return (face == Facing::UP || face == Facing::DOWN) ? STONE_TOP_TEXTURE : STONE_SIDE_TEXTURE;
@@ -35,8 +38,9 @@ int_t SlabTile::getTexture(Facing face, int_t data)
 	case 2:
 		return WOOD_TEXTURE;
 	case 3:
-	default:
 		return COBBLESTONE_TEXTURE;
+	default:
+		return STONE_TOP_TEXTURE;
 	}
 }
 
@@ -52,24 +56,25 @@ bool SlabTile::isSolidRender()
 
 bool SlabTile::shouldRenderFace(LevelSource &level, int_t x, int_t y, int_t z, Facing face)
 {
-	if (fullBlock)
-		return Tile::shouldRenderFace(level, x, y, z, face);
-	if (face == Facing::UP || face == Facing::DOWN)
+	if (this != &Tile::slabSingle)
+		Tile::shouldRenderFace(level, x, y, z, face);
+	if (face == Facing::UP)
 		return true;
 	if (!Tile::shouldRenderFace(level, x, y, z, face))
 		return false;
+	if (face == Facing::DOWN)
+		return true;
 	return level.getTile(x, y, z) != id;
 }
 
 void SlabTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (fullBlock)
-		return;
-
-	int_t data = level.getData(x, y, z) & 3;
-	if (level.getTile(x, y - 1, z) != Tile::slabSingle.id)
-		return;
-	if ((level.getData(x, y - 1, z) & 3) != data)
+	if (this != &Tile::slabSingle)
+		Tile::onPlace(level, x, y, z);
+	int_t below = level.getTile(x, y - 1, z);
+	int_t data = level.getData(x, y, z);
+	int_t belowData = level.getData(x, y - 1, z);
+	if (data != belowData || below != Tile::slabSingle.id)
 		return;
 
 	level.setTile(x, y, z, 0);
@@ -91,7 +96,7 @@ int_t SlabTile::getResource(int_t data, Random &random)
 
 int_t SlabTile::getSpawnResourcesAuxValue(int_t data)
 {
-	return data & 3;
+	return data;
 }
 
 void SlabTile::updateDefaultShape()

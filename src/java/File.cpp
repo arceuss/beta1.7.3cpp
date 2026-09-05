@@ -4,41 +4,38 @@
 #include <string>
 #include <iostream>
 
-jstring File::getName() const
-{
-	size_t pos = path.find_last_of(u"/\\");
-	if (pos != jstring::npos)
-		return path.substr(pos + 1);
-	return path;
-}
 
 jstring File::toString() const
 {
 	return path;
 }
 
-jstring File::toURL() const
-{
-	// TODO
-	return path;
-}
 
 bool File::mkdirs() const
 {
+	if (exists())
+		return false;
+	if (mkdir())
+		return true;
+
 	// Get directory up to last one that exists
 	std::stack<std::unique_ptr<File>> back;
 
 	jstring current = path;
 	while (!current.empty())
 	{
-		auto fp = File::open(current);
+		std::unique_ptr<File> fp(File::open(current));
 		if (fp->isDirectory())
 			break;
 
+#ifdef _WIN32
 		size_t npos = current.find_last_of(u"/\\");
-		if (npos == std::string::npos)
-			break;
+#else
+		size_t npos = current.find_last_of(u'/');
+#endif
 		back.emplace(std::move(fp));
+		if (npos == jstring::npos)
+			break;
 		current = current.substr(0, npos);
 	}
 

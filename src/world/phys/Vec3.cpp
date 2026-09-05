@@ -24,9 +24,9 @@ Vec3 *Vec3::newTemp(double x, double y, double z)
 
 Vec3::Vec3(double x, double y, double z)
 {
-	this->x = x;
-	this->y = y;
-	this->z = z;
+	this->x = x == 0.0 ? 0.0 : x;
+	this->y = y == 0.0 ? 0.0 : y;
+	this->z = z == 0.0 ? 0.0 : z;
 }
 Vec3 *Vec3::set(double x, double y, double z)
 {
@@ -51,7 +51,7 @@ Vec3 *Vec3::vectorTo(const Vec3 &to) const
 Vec3 *Vec3::normalize() const
 {
 	double d = Mth::sqrt(x * x + y * y + z * z);
-	return (d < 0.0001f) ? newTemp(0.0, 0.0, 0.0) : newTemp(x / d, y / d, z / d);
+	return (d < 0.0001) ? newTemp(0.0, 0.0, 0.0) : newTemp(x / d, y / d, z / d);
 }
 
 double Vec3::dot(const Vec3 &other) const
@@ -108,7 +108,7 @@ Vec3 *Vec3::clipX(const Vec3 &other, double x) const
 	double dx = other.x - this->x;
 	double dy = other.y - y;
 	double dz = other.z - z;
-	if (dx * dx < 1.0e-7)
+	if (dx * dx < static_cast<double>(1.0e-7f))
 		return nullptr;
 	double v = (x - this->x) / dx;
 	return (v < 0.0 || v > 1.0) ? nullptr : newTemp(this->x + dx * v, y + dy * v, z + dz * v);
@@ -119,7 +119,7 @@ Vec3 *Vec3::clipY(const Vec3 &other, double y) const
 	double dx = other.x - x;
 	double dy = other.y - this->y;
 	double dz = other.z - z;
-	if (dy * dy < 1.0e-7)
+	if (dy * dy < static_cast<double>(1.0e-7f))
 		return nullptr;
 	double v = (y - this->y) / dy;
 	return (v < 0.0 || v > 1.0) ? nullptr : newTemp(x + dx * v, this->y + dy * v, z + dz * v);
@@ -130,7 +130,7 @@ Vec3 *Vec3::clipZ(const Vec3 &other, double z) const
 	double dx = other.x - x;
 	double dy = other.y - y;
 	double dz = other.z - this->z;
-	if (dz * dz < 1.0e-7)
+	if (dz * dz < static_cast<double>(1.0e-7f))
 		return nullptr;
 	double v = (z - this->z) / dz;
 	return (v < 0.0 || v > 1.0) ? nullptr : newTemp(x + dx * v, y + dy * v, this->z + dz * v);

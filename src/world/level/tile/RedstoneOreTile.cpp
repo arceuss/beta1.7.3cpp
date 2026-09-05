@@ -9,7 +9,7 @@ RedstoneOreTile::RedstoneOreTile(int_t id, int_t tex, bool glowing) : Tile(id, t
 {
 	if (glowing)
 	{
-		setLightEmission(10);
+		setLightEmission(9);
 		setTicking(true);
 	}
 }

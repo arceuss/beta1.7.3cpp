@@ -3,7 +3,6 @@
 #include "world/level/tile/SlabTile.h"
 #include "world/level/tile/TNTTile.h"
 
-#include <iostream>
 #include <stdexcept>
 
 #include "world/level/Level.h"
@@ -23,6 +22,7 @@ std::array<bool, 256> Tile::isEntityTile = {};
 std::array<int_t, 256> Tile::lightBlock = {};
 std::array<bool, 256> Tile::translucent = {};
 std::array<int_t, 256> Tile::lightEmission = {};
+std::array<bool, 256> Tile::notifyRenderOnDataChange = {};
 
 // Step sounds
 StepSound Tile::soundPowderFootstep(u"stone", 1.0f, 1.0f);
@@ -70,6 +70,7 @@ StepSoundSand Tile::soundSandFootstep(u"sand", 1.0f, 1.0f);
 #include "world/level/tile/GlassTile.h"
 #include "world/level/tile/WebTile.h"
 #include "world/level/tile/ClothTile.h"
+#include "world/level/tile/ClayTile.h"
 #include "world/level/tile/BookshelfTile.h"
 #include "world/level/tile/SnowBlockTile.h"
 #include "world/level/tile/FenceTile.h"
@@ -153,7 +154,8 @@ RedstoneOreTile Tile::redstoneOreGlowing = RedstoneOreTile(74, 51, true);
 SnowTile Tile::snow = SnowTile(78, 66);
 IceTile Tile::ice = IceTile(79, 67);
 CactusTile Tile::cactus = CactusTile(81, 70);
-Tile Tile::clay = Tile(82, 72, Material::clay);
+static ClayTile clayTile(82, 72);
+Tile &Tile::clay = clayTile;
 ReedTile Tile::reed = ReedTile(83, 73);
 JukeboxTile Tile::jukebox = JukeboxTile(84, 74, Material::wood);
 PumpkinTile Tile::pumpkin = PumpkinTile(86, 102, false);
@@ -161,7 +163,6 @@ TorchTile Tile::torch = TorchTile(50, 80);
 FireTile Tile::fire = FireTile(51, 31);
 SaplingTile Tile::sapling = SaplingTile(6, 15);
 
-// Phase 1 blocks
 SpongeTile Tile::sponge = SpongeTile(19, 48, Material::sponge);
 GlassTile Tile::glass = GlassTile(20, 49, Material::glass, false);
 Tile Tile::lapisBlock = Tile(22, 144, Material::stone);
@@ -190,7 +191,6 @@ PistonBaseTile Tile::pistonBase = PistonBaseTile(33, 107, false);
 PistonExtensionTile Tile::pistonExtension = PistonExtensionTile(34, 107);
 PistonMovingTile Tile::pistonMoving = PistonMovingTile(36);
 
-// Phase 2 blocks
 DoorTile Tile::doorWood = DoorTile(64, 97, Material::wood, false);
 LadderTile Tile::ladder = LadderTile(65, 83);
 StairTile Tile::stairsWood = StairTile(53, Tile::wood);
@@ -201,7 +201,6 @@ DoorTile Tile::doorIron = DoorTile(71, 98, Material::iron, true);
 SignTile Tile::signPost = SignTile(63, true);
 SignTile Tile::signWall = SignTile(68, false);
 
-// Phase 3 - redstone blocks
 RedStoneDustTile Tile::redstoneWire = RedStoneDustTile(55, 164);
 LeverTile Tile::lever = LeverTile(69, 96);
 PressurePlateTile Tile::pressurePlateStone = PressurePlateTile(70, 1, PressurePlateTile::Sensitivity::MOBS, Material::stone);
@@ -225,7 +224,7 @@ void Tile::initTiles()
 	deadBush.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	flower.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	rose.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
-	brownMushroom.setDestroyTime(0.0f).setLightEmission(2).setSoundType(soundGrassFootstep);
+	brownMushroom.setDestroyTime(0.0f).setLightEmission(1).setSoundType(soundGrassFootstep);
 	redMushroom.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	bedrock.setDestroyTime(-1.0f).setExplodeable(6000000.0f).setSoundType(soundStoneFootstep);
 	// vanilla liquid hardness: water/still lava 100, but FLOWING lava is 0.0
@@ -239,7 +238,7 @@ void Tile::initTiles()
 
 	cobblestone.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
 	sandstone.setDestroyTime(0.8f).setSoundType(soundStoneFootstep);
-	noteBlock.setDestroyTime(0.8f).setSoundType(soundWoodFootstep);
+	noteBlock.setDestroyTime(0.8f);
 	bed.setDestroyTime(0.2f).setSoundType(soundStoneFootstep);
 	slabDouble.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
 	slabSingle.setDestroyTime(2.0f).setExplodeable(10.0f).setSoundType(soundStoneFootstep);
@@ -250,7 +249,7 @@ void Tile::initTiles()
 	crops.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	farmland.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
 	furnace.setDestroyTime(3.5f).setSoundType(soundStoneFootstep);
-	furnaceLit.setDestroyTime(3.5f).setSoundType(soundStoneFootstep).setLightEmission(14);
+	furnaceLit.setDestroyTime(3.5f).setSoundType(soundStoneFootstep).setLightEmission(13);
 
 	goldOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
 	ironOre.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
@@ -267,7 +266,6 @@ void Tile::initTiles()
 	sapling.setDestroyTime(0.0f).setSoundType(soundGrassFootstep);
 	clay.setDestroyTime(0.6f).setSoundType(soundGravelFootstep);
 
-	// Phase 1 block configuration
 	sponge.setDestroyTime(0.6f).setSoundType(soundGrassFootstep);
 	glass.setDestroyTime(0.3f).setSoundType(soundGlassFootstep);
 	lapisBlock.setDestroyTime(3.0f).setExplodeable(5.0f).setSoundType(soundStoneFootstep);
@@ -295,18 +293,16 @@ void Tile::initTiles()
 	pistonExtension.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
 	pistonMoving.setDestroyTime(-1.0f);
 
-	// Phase 2 block configuration
 	doorWood.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
 	ladder.setDestroyTime(0.4f).setSoundType(soundWoodFootstep);
-	stairsWood.setDestroyTime(2.0f).setLightBlock(255).setSoundType(soundWoodFootstep);
-	stairsStone.setDestroyTime(2.0f).setLightBlock(255).setSoundType(soundStoneFootstep);
+	stairsWood.setDestroyTime(2.0f).setExplodeable(5.0f).setLightBlock(255).setSoundType(soundWoodFootstep);
+	stairsStone.setDestroyTime(2.0f).setExplodeable(10.0f).setLightBlock(255).setSoundType(soundStoneFootstep);
 	chest.setDestroyTime(2.5f).setSoundType(soundWoodFootstep);
 	lockedChest.setDestroyTime(0.0f).setLightEmission(15).setSoundType(soundWoodFootstep);
 	trapdoor.setDestroyTime(3.0f).setSoundType(soundWoodFootstep);
 	doorIron.setDestroyTime(5.0f).setSoundType(soundMetalFootstep);
 	signPost.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
 	signWall.setDestroyTime(1.0f).setSoundType(soundWoodFootstep);
-	// Phase 3 - redstone block configuration
 	redstoneWire.setDestroyTime(0.0f).setSoundType(soundPowderFootstep);
 	lever.setDestroyTime(0.5f).setSoundType(soundWoodFootstep);
 	pressurePlateStone.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
@@ -315,7 +311,6 @@ void Tile::initTiles()
 	torchRedstoneActive.setDestroyTime(0.0f).setLightEmission(7).setSoundType(soundWoodFootstep);
 	buttonStone.setDestroyTime(0.5f).setSoundType(soundStoneFootstep);
 
-	// Phase 4 - rail block configuration
 	railPowered.setDestroyTime(0.7f).setSoundType(soundMetalFootstep);
 	railDetector.setDestroyTime(0.7f).setSoundType(soundMetalFootstep);
 	rail.setDestroyTime(0.7f).setSoundType(soundMetalFootstep);
@@ -380,7 +375,6 @@ void Tile::initTiles()
 	jukebox.setDescriptionId(u"tile.jukebox");
 	tnt.setDescriptionId(u"tile.tnt");
 
-	// Phase 1 description IDs
 	sponge.setDescriptionId(u"tile.sponge");
 	glass.setDescriptionId(u"tile.glass");
 	lapisBlock.setDescriptionId(u"tile.blockLapis");
@@ -414,7 +408,6 @@ void Tile::initTiles()
 	repeaterActive.setDescriptionId(u"tile.diode");
 	pistonBase.setDescriptionId(u"tile.pistonBase");
 	pistonStickyBase.setDescriptionId(u"tile.pistonStickyBase");
-	// Phase 3 description IDs
 	redstoneWire.setDescriptionId(u"tile.redstoneDust");
 	lever.setDescriptionId(u"tile.lever");
 	pressurePlateStone.setDescriptionId(u"tile.pressurePlate");
@@ -422,7 +415,68 @@ void Tile::initTiles()
 	torchRedstoneIdle.setDescriptionId(u"tile.notGate");
 	torchRedstoneActive.setDescriptionId(u"tile.notGate");
 	buttonStone.setDescriptionId(u"tile.button");
+	// Materials live in another translation unit and are ready at this point.
+	for (Tile *tile : tiles)
+		if (tile != nullptr)
+			translucent[tile->id] = !tile->material.blocksLight();
+	translucent[0] = true;
 
+	wood.setNotifyRenderOnDataChange();
+	sapling.setNotifyRenderOnDataChange();
+	water.setNotifyRenderOnDataChange();
+	calmWater.setNotifyRenderOnDataChange();
+	lava.setNotifyRenderOnDataChange();
+	calmLava.setNotifyRenderOnDataChange();
+	treeTrunk.setNotifyRenderOnDataChange();
+	leaves.setNotifyRenderOnDataChange();
+	dispenser.setNotifyRenderOnDataChange();
+	noteBlock.setNotifyRenderOnDataChange();
+	bed.setNotifyRenderOnDataChange();
+	railPowered.setNotifyRenderOnDataChange();
+	railDetector.setNotifyRenderOnDataChange();
+	pistonStickyBase.setNotifyRenderOnDataChange();
+	pistonBase.setNotifyRenderOnDataChange();
+	pistonExtension.setNotifyRenderOnDataChange();
+	wool.setNotifyRenderOnDataChange();
+	torch.setNotifyRenderOnDataChange();
+	fire.setNotifyRenderOnDataChange();
+	stairsWood.setNotifyRenderOnDataChange();
+	chest.setNotifyRenderOnDataChange();
+	redstoneWire.setNotifyRenderOnDataChange();
+	crops.setNotifyRenderOnDataChange();
+	furnace.setNotifyRenderOnDataChange();
+	furnaceLit.setNotifyRenderOnDataChange();
+	signPost.setNotifyRenderOnDataChange();
+	doorWood.setNotifyRenderOnDataChange();
+	ladder.setNotifyRenderOnDataChange();
+	rail.setNotifyRenderOnDataChange();
+	stairsStone.setNotifyRenderOnDataChange();
+	signWall.setNotifyRenderOnDataChange();
+	lever.setNotifyRenderOnDataChange();
+	pressurePlateStone.setNotifyRenderOnDataChange();
+	doorIron.setNotifyRenderOnDataChange();
+	pressurePlateWood.setNotifyRenderOnDataChange();
+	redstoneOre.setNotifyRenderOnDataChange();
+	redstoneOreGlowing.setNotifyRenderOnDataChange();
+	torchRedstoneIdle.setNotifyRenderOnDataChange();
+	torchRedstoneActive.setNotifyRenderOnDataChange();
+	buttonStone.setNotifyRenderOnDataChange();
+	jukebox.setNotifyRenderOnDataChange();
+	fence.setNotifyRenderOnDataChange();
+	pumpkin.setNotifyRenderOnDataChange();
+	jackOLantern.setNotifyRenderOnDataChange();
+	cake.setNotifyRenderOnDataChange();
+	repeaterIdle.setNotifyRenderOnDataChange();
+	repeaterActive.setNotifyRenderOnDataChange();
+	lockedChest.setNotifyRenderOnDataChange();
+	trapdoor.setNotifyRenderOnDataChange();
+
+}
+
+Tile &Tile::setNotifyRenderOnDataChange()
+{
+	notifyRenderOnDataChange[id] = true;
+	return *this;
 }
 
 // Impl
@@ -472,10 +526,6 @@ Tile &Tile::setExplodeable(float resistance)
 	return *this;
 }
 
-bool Tile::isTranslucent()
-{
-	return false;
-}
 
 bool Tile::isCubeShaped()
 {
@@ -512,7 +562,6 @@ void Tile::updateCachedProperties()
 {
 	solid[id] = isSolidRender();
 	lightBlock[id] = isSolidRender() ? 255 : 0;
-	translucent[id] = isTranslucent();
 }
 
 void Tile::setShape(float x0, float y0, float z0, float x1, float y1, float z1)
@@ -694,21 +743,14 @@ void Tile::spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, f
 			continue;
 
 		float spread = 0.7f;
-		double xo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
-		double yo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
-		double zo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+		double xo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
+		double yo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
+		double zo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
 
 		ItemInstance stack(resource, 1, getSpawnResourcesAuxValue(data));
 		auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, stack);
 		entity->throwTime = 10;
 		level.addEntity(entity);
-		std::cerr << "[Drop] Spawned item=" << resource
-			<< " aux=" << stack.itemDamage
-			<< " fromTile=" << id
-			<< " data=" << data
-			<< " blockPos=(" << x << "," << y << "," << z << ")"
-			<< " entityPos=(" << (x + xo) << "," << (y + yo) << "," << (z + zo) << ")"
-			<< std::endl;
 	}
 }
 

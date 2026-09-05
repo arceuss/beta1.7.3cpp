@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "lwjgl/GLContext.h"
+#include "java/Number.h"
 
 Tesselator Tesselator::instance(MAX_FLOATS);
 
@@ -37,10 +38,19 @@ Tesselator Tesselator::getUniqueInstance(int_t size)
 void Tesselator::end()
 {
 	if (!tesselating)
-		throw new std::runtime_error("Not tesselating!");
+		throw std::runtime_error("Not tesselating!");
 	tesselating = false;
 
-	if (vertices > 0)
+	if (vertices > 0 && capture != nullptr)
+	{
+		capture->data.insert(capture->data.end(), buffer.get(), buffer_p);
+		capture->vertices += vertices;
+		capture->hasTexture = hasTexture;
+		capture->hasColor = hasColor;
+		capture->hasNormal = hasNormal;
+		capture->mode = (draw_mode == GL_QUADS && TRIANGLE_MODE) ? GL_TRIANGLES : draw_mode;
+	}
+	else if (vertices > 0)
 	{
 		// Bind VBO
 		if (vboMode)
@@ -128,12 +138,12 @@ void Tesselator::tex(double u, double v)
 
 void Tesselator::color(float r, float g, float b)
 {
-	color(static_cast<int_t>(r * 255.0f), static_cast<int_t>(g * 255.0f), static_cast<int_t>(b * 255.0f));
+	color(Java::numberToInt(r * 255.0f), Java::numberToInt(g * 255.0f), Java::numberToInt(b * 255.0f));
 }
 
 void Tesselator::color(float r, float g, float b, float a)
 {
-	color(static_cast<int_t>(r * 255.0f), static_cast<int_t>(g * 255.0f), static_cast<int_t>(b * 255.0f), static_cast<int_t>(a * 255.0f));
+	color(Java::numberToInt(r * 255.0f), Java::numberToInt(g * 255.0f), Java::numberToInt(b * 255.0f), Java::numberToInt(a * 255.0f));
 }
 
 void Tesselator::color(int_t r, int_t g, int_t b)
@@ -165,7 +175,8 @@ void Tesselator::color(int_t r, int_t g, int_t b, int_t a)
 		a = 0;
 
 	hasColor = true;
-	col = (a << 24) | (b << 16) | (g << 8) | (r << 0);
+	const unsigned char rgba[] = {static_cast<unsigned char>(r), static_cast<unsigned char>(g), static_cast<unsigned char>(b), static_cast<unsigned char>(a)};
+	std::memcpy(&col, rgba, sizeof(col));
 }
 
 void Tesselator::vertexUV(double x, double y, double z, double u, double v)
@@ -251,13 +262,17 @@ void Tesselator::noColor()
 void Tesselator::normal(float x, float y, float z)
 {
 	if (!tesselating)
-		std::cout << "But...\n";
+		std::cout << "But..\n";
 
 	hasNormal = true;
-	uint_t bx = static_cast<unsigned char>(x * 128.0f);
-	uint_t by = static_cast<unsigned char>(y * 127.0f);
-	uint_t bz = static_cast<unsigned char>(z * 127.0f);
-	normalValue = (bx << 0) | (by << 8) | (bz << 16);
+	uint_t bx = static_cast<uint_t>(Java::numberToInt(x * 128.0f)) & 255u;
+	uint_t by = static_cast<uint_t>(Java::numberToInt(y * 127.0f)) & 255u;
+	uint_t bz = static_cast<uint_t>(Java::numberToInt(z * 127.0f)) & 255u;
+	// Java promotes each signed byte before the shifts and ORs.
+	if (bx & 128u) bx |= 0xffffff00u;
+	if (by & 128u) by |= 0xffffff00u;
+	if (bz & 128u) bz |= 0xffffff00u;
+	normalValue = Java::intFromBits(bx | (by << 8) | (bz << 16));
 }
 
 void Tesselator::offset(double x, double y, double z)
@@ -272,4 +287,9 @@ void Tesselator::addOffset(float x, float y, float z)
 	xo += x;
 	yo += y;
 	zo += z;
+}
+
+void Tesselator::captureTo(MeshCapture *target)
+{
+	capture = target;
 }

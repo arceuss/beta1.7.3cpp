@@ -74,6 +74,7 @@ public:
 	virtual ~BiomeSource() {}
 
 	virtual double getTemperature(int_t x, int_t z);
+	virtual void getTemperatures(double *out, int_t x, int_t z, int_t xd, int_t zd);
 	virtual BiomeId getBiome(int_t x, int_t z);
 	const BiomeInfo &getBiomeInfo(BiomeId biome) const;
 
@@ -87,6 +88,7 @@ public:
 	HellBiomeSource(Level &level);
 
 	double getTemperature(int_t x, int_t z) override;
+	void getTemperatures(double *out, int_t x, int_t z, int_t xd, int_t zd) override;
 	BiomeId getBiome(int_t x, int_t z) override;
 	void getBiomeBlock(int_t x, int_t z, int_t xd, int_t zd) override;
 };
