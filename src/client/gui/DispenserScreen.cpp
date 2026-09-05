@@ -15,25 +15,10 @@
 #include "world/level/tile/entity/DispenserTileEntity.h"
 
 namespace
-
 {
 	constexpr int_t SLOT_NONE = -1;
 	constexpr int_t SLOT_DISPENSER_BASE = 200;
 
-	jstring getTooltipText(const ItemInstance &stack)
-	{
-		Language &language = Language::getInstance();
-		if (stack.itemID >= 256)
-		{
-			Item *item = stack.getItem();
-			if (item == nullptr)
-				return u"";
-			return language.getElement(item->getDescriptionId(stack) + u".name");
-		}
-		if (stack.itemID >= 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[stack.itemID] != nullptr)
-			return language.getElement(Tile::tiles[stack.itemID]->descriptionId + u".name");
-		return u"";
-	}
 }
 
 DispenserScreen::DispenserScreen(Minecraft &minecraft, std::shared_ptr<DispenserTileEntity> dispenser)
@@ -137,7 +122,7 @@ void DispenserScreen::render(int_t xm, int_t ym, float a)
 		const ItemInstance *hoveredItem = getSlotItem(hoveredSlot);
 		if (hoveredItem != nullptr && !hoveredItem->isEmpty())
 		{
-			jstring tooltip = getTooltipText(*hoveredItem);
+			jstring tooltip = getTooltipName(*hoveredItem);
 			if (!tooltip.empty())
 			{
 				int_t tooltipX = relX + 12;
@@ -250,19 +235,8 @@ void DispenserScreen::renderSlot(ItemInstance &stack, int_t x, int_t y, float a)
 {
 	if (stack.isEmpty()) return;
 	static ItemRenderer itemRenderer(EntityRenderDispatcher::instance);
-	float pop = static_cast<float>(stack.popTime) - a;
-	if (pop > 0.0f)
-	{
-		glPushMatrix();
-		float scale = 1.0f + pop / 5.0f;
-		glTranslatef(static_cast<float>(x + 8), static_cast<float>(y + 12), 0.0f);
-		glScalef(1.0f / scale, (scale + 1.0f) / 2.0f, 1.0f);
-		glTranslatef(static_cast<float>(-(x + 8)), static_cast<float>(-(y + 12)), 0.0f);
-	}
 
 	itemRenderer.renderGuiItem(font, minecraft.textures, stack, x, y);
-	if (pop > 0.0f)
-		glPopMatrix();
 	itemRenderer.renderGuiItemDecorations(font, minecraft.textures, stack, x, y);
 }
 

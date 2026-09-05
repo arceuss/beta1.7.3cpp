@@ -62,6 +62,8 @@ public:
 	bool removed = false;
 
 	float heightOffset = 0.0f;
+	// Entity.entityBrightness: lower bound for getBrightness, set to 1 while the inventory preview renders.
+	float entityBrightness = 0.0f;
 
 	float bbWidth = 0.6f, bbHeight = 1.8f;
 

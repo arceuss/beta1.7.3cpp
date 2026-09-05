@@ -550,7 +550,14 @@ float Entity::getBrightness(float a)
 	double byo = (bb.y1 - bb.y0) * 0.66;
 	int_t y = Mth::floor(this->y - heightOffset + byo);
 	int_t z = Mth::floor(this->z);
-	return level.hasChunksAt(Mth::floor(bb.x0), Mth::floor(bb.y0), Mth::floor(bb.z0), Mth::floor(bb.x1), Mth::floor(bb.y1), Mth::floor(bb.z1)) ? level.getBrightness(x, y, z) : 0.0f;
+	if (level.hasChunksAt(Mth::floor(bb.x0), Mth::floor(bb.y0), Mth::floor(bb.z0), Mth::floor(bb.x1), Mth::floor(bb.y1), Mth::floor(bb.z1)))
+	{
+		float brightness = level.getBrightness(x, y, z);
+		if (brightness < entityBrightness)
+			brightness = entityBrightness;
+		return brightness;
+	}
+	return entityBrightness;
 }
 
 void Entity::absMoveTo(double x, double y, double z, float yRot, float xRot)

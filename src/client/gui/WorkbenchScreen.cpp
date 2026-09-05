@@ -45,6 +45,13 @@ jstring WorkbenchScreen::getTitleText() const
 	return u"Crafting";
 }
 
+// GuiCrafting.drawGuiContainerForegroundLayer
+void WorkbenchScreen::renderLabels()
+{
+	font.draw(u"Crafting", 28, 6, 0x404040);
+	font.draw(u"Inventory", 8, 166 - 96 + 2, 0x404040);
+}
+
 bool WorkbenchScreen::shouldRenderPlayerModel() const
 {
 	return false;

@@ -61,51 +61,6 @@ namespace
 		}
 	};
 
-	jstring getTooltipText(const ItemInstance &stack)
-	{
-		Language &language = Language::getInstance();
-
-		// Items (ID >= 256): use item description ID with subtype support
-		if (stack.itemID >= 256)
-		{
-			Item *item = stack.getItem();
-			if (item != nullptr)
-			{
-				jstring descId = item->getDescriptionId(stack);
-				if (!descId.empty())
-				{
-					jstring name = language.getElementName(descId);
-					if (!name.empty())
-						return name;
-				}
-			}
-			return u"Item " + String::toString(stack.itemID);
-		}
-
-		// Blocks (ID < 256): use tile description ID
-		Tile *tile = (stack.itemID >= 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size())) ? Tile::tiles[stack.itemID] : nullptr;
-		if (tile != nullptr && !tile->descriptionId.empty())
-		{
-			// Slab special case: subtype-dependent name
-			if (stack.itemID == 44)
-			{
-				static const jstring slabNames[] = {u"tile.stoneSlab.stone", u"tile.stoneSlab.sand", u"tile.stoneSlab.wood", u"tile.stoneSlab.cobble"};
-				jstring name = language.getElementName(slabNames[stack.itemDamage & 3]);
-				if (!name.empty())
-					return name;
-			}
-			else
-			{
-				jstring name = language.getElementName(tile->descriptionId);
-				if (!name.empty())
-					return name;
-			}
-		}
-
-		if (stack.itemID > 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[stack.itemID] != nullptr)
-			return u"Tile " + String::toString(stack.itemID);
-		return u"Item " + String::toString(stack.itemID);
-	}
 }
 
 InventoryScreen::InventoryScreen(Minecraft &minecraft, int_t craftingWidth, int_t craftingHeight)
@@ -123,8 +78,6 @@ InventoryScreen::InventoryScreen(Minecraft &minecraft, int_t craftingWidth, int_
 void InventoryScreen::render(int_t xm, int_t ym, float a)
 {
 	syncCraftingSlotsFromMenu();
-	xMouse = static_cast<float>(xm);
-	yMouse = static_cast<float>(ym);
 
 	renderBackground();
 
@@ -247,7 +200,7 @@ void InventoryScreen::render(int_t xm, int_t ym, float a)
 		const ItemInstance *hoveredItem = getSlotItem(hoveredSlot);
 		if (hoveredItem != nullptr && !hoveredItem->isEmpty())
 		{
-			jstring tooltip = getTooltipText(*hoveredItem);
+			jstring tooltip = getTooltipName(*hoveredItem);
 			if (!tooltip.empty())
 			{
 				int_t tooltipX = relX + 12;
@@ -261,6 +214,10 @@ void InventoryScreen::render(int_t xm, int_t ym, float a)
 	glEnable(GL_LIGHTING);
 	glEnable(GL_DEPTH_TEST);
 	glPopMatrix();
+
+	// GuiInventory.drawScreen stores the cursor after drawing, so the preview uses the previous frame's position.
+	xMouse = static_cast<float>(xm);
+	yMouse = static_cast<float>(ym);
 }
 
 bool InventoryScreen::isPauseScreen()
@@ -486,8 +443,11 @@ void InventoryScreen::renderPlayerModel(int_t x, int_t y, int_t scale)
 	minecraft.player->yRot = static_cast<float>(std::atan(xd / 40.0f)) * 40.0f;
 	minecraft.player->xRot = -static_cast<float>(std::atan(yd / 40.0f)) * 20.0f;
 
+	minecraft.player->entityBrightness = 1.0f;
 	glTranslatef(0.0f, minecraft.player->heightOffset, 0.0f);
+	EntityRenderDispatcher::instance.playerRotY = 180.0f;
 	EntityRenderDispatcher::instance.render(*minecraft.player, 0.0, 0.0, 0.0, 0.0f, 1.0f);
+	minecraft.player->entityBrightness = 0.0f;
 
 	minecraft.player->yBodyRot = oldBodyRot;
 	minecraft.player->yRot = oldYRot;
@@ -503,20 +463,8 @@ void InventoryScreen::renderSlot(ItemInstance &stack, int_t x, int_t y, float a)
 		return;
 
 	static ItemRenderer itemRenderer(EntityRenderDispatcher::instance);
-	float pop = static_cast<float>(stack.popTime) - a;
-	if (pop > 0.0f)
-	{
-		glPushMatrix();
-		float scale = 1.0f + pop / 5.0f;
-		glTranslatef(static_cast<float>(x + 8), static_cast<float>(y + 12), 0.0f);
-		glScalef(1.0f / scale, (scale + 1.0f) / 2.0f, 1.0f);
-		glTranslatef(static_cast<float>(-(x + 8)), static_cast<float>(-(y + 12)), 0.0f);
-	}
 
 	itemRenderer.renderGuiItem(font, minecraft.textures, stack, x, y);
-
-	if (pop > 0.0f)
-		glPopMatrix();
 
 	itemRenderer.renderGuiItemDecorations(font, minecraft.textures, stack, x, y);
 }

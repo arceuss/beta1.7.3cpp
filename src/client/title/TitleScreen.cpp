@@ -66,6 +66,11 @@ void TitleScreen::init()
 		buttons[1]->active = false;
 }
 
+// GuiMainMenu.keyTyped is empty: Escape does nothing on the title screen.
+void TitleScreen::keyPressed(char_t, int_t)
+{
+}
+
 void TitleScreen::buttonClicked(Button &button)
 {
 	if (!button.active)
@@ -96,7 +101,7 @@ void TitleScreen::render(int_t xm, int_t ym, float a)
 	blit(logoX + 155, logoY, 0, 45, 155, 44);
 
 	glPushMatrix();
-	glTranslatef(width / 2.0f + 90.0f, 70.0f, 0.0f);
+	glTranslatef(static_cast<float>(width / 2 + 90), 70.0f, 0.0f);
 	glRotatef(-20.0f, 0.0f, 0.0f, 1.0f);
 	float scale = 1.8f - Mth::abs(Mth::sin(static_cast<float>(System::currentTimeMillis() % 1000L) / 1000.0f * Mth::PI * 2.0f) * 0.1f);
 	scale = scale * 100.0f / (font.width(splash) + 32);

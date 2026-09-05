@@ -277,22 +277,3 @@ int_t Font::wordWrapHeight(const jstring &str, int_t maxWidth)
 {
 	return static_cast<int_t>(wrap(*this, str, maxWidth).size()) * 8;
 }
-
-jstring Font::sanitize(const jstring &str)
-{
-	jstring result;
-
-	for (int_t i = 0; i < str.length(); i++)
-	{
-		char_t c = str[i];
-		if (c == 167 && i + 1 < str.length())
-		{
-			i++;
-			continue;
-		}
-		if (SharedConstants::acceptableLetters.find(c) != jstring::npos)
-			result.push_back(c);
-	}
-
-	return result;
-}

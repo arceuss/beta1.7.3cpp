@@ -1,5 +1,6 @@
 #include "client/gui/CreateWorldScreen.h"
 
+#include <limits>
 #include <stdexcept>
 
 #include "client/Minecraft.h"
@@ -10,16 +11,19 @@
 #include "client/gui/SelectWorldScreen.h"
 
 #include "java/File.h"
+#include "java/Number.h"
 #include "java/Random.h"
+#include "world/level/Level.h"
 
 #include "lwjgl/Keyboard.h"
 
 namespace
 {
 
+// String.trim: everything at or below U+0020 counts as whitespace.
 bool isWhitespace(char_t c)
 {
-	return c == u' ' || c == u'\n' || c == u'\r' || c == u'\t' || c == u'\f';
+	return static_cast<uchar_t>(c) <= u' ';
 }
 
 jstring trim(const jstring &text)
@@ -73,27 +77,56 @@ jstring sanitizeFolderName(const jstring &text)
 	return folderName;
 }
 
+// SaveFormatOld.getWorldInfo: a folder only counts as taken when its level.dat (or level.dat_old) loads.
 jstring generateUnusedFolderName(File &workingDirectory, const jstring &baseName)
 {
-	std::unique_ptr<File> saves(File::open(workingDirectory, u"saves"));
-	saves->mkdirs();
-
 	jstring folderName = baseName;
-	while (true)
-	{
-		std::unique_ptr<File> world(File::open(*saves, folderName));
-		if (!world->exists())
-			return folderName;
+	while (Level::getDataTagFor(workingDirectory, folderName) != nullptr)
 		folderName += u"-";
-	}
+	return folderName;
 }
 
+// String.hashCode with Java int wrap.
 long_t hashSeedString(const jstring &text)
 {
-	int_t hash = 0;
+	uint_t hash = 0;
 	for (char_t c : text)
-		hash = 31 * hash + c;
-	return hash;
+		hash = 31u * hash + static_cast<uint_t>(static_cast<uchar_t>(c));
+	return static_cast<long_t>(Java::intFromBits(hash));
+}
+
+// Long.parseLong: optional sign, ASCII digits only, whole string, no overflow.
+bool parseJavaLong(const jstring &text, long_t &value)
+{
+	if (text.empty())
+		return false;
+	size_t i = 0;
+	bool negative = false;
+	if (text[0] == u'-' || text[0] == u'+')
+	{
+		negative = text[0] == u'-';
+		i = 1;
+		if (text.size() == 1)
+			return false;
+	}
+	// Accumulate negatively so Long.MIN_VALUE parses.
+	long_t limit = negative ? std::numeric_limits<long_t>::min() : -std::numeric_limits<long_t>::max();
+	long_t result = 0;
+	for (; i < text.size(); ++i)
+	{
+		char_t c = text[i];
+		if (c < u'0' || c > u'9')
+			return false;
+		int_t digit = c - u'0';
+		if (result < limit / 10)
+			return false;
+		result *= 10;
+		if (result < limit + digit)
+			return false;
+		result -= digit;
+	}
+	value = negative ? result : -result;
+	return true;
 }
 
 }
@@ -166,7 +199,7 @@ void CreateWorldScreen::buttonClicked(Button &button)
 		createClicked = true;
 		minecraft.setScreen(nullptr);
 		minecraft.gameMode = Util::make_shared<SurvivalMode>(minecraft);
-		minecraft.selectLevel(folderName, trim(worldNameField->getText()), parseSeed());
+		minecraft.selectLevel(folderName, worldNameField->getText(), parseSeed());
 		minecraft.setScreen(nullptr);
 	}
 }
@@ -178,7 +211,8 @@ void CreateWorldScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 	else if (seedField != nullptr)
 		seedField->textboxKeyTyped(eventCharacter, eventKey);
 
-	if (eventKey == lwjgl::Keyboard::KEY_RETURN && !buttons.empty())
+	// LWJGL reports both Enter keys as '\r'; the SDL adapter gives no character for them.
+	if ((eventCharacter == u'\r' || eventKey == lwjgl::Keyboard::KEY_RETURN || eventKey == lwjgl::Keyboard::KEY_NUMPADENTER) && !buttons.empty())
 		buttonClicked(*buttons[0]);
 
 	updateFolderName();
@@ -218,24 +252,19 @@ void CreateWorldScreen::updateFolderName()
 void CreateWorldScreen::updateCreateButton()
 {
 	if (!buttons.empty())
-		buttons[0]->active = !trim(worldNameField->getText()).empty();
+		buttons[0]->active = !worldNameField->getText().empty();
 }
 
 long_t CreateWorldScreen::parseSeed() const
 {
 	Random random;
 	long_t seed = random.nextLong();
-	jstring seedText = trim(seedField->getText());
+	const jstring &seedText = seedField->getText();
 	if (seedText.empty())
 		return seed;
 
-	try
-	{
-		long_t parsed = std::stoll(String::toUTF8(seedText));
-		return parsed != 0 ? parsed : seed;
-	}
-	catch (const std::exception &)
-	{
+	long_t parsed = 0;
+	if (!parseJavaLong(seedText, parsed))
 		return hashSeedString(seedText);
-	}
+	return parsed != 0 ? parsed : seed;
 }

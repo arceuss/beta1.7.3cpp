@@ -19,6 +19,11 @@ void DeathScreen::init()
 	buttons.push_back(Util::make_shared<Button>(2, width / 2 - 100, height / 4 + 96, u"Title menu"));
 }
 
+// GuiGameOver.keyTyped is empty: no key closes the death screen.
+void DeathScreen::keyPressed(char_t, int_t)
+{
+}
+
 void DeathScreen::buttonClicked(Button &button)
 {
 	if (button.id == 1)

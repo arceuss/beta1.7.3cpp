@@ -46,7 +46,6 @@ void RenameWorldScreen::init()
 	nameField = Util::make_shared<GuiTextField>(*this, font, width / 2 - 100, 60, 200, 20, currentName);
 	nameField->isFocused = true;
 	nameField->setMaxStringLength(32);
-	updateRenameButton();
 }
 
 void RenameWorldScreen::tick()
@@ -76,10 +75,11 @@ void RenameWorldScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 	if (nameField != nullptr)
 		nameField->textboxKeyTyped(eventCharacter, eventKey);
 
-	if (eventKey == lwjgl::Keyboard::KEY_RETURN && !buttons.empty())
-		buttonClicked(*buttons[0]);
-
 	updateRenameButton();
+
+	// LWJGL reports both Enter keys as '\r'; the SDL adapter gives no character for them.
+	if ((eventCharacter == u'\r' || eventKey == lwjgl::Keyboard::KEY_RETURN || eventKey == lwjgl::Keyboard::KEY_NUMPADENTER) && !buttons.empty())
+		buttonClicked(*buttons[0]);
 }
 
 void RenameWorldScreen::mouseClicked(int_t x, int_t y, int_t buttonNum)

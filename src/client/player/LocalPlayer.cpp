@@ -274,12 +274,7 @@ bool LocalPlayer::isSneaking()
 
 void LocalPlayer::displayClientMessage(const jstring &message)
 {
-	Language &language = Language::getInstance();
-	jstring translated = language.getElement(message);
-	if (!translated.empty())
-		SPCCommand::addChatMessage(translated);
-	else
-		SPCCommand::addChatMessage(message);
+	SPCCommand::addChatMessage(Language::getInstance().getElement(message));
 }
 
 void LocalPlayer::sendChatMessage(const jstring &message)

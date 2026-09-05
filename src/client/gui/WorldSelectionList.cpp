@@ -1,8 +1,7 @@
 #include "client/gui/WorldSelectionList.h"
 
+#include <cstdio>
 #include <ctime>
-#include <iomanip>
-#include <sstream>
 
 #include "client/Minecraft.h"
 #include "client/gui/SelectWorldScreen.h"
@@ -11,11 +10,9 @@
 namespace
 {
 
+// new SimpleDateFormat() in the en_US locale: "M/d/yy h:mm a" (no zero padding, 12-hour clock).
 jstring formatDate(long_t lastPlayed)
 {
-	if (lastPlayed <= 0)
-		return u"Unknown date";
-
 	std::time_t time = static_cast<std::time_t>(lastPlayed / 1000LL);
 	std::tm tm = {};
 #ifdef _WIN32
@@ -23,18 +20,19 @@ jstring formatDate(long_t lastPlayed)
 #else
 	localtime_r(&time, &tm);
 #endif
-
+	int hour12 = tm.tm_hour % 12;
+	if (hour12 == 0)
+		hour12 = 12;
 	char buffer[64] = {};
-	if (std::strftime(buffer, sizeof(buffer), "%m/%d/%y %H:%M", &tm) == 0)
-		return u"Unknown date";
+	std::snprintf(buffer, sizeof(buffer), "%d/%d/%02d %d:%02d %s", tm.tm_mon + 1, tm.tm_mday, tm.tm_year % 100, hour12, tm.tm_min, tm.tm_hour < 12 ? "AM" : "PM");
 	return String::fromUTF8(buffer);
 }
 
+// (float)(size / 1024 * 100 / 1024) / 100.0F rendered with Float.toString.
 jstring formatSize(long_t sizeOnDisk)
 {
-	std::ostringstream stream;
-	stream << std::fixed << std::setprecision(2) << (static_cast<double>(sizeOnDisk) / 1024.0 / 1024.0) << " MB";
-	return String::fromUTF8(stream.str());
+	long_t hundredths = sizeOnDisk / 1024LL * 100LL / 1024LL;
+	return String::toString(static_cast<float>(hundredths) / 100.0f) + u" MB";
 }
 
 }

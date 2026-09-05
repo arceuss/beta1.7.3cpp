@@ -27,6 +27,7 @@
 #include "world/item/ItemSoup.h"
 #include "world/item/ItemBucket.h"
 #include "world/item/ItemCake.h"
+#include "world/item/ItemCoal.h"
 #include "world/item/ItemSnowball.h"
 #include "world/item/ItemEgg.h"
 #include "world/item/ItemFishingRod.h"
@@ -364,8 +365,8 @@ namespace Items
 		recordCat = new RecordItem(2001, u"cat");
 		recordCat->setIconIndex(241).setDescriptionId(u"item.record");
 
-		coal = new Item(7);
-		coal->setIconIndex(7).setDescriptionId(u"item.coal").setHasSubtypes(true);
+		coal = new ItemCoal(7);
+		coal->setIconIndex(7).setDescriptionId(u"item.coal");
 
 		diamond = new Item(8);
 		diamond->setIconIndex(55).setDescriptionId(u"item.emerald");

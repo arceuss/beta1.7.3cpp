@@ -18,7 +18,7 @@ private:
 	int_t width;
 	int_t height;
 	jstring text;
-	int_t maxStringLength = 32;
+	int_t maxStringLength = 0;
 	int_t cursorCounter = 0;
 
 public:
@@ -36,7 +36,4 @@ public:
 	void setFocused(bool focused);
 	void drawTextBox();
 	void setMaxStringLength(int_t maxStringLength);
-
-private:
-	void appendAllowedText(const jstring &text);
 };

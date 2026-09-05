@@ -25,48 +25,6 @@ namespace
 	constexpr int_t SLOT_NONE = -1;
 	constexpr int_t SLOT_CHEST_BASE = 200;
 
-	jstring getTooltipText(const ItemInstance &stack)
-	{
-		Language &language = Language::getInstance();
-
-		if (stack.itemID >= 256)
-		{
-			Item *item = stack.getItem();
-			if (item != nullptr)
-			{
-				jstring descId = item->getDescriptionId(stack);
-				if (!descId.empty())
-				{
-					jstring name = language.getElementName(descId);
-					if (!name.empty())
-						return name;
-				}
-			}
-			return u"Item " + String::toString(stack.itemID);
-		}
-
-		Tile *tile = (stack.itemID >= 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size())) ? Tile::tiles[stack.itemID] : nullptr;
-		if (tile != nullptr && !tile->descriptionId.empty())
-		{
-			if (stack.itemID == 44)
-			{
-				static const jstring slabNames[] = {u"tile.stoneSlab.stone", u"tile.stoneSlab.sand", u"tile.stoneSlab.wood", u"tile.stoneSlab.cobble"};
-				jstring name = language.getElementName(slabNames[stack.itemDamage & 3]);
-				if (!name.empty())
-					return name;
-			}
-			else
-			{
-				jstring name = language.getElementName(tile->descriptionId);
-				if (!name.empty())
-					return name;
-			}
-		}
-
-		if (stack.itemID > 0 && stack.itemID < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[stack.itemID] != nullptr)
-			return u"Tile " + String::toString(stack.itemID);
-		return u"Item " + String::toString(stack.itemID);
-	}
 }
 
 ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<ChestTileEntity> chest)
@@ -99,7 +57,6 @@ ChestScreen::ChestScreen(Minecraft &minecraft, std::shared_ptr<BasicInventory> c
 	inventoryRows = getChestSize() / 9;
 	imageHeight = 114 + inventoryRows * 18;
 }
-
 
 void ChestScreen::tick()
 {
@@ -211,7 +168,7 @@ void ChestScreen::render(int_t xm, int_t ym, float a)
 		const ItemInstance *hoveredItem = getSlotItem(hoveredSlot);
 		if (hoveredItem != nullptr && !hoveredItem->isEmpty())
 		{
-			jstring tooltip = getTooltipText(*hoveredItem);
+			jstring tooltip = getTooltipName(*hoveredItem);
 			if (!tooltip.empty())
 			{
 				int_t tooltipX = static_cast<int_t>(xMouse) + 12;
@@ -427,19 +384,8 @@ void ChestScreen::renderSlot(ItemInstance &stack, int_t x, int_t y, float a)
 		return;
 
 	static ItemRenderer itemRenderer(EntityRenderDispatcher::instance);
-	float pop = static_cast<float>(stack.popTime) - a;
-	if (pop > 0.0f)
-	{
-		glPushMatrix();
-		float scale = 1.0f + pop / 5.0f;
-		glTranslatef(static_cast<float>(x + 8), static_cast<float>(y + 12), 0.0f);
-		glScalef(1.0f / scale, (scale + 1.0f) / 2.0f, 1.0f);
-		glTranslatef(static_cast<float>(-(x + 8)), static_cast<float>(-(y + 12)), 0.0f);
-	}
 
 	itemRenderer.renderGuiItem(font, minecraft.textures, stack, x, y);
-	if (pop > 0.0f)
-		glPopMatrix();
 	itemRenderer.renderGuiItemDecorations(font, minecraft.textures, stack, x, y);
 }
 

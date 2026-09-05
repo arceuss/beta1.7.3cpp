@@ -75,8 +75,3 @@ void ChatScreen::render(int_t xm, int_t ym, float a)
 	drawString(font, u"> " + message + ((frame / 6 % 2 == 0) ? u"_" : u""), 4, height - 12, 14737632);
 }
 
-
-bool ChatScreen::isPauseScreen()
-{
-	return false;
-}

@@ -25,6 +25,11 @@ int_t ItemDye::getIcon(const ItemInstance &stack) const
 	return iconIndex + (stack.itemDamage % 8) * 16 + (stack.itemDamage / 8);
 }
 
+const jstring &ItemDye::getDyeColorName(int_t colour)
+{
+	return dyeColors[colour & 15];
+}
+
 jstring ItemDye::getDescriptionId(const ItemInstance &stack) const
 {
 	int_t dye = stack.itemDamage & 15;

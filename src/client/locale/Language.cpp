@@ -35,12 +35,14 @@ Language &Language::getInstance()
 	return singleton;
 }
 
+// StringTranslate.translateKey: Properties.getProperty(key, key). A present but empty
+// value stays empty; a missing key comes back as the key itself.
 jstring Language::getElement(const jstring &elementId) const
 {
 	auto it = elements.find(elementId);
 	if (it != elements.end())
 		return it->second;
-	return u"";
+	return elementId;
 }
 jstring Language::getElementName(const jstring &elementId) const
 {

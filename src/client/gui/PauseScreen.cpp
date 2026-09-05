@@ -68,14 +68,15 @@ void PauseScreen::render(int_t xm, int_t ym, float a)
 {
 	renderBackground();
 
-	bool isSaving = minecraft.level->pauseSave(saveStep++);
-	if (isSaving || visibleTime < 20)
+	// World.quickSaveWorld returns true when the save is done; the message shows while it is not.
+	bool saving = !minecraft.level->pauseSave(saveStep++);
+	if (saving || visibleTime < 20)
 	{
 		float col = ((visibleTime % 10) + a) / 10.0f;
 		col = Mth::sin(col * Mth::PI * 2.0f) * 0.2f + 0.8f;
 		int_t br = static_cast<int_t>(255.0f * col);
 
-		drawString(font, u"Saving level...", 8, height - 16, (br << 16) | (br << 8) | br);
+		drawString(font, u"Saving level..", 8, height - 16, (br << 16) | (br << 8) | br);
 	}
 
 	drawCenteredString(font, u"Game menu", width / 2, 40, 0xFFFFFF);

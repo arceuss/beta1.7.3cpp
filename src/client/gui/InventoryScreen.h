@@ -38,7 +38,7 @@ private:
 	void consumeCraftingIngredients();
 	void dropCraftingContents();
 	void renderBg(float a);
-	void renderLabels();
+	virtual void renderLabels();
 	void renderPlayerModel(int_t x, int_t y, int_t scale);
 	void renderSlot(ItemInstance &stack, int_t x, int_t y, float a);
 	const ItemInstance *getSlotItem(int_t slot) const;

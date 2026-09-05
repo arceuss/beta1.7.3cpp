@@ -1363,7 +1363,7 @@ jstring Minecraft::gatherStats4()
 
 jstring Minecraft::gatherStats3()
 {
-	return u"P: 0. T: " + level->gatherStats();
+	return u"P: " + particleEngine.countParticles() + u". T: " + level->gatherStats();
 }
 
 void Minecraft::respawnPlayer(int_t dimension)

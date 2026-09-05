@@ -73,7 +73,8 @@ void MultiplayerScreen::tick()
 void MultiplayerScreen::keyPressed(char_t eventCharacter, int_t eventKey)
 {
 	serverAddress->textboxKeyTyped(eventCharacter, eventKey);
-	if (eventCharacter == u'\r')
+	// LWJGL reports both Enter keys as '\r'; the SDL adapter gives no character for them.
+	if (eventCharacter == u'\r' || eventKey == lwjgl::Keyboard::KEY_RETURN || eventKey == lwjgl::Keyboard::KEY_NUMPADENTER)
 		buttonClicked(*buttons[0]);
 
 	buttons[0]->active = !serverAddress->getText().empty();

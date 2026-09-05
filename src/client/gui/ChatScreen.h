@@ -12,7 +12,6 @@ public:
 	void tick() override;
 	void render(int_t xm, int_t ym, float a) override;
 	void keyPressed(char_t eventCharacter, int_t eventKey) override;
-	bool isPauseScreen() override;
 
 protected:
 	jstring message;

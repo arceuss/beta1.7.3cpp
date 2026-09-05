@@ -15,6 +15,7 @@ protected:
 	int_t getTitleX() const override;
 	int_t getTitleY() const override;
 	jstring getTitleText() const override;
+	void renderLabels() override;
 	bool shouldRenderPlayerModel() const override;
 
 public:

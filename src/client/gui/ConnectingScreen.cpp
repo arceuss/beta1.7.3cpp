@@ -31,8 +31,7 @@ namespace
 
 	jstring translate(const jstring &key)
 	{
-		jstring value = Language::getInstance().getElement(key);
-		return value.empty() ? key : value;
+		return Language::getInstance().getElement(key);
 	}
 
 	std::string connectFailureDetail(const std::string &message)

@@ -16,6 +16,7 @@ public:
 	void init() override;
 
 protected:
+	void keyPressed(char_t eventCharacter, int_t eventKey) override;
 	void buttonClicked(Button &button) override;
 
 public:

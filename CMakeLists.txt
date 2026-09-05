@@ -500,6 +500,8 @@ set(McBetaCpp_SOURCES
 	"src/world/item/ItemMap.h"
 	"src/world/item/ItemCake.cpp"
 	"src/world/item/ItemCake.h"
+	"src/world/item/ItemCoal.cpp"
+	"src/world/item/ItemCoal.h"
 	"src/world/item/ItemSeeds.cpp"
 	"src/world/item/ItemSeeds.h"
 	"src/world/item/ItemFood.cpp"

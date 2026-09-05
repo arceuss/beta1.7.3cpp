@@ -1,20 +1,17 @@
 #include "client/gui/GuiTextField.h"
 
 #include "client/gui/Screen.h"
-
+#include "SharedConstants.h"
 #include "lwjgl/Keyboard.h"
 
-namespace
-{
-
-bool isPasteShortcutDown()
+// B173 - LWJGL delivers Ctrl+V as character 0x16; the SDL adapter reports the V key with a
+// modifier held instead. Both branches mean "paste".
+static bool isPasteShortcutDown()
 {
 	return lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_LCONTROL)
 		|| lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_RCONTROL)
 		|| lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_LMETA)
 		|| lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_RMETA);
-}
-
 }
 
 GuiTextField::GuiTextField(Screen &parentScreen, Font &font, int_t x, int_t y, int_t width, int_t height, const jstring &text)
@@ -25,9 +22,7 @@ GuiTextField::GuiTextField(Screen &parentScreen, Font &font, int_t x, int_t y, i
 
 void GuiTextField::setText(const jstring &text)
 {
-	this->text = Font::sanitize(text);
-	if (maxStringLength > 0 && this->text.size() > static_cast<size_t>(maxStringLength))
-		this->text.resize(maxStringLength);
+	this->text = text;
 }
 
 const jstring &GuiTextField::getText() const
@@ -45,37 +40,32 @@ void GuiTextField::textboxKeyTyped(char_t eventCharacter, int_t eventKey)
 	if (!isEnabled || !isFocused)
 		return;
 
-	if (eventKey == lwjgl::Keyboard::KEY_TAB)
-	{
+	if (eventCharacter == u'\t' || eventKey == lwjgl::Keyboard::KEY_TAB)
 		parentScreen.selectNextField();
-		return;
-	}
 
-	if (eventKey == lwjgl::Keyboard::KEY_V && isPasteShortcutDown())
+	if (eventCharacter == 0x16 || (eventKey == lwjgl::Keyboard::KEY_V && isPasteShortcutDown()))
 	{
-		appendAllowedText(parentScreen.getClipboard());
-		return;
+		// GuiTextField pastes the raw clipboard up to 32 characters total, regardless of maxStringLength.
+		jstring clipboard = parentScreen.getClipboard();
+		int_t room = 32 - static_cast<int_t>(text.length());
+		if (room > static_cast<int_t>(clipboard.length()))
+			room = static_cast<int_t>(clipboard.length());
+		if (room > 0)
+			text += clipboard.substr(0, room);
 	}
 
-	if (eventKey == lwjgl::Keyboard::KEY_BACK)
-	{
-		if (!text.empty())
-			text.pop_back();
-		return;
-	}
+	if (eventKey == lwjgl::Keyboard::KEY_BACK && !text.empty())
+		text.pop_back();
 
-	if (eventCharacter == 0)
-		return;
-
-	jstring typedText;
-	typedText.push_back(eventCharacter);
-	appendAllowedText(typedText);
+	if (SharedConstants::acceptableLetters.find(eventCharacter) != jstring::npos
+		&& (static_cast<int_t>(text.length()) < maxStringLength || maxStringLength == 0))
+		text += eventCharacter;
 }
 
 void GuiTextField::mouseClicked(int_t x, int_t y, int_t buttonNum)
 {
-	bool focused = isEnabled && x >= xPos && x < xPos + width && y >= yPos && y < yPos + height;
-	setFocused(focused);
+	bool inside = isEnabled && x >= xPos && x < xPos + width && y >= yPos && y < yPos + height;
+	setFocused(inside);
 }
 
 void GuiTextField::setFocused(bool focused)
@@ -89,14 +79,10 @@ void GuiTextField::drawTextBox()
 {
 	fill(xPos - 1, yPos - 1, xPos + width + 1, yPos + height + 1, 0xFFA0A0A0);
 	fill(xPos, yPos, xPos + width, yPos + height, 0xFF000000);
-
 	if (isEnabled)
 	{
-		bool showCursor = isFocused && (cursorCounter / 6 % 2 == 0);
-		jstring displayText = text;
-		if (showCursor)
-			displayText += u"_";
-		drawString(font, displayText, xPos + 4, yPos + (height - 8) / 2, 0xE0E0E0);
+		bool cursor = isFocused && cursorCounter / 6 % 2 == 0;
+		drawString(font, text + (cursor ? u"_" : u""), xPos + 4, yPos + (height - 8) / 2, 0xE0E0E0);
 	}
 	else
 	{
@@ -107,25 +93,4 @@ void GuiTextField::drawTextBox()
 void GuiTextField::setMaxStringLength(int_t maxStringLength)
 {
 	this->maxStringLength = maxStringLength;
-	if (this->maxStringLength > 0 && text.size() > static_cast<size_t>(this->maxStringLength))
-		text.resize(this->maxStringLength);
-}
-
-void GuiTextField::appendAllowedText(const jstring &text)
-{
-	jstring filtered = Font::sanitize(text);
-	if (filtered.empty())
-		return;
-
-	if (maxStringLength > 0)
-	{
-		if (this->text.size() >= static_cast<size_t>(maxStringLength))
-			return;
-
-		size_t remaining = static_cast<size_t>(maxStringLength) - this->text.size();
-		if (filtered.size() > remaining)
-			filtered.resize(remaining);
-	}
-
-	this->text += filtered;
 }

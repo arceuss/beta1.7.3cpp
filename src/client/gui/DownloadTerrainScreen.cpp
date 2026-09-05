@@ -21,8 +21,7 @@ namespace
 
 	jstring translate(const jstring &key)
 	{
-		jstring value = Language::getInstance().getElement(key);
-		return value.empty() ? key : value;
+		return Language::getInstance().getElement(key);
 	}
 }
 
@@ -57,7 +56,7 @@ void DownloadTerrainScreen::buttonClicked(Button &button)
 
 void DownloadTerrainScreen::render(int_t xm, int_t ym, float a)
 {
-	renderBackground(0);
+	renderDirtBackground(0);
 	drawCenteredString(font, translate(u"multiplayer.downloadingTerrain"), width / 2,
 		height / 2 - 50, 0xFFFFFF);
 	Screen::render(xm, ym, a);

@@ -33,14 +33,14 @@ int_t LeafTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)
 	return FoliageColor::get(temperature, downfall);
 }
 
+// ItemLeaves.getColorFromDamage / BlockLeaves.getRenderColor: ordered bit tests, fixed colours.
 int_t LeafTile::getItemColor(int_t data)
 {
-	int_t type = data & LEAF_TYPE_MASK;
-	if (type == SPRUCE_LEAF)
+	if ((data & 1) == 1)
 		return FoliageColor::getEvergreenColor();
-	if (type == BIRCH_LEAF)
+	if ((data & 2) == 2)
 		return FoliageColor::getBirchColor();
-	return FoliageColor::get(0.5, 1.0);
+	return FoliageColor::getDefaultColor();
 }
 
 void LeafTile::onRemove(Level &level, int_t x, int_t y, int_t z)

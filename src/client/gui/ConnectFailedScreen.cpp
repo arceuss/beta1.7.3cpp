@@ -10,8 +10,7 @@ namespace
 {
 	jstring translate(const jstring &key)
 	{
-		jstring value = Language::getInstance().getElement(key);
-		return value.empty() ? key : value;
+		return Language::getInstance().getElement(key);
 	}
 
 	jstring translateFormat(const jstring &key, const std::vector<jstring> &arguments)
