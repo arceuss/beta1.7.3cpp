@@ -54,9 +54,9 @@ bool Dimension::isValidSpawn(int_t x, int_t z)
 	return top == Tile::sand.id;
 }
 
-float Dimension::getTimeOfDay(int_t time, float add)
+float Dimension::getTimeOfDay(long_t time, float add)
 {
-	int_t time_cycle = time % 24000L;
+	int_t time_cycle = static_cast<int_t>(time % 24000L);
 	float time_cycle_f = (static_cast<float>(time_cycle) + add) / 24000.0f - 0.25f;
 	if (time_cycle_f < 0.0f)
 		time_cycle_f++;

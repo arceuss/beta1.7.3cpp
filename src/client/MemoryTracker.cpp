@@ -16,7 +16,7 @@ int_t MemoryTracker::genLists(int_t count)
 void MemoryTracker::genTextures(std::vector<int_t> &ib)
 {
 	static_assert(sizeof(GLuint) == sizeof(int_t), "sizeof(GLuint) != sizeof(int_t)");
-	glGenTextures(ib.size(), reinterpret_cast<GLuint*>(ib.data()));
+	glGenTextures(static_cast<GLsizei>(ib.size()), reinterpret_cast<GLuint*>(ib.data()));
 }
 
 void MemoryTracker::release()
@@ -24,14 +24,14 @@ void MemoryTracker::release()
 	for (int_t i = 0; i < lists.size(); i += 2)
 		glDeleteLists(lists[i], lists[i + 1]);
 
-	auto ib = createIntBuffer(textures.size());
-	// This seems to be a bug in the original code
-	// glDeleteTextures(ib.size(), reinterpret_cast<GLuint *>(ib.data()));
+	auto ib = createIntBuffer(static_cast<int_t>(textures.size()));
+	// GLAllocation.deleteTexturesAndDisplayLists first calls glDeleteTextures on the flipped,
+	// still-empty buffer (a zero-length no-op); only the second call below does work.
 
 	for (int_t i = 0; i < textures.size(); i++)
 		ib[i] = textures[i];
 
-	glDeleteTextures(ib.size(), reinterpret_cast<GLuint*>(ib.data()));
+	glDeleteTextures(static_cast<GLsizei>(ib.size()), reinterpret_cast<GLuint*>(ib.data()));
 
 	lists.clear();
 	textures.clear();

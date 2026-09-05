@@ -33,11 +33,11 @@ bool CaveFeature::place(Level &level, Random &random, int_t x, int_t y, int_t z)
 		double d13 = random.nextDouble();
 		double d14 = (Mth::sin(b / 16.0F * Mth::PI) * d8 + 1.0) * d13 + 1.0;
 		double d15 = (Mth::sin(b / 16.0F * Mth::PI) * d8 + 1.0) * d13 + 1.0;
-		for (int_t i = d10 - d14 / 2.0; i <= d10 + d14 / 2.0; i++)
+		for (int_t i = static_cast<int_t>(d10 - d14 / 2.0); i <= d10 + d14 / 2.0; i++)
 		{
-			for (int_t j = d11 - d15 / 2.0; j <= d11 + d15 / 2.0; j++)
+			for (int_t j = static_cast<int_t>(d11 - d15 / 2.0); j <= d11 + d15 / 2.0; j++)
 			{
-				for (int_t k = d12 - d14 / 2.0; k <= d12 + d14 / 2.0; k++)
+				for (int_t k = static_cast<int_t>(d12 - d14 / 2.0); k <= d12 + d14 / 2.0; k++)
 				{
 					double d16 = (i + 0.5 - d10) / d14 / 2.0;
 					double d17 = (j + 0.5 - d11) / d15 / 2.0;

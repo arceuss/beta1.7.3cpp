@@ -1,6 +1,7 @@
 #include "client/renderer/LevelRenderer.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "client/Minecraft.h"
 #include "client/OpenGLCapabilities.h"
@@ -361,12 +362,12 @@ void LevelRenderer::resortChunks(int_t xc, int_t yc, int_t zc)
 	yc -= 8;
 	zc -= 8;
 
-	xMinChunk = 0x7FFFFFFF;
-	yMinChunk = 0x7FFFFFFF;
-	zMinChunk = 0x7FFFFFFF;
-	xMaxChunk = -0x80000000;
-	yMaxChunk = -0x80000000;
-	zMaxChunk = -0x80000000;
+	xMinChunk = std::numeric_limits<int_t>::max();
+	yMinChunk = std::numeric_limits<int_t>::max();
+	zMinChunk = std::numeric_limits<int_t>::max();
+	xMaxChunk = std::numeric_limits<int_t>::min();
+	yMaxChunk = std::numeric_limits<int_t>::min();
+	zMaxChunk = std::numeric_limits<int_t>::min();
 
 	int_t s2 = xChunks * 16;
 	int_t s1 = s2 / 2;
@@ -527,25 +528,6 @@ int_t LevelRenderer::render(Player &player, int_t layer, double alpha)
 		count += renderChunks(0, totalSortedChunks, layer, alpha);
 	}
 
-	/*
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_BLEND);
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-
-	glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
-	for (auto &lu : level->lightUpdates)
-	{
-		AABB *bb = AABB::newTemp(-xOff + (float)lu.x0, -yOff + (float)lu.y0, -zOff + (float)lu.z0, -xOff + (float)lu.x1 + 1.0f, -yOff + (float)lu.y1 + 1.0f, -zOff + (float)lu.z1 + 1.0f);
-		render(*bb);
-	}
-	
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
-	// glEnable(GL_BLEND);
-	glEnable(GL_TEXTURE_2D);
-	*/
-
 	return count;
 }
 
@@ -651,9 +633,9 @@ void LevelRenderer::renderSky(float alpha)
 
 	// Sky
 	Vec3 *sc = level->getSkyColor(*mc.player, alpha);
-	float sr = sc->x;
-	float sg = sc->y;
-	float sb = sc->z;
+	float sr = static_cast<float>(sc->x);
+	float sg = static_cast<float>(sc->y);
+	float sb = static_cast<float>(sc->z);
 	float xp;
 	float yp;
 	if (mc.options.anaglyph3d)
@@ -692,7 +674,7 @@ void LevelRenderer::renderSky(float alpha)
 		glPushMatrix();
 		glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
 		yp = level->getTimeOfDay(alpha);
-		glRotatef(yp > 0.5F ? 180 : 0, 0.0f, 0.0f, 1.0f);
+		glRotatef(yp > 0.5F ? 180.0f : 0.0f, 0.0f, 0.0f, 1.0f);
 
 		t.begin(GL_TRIANGLE_FAN);
 		t.color(c[0], c[1], c[2], c[3]);
@@ -787,7 +769,7 @@ void LevelRenderer::renderClouds(float alpha)
 
 	glDisable(GL_CULL_FACE);
 
-	float yOffs = mc.player->yOld + (mc.player->y - mc.player->yOld) * alpha;
+	float yOffs = static_cast<float>(mc.player->yOld + (mc.player->y - mc.player->yOld) * alpha);
 	int_t s = 32;
 	int_t d = 256 / s;
 
@@ -797,9 +779,9 @@ void LevelRenderer::renderClouds(float alpha)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	Vec3 *cc = level->getCloudColor(alpha);
-	float cr = cc->x;
-	float cg = cc->y;
-	float cb = cc->z;
+	float cr = static_cast<float>(cc->x);
+	float cg = static_cast<float>(cc->y);
+	float cb = static_cast<float>(cc->z);
 
 	if (mc.options.anaglyph3d)
 	{
@@ -821,8 +803,8 @@ void LevelRenderer::renderClouds(float alpha)
 	zo -= zOffs * 2048;
 
 	float yy = 120.0f - yOffs + 0.33f;
-	float uo = xo * scale;
-	float vo = zo * scale;
+	float uo = static_cast<float>(xo * scale);
+	float vo = static_cast<float>(zo * scale);
 
 	t.begin();
 	t.color(cr, cg, cb, 0.8f);
@@ -846,7 +828,7 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 {
 	glDisable(GL_CULL_FACE);
 
-	float yOffs = mc.player->yOld + (mc.player->y - mc.player->yOld) * alpha;
+	float yOffs = static_cast<float>(mc.player->yOld + (mc.player->y - mc.player->yOld) * alpha);
 
 	Tesselator &t = Tesselator::instance;
 	float ss = 12.0f;
@@ -868,9 +850,9 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	Vec3 *cc = level->getCloudColor(alpha);
-	float cr = cc->x;
-	float cg = cc->y;
-	float cb = cc->z;
+	float cr = static_cast<float>(cc->x);
+	float cg = static_cast<float>(cc->y);
+	float cb = static_cast<float>(cc->z);
 
 	if (mc.options.anaglyph3d)
 	{
@@ -882,15 +864,15 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 		cb = cbb;
 	}
 
-	float uo = xo * 0.0;
-	float vo = zo * 0.0;
+	float uo = static_cast<float>(xo * 0.0);
+	float vo = static_cast<float>(zo * 0.0);
 	float scale = 1.0f / 256.0f;
 
 	uo = Mth::floor(xo) * scale;
 	vo = Mth::floor(zo) * scale;
 
-	float xoffs = xo - Mth::floor(xo);
-	float zoffs = zo - Mth::floor(zo);
+	float xoffs = static_cast<float>(xo - Mth::floor(xo));
+	float zoffs = static_cast<float>(zo - Mth::floor(zo));
 
 	int_t D = 8;
 	int_t radius = 3;
@@ -910,8 +892,8 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 			for (int_t zPos = -radius + 1; zPos <= radius; zPos++)
 			{
 				t.begin();
-				float xx = xPos * D;
-				float zz = zPos * D;
+				float xx = static_cast<float>(xPos * D);
+				float zz = static_cast<float>(zPos * D);
 				float xp = xx - xoffs;
 				float zp = zz - zoffs;
 
@@ -1006,8 +988,8 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 	{
 		std::sort(dirtyChunks.begin(), dirtyChunks.end(), DirtyChunkSorter(player));
 
-		int_t s = dirtyChunks.size() - 1;
-		int_t amount = dirtyChunks.size();
+		int_t s = static_cast<int_t>(dirtyChunks.size()) - 1;
+		int_t amount = static_cast<int_t>(dirtyChunks.size());
 
 		for (int_t i = 0; i < amount; i++)
 		{
@@ -1051,7 +1033,7 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 		std::array<std::shared_ptr<Chunk>, 2> toAdd = {};
 		std::vector<std::shared_ptr<Chunk>> nearChunks;
 
-		int_t pendingChunkSize = dirtyChunks.size();
+		int_t pendingChunkSize = static_cast<int_t>(dirtyChunks.size());
 		int_t pendingChunkRemoved = 0;
 
 		for (int_t i = 0; i < pendingChunkSize; i++)
@@ -1088,7 +1070,7 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 		{
 			if (nearChunks.size() > 1)
 				std::sort(nearChunks.begin(), nearChunks.end(), dirtyChunkSorter);
-			for (int_t i = nearChunks.size() - 1; i >= 0; i--)
+			for (int_t i = static_cast<int_t>(nearChunks.size()) - 1; i >= 0; i--)
 			{
 				std::shared_ptr<Chunk> chunk = nearChunks[i];
 				chunk->rebuild();
@@ -1116,7 +1098,7 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 
 		int_t cursor = 0;
 		int_t target = 0;
-		int_t arraySize = dirtyChunks.size();
+		int_t arraySize = static_cast<int_t>(dirtyChunks.size());
 		while (cursor != arraySize)
 		{
 			std::shared_ptr<Chunk> chunk = dirtyChunks[cursor];

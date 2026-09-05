@@ -200,7 +200,7 @@ void Mob::tick()
 	{
 		targetRun = 1.0f;
 		speedAnimStep = fd * 3.0f;
-		targetBodyRot = std::atan2(fzd, fxd) * 180.0f / Mth::PI - 90.0f;
+		targetBodyRot = static_cast<float>(std::atan2(fzd, fxd)) * 180.0f / Mth::PI - 90.0f;
 	}
 
 	if (attackAnim > 0.0f)
@@ -569,8 +569,8 @@ void Mob::aiStep()
 		while (deltaYRot < -180.0f) deltaYRot += 360.0f;
 		while (deltaYRot >= 180.0f) deltaYRot -= 360.0f;
 
-		yRot = yRot + deltaYRot / lSteps;
-		xRot = xRot + (lxr - xRot) / lSteps;
+		yRot = static_cast<float>(yRot + deltaYRot / lSteps);
+		xRot = static_cast<float>(xRot + (lxr - xRot) / lSteps);
 
 		--lSteps;
 
@@ -784,7 +784,7 @@ Vec3 *Mob::getViewVector(float a)
 	}
 }
 
-HitResult Mob::pick(float length, float a)
+HitResult Mob::pick(double length, float a)
 {
 	Vec3 *pos = getPos(a);
 	Vec3 *look = getViewVector(a);

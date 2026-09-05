@@ -120,7 +120,7 @@ bool EntityMinecart::hurt(Entity *source, int_t dmg)
 	(void)source;
 	if (level.isOnline)
 	{
-		// TODO multiplayer minecart damage sync once networking exists.
+		// EntityMinecart.attackEntityFrom: the client only reports the hit; the server applies damage.
 		return true;
 	}
 	if (removed)
@@ -177,7 +177,7 @@ bool EntityMinecart::interact(Player &player)
 	{
 		if (level.isOnline)
 		{
-			// TODO multiplayer chest minecart container sync once networking exists.
+			// EntityMinecart.interact: the server opens the chest container.
 			return true;
 		}
 		LocalPlayer *localPlayer = dynamic_cast<LocalPlayer *>(&player);
@@ -219,7 +219,6 @@ void EntityMinecart::tick()
 
 	if (level.isOnline && lerpSteps > 0)
 	{
-		// TODO multiplayer minecart interpolation once entity sync exists.
 		setPos(x + (lerpX - x) / lerpSteps, y + (lerpY - y) / lerpSteps, z + (lerpZ - z) / lerpSteps);
 		setRot(yRot + (lerpYaw - yRot) / lerpSteps, xRot + (lerpPitch - xRot) / lerpSteps);
 		lerpSteps--;
@@ -688,7 +687,6 @@ void EntityMinecart::readAdditionalSaveData(CompoundTag &tag)
 
 void EntityMinecart::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
 {
-	// TODO multiplayer minecart interpolation once networking exists.
 	lerpX = x;
 	lerpY = y + heightOffset;
 	lerpZ = z;

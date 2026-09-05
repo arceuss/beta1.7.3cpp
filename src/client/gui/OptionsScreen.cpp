@@ -40,6 +40,8 @@ OptionsScreen::OptionsScreen(Minecraft &minecraft, std::shared_ptr<Screen> lastS
 
 }
 
+OptionsScreen::~OptionsScreen() = default;
+
 void OptionsScreen::init()
 {
 	Language &language = Language::getInstance();

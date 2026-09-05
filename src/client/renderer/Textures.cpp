@@ -594,7 +594,7 @@ BufferedImage Textures::makeStrip(BufferedImage &source)
 	std::vector<unsigned char> column(TileSize::size * source.getHeight() * 4);
 	for (int_t i = 0; i < cols; i++)
 	{
-		// g.drawImage(source, -i * size, i * source.getHeight(), null);
+		// Graphics.drawImage with a negative x offset: copy column i of the source into row i of the strip.
 		source.getRGB(i * TileSize::size, 0, TileSize::size, source.getHeight(), column.data());
 		out.setRGB(0, i * source.getHeight(), TileSize::size, source.getHeight(), column.data());
 	}
@@ -682,11 +682,8 @@ void Textures::loadTexture(BufferedImage &img, int_t id)
 		std::unique_ptr<int_t[]> mipmapPixels(new int_t[w * h * 4]);
 		int_t *inPixels = (int_t*)newPixels.get();
 
-		for (int level = 1; ; level++)
+		for (int level = 1; level <= 4; level++)
 		{
-			if (level > 4)
-				break;
-
 			int_t ow = w >> (level - 1);
 
 			int_t ww = w >> level;
@@ -706,9 +703,6 @@ void Textures::loadTexture(BufferedImage &img, int_t id)
 			}
 
 			glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, ww, hh, 0, GL_RGBA, GL_UNSIGNED_BYTE, mipmapPixels.get());
-
-			// if (ww == 1 || hh == 1)
-			// 	break;
 		}
 	}
 }

@@ -2,12 +2,10 @@
 
 #include "client/particle/Particle.h"
 
-// newb12: LavaParticle.java - lava particle for lava blocks
-// Ported 1:1 from newb12/net/minecraft/client/particle/LavaParticle.java
 class LavaParticle : public Particle
 {
 private:
-	float oSize;  // newb12: private float oSize
+	float oSize;
 
 public:
 	LavaParticle(Level &level, double x, double y, double z);

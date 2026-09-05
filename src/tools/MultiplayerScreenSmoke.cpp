@@ -29,11 +29,11 @@ public:
 	using ContainerScreen::shouldClose;
 };
 
-static_assert(std::is_base_of_v<ContainerScreen, ChestScreen>);
-static_assert(std::is_base_of_v<ContainerScreen, FurnaceScreen>);
-static_assert(std::is_base_of_v<ContainerScreen, DispenserScreen>);
-static_assert(std::is_base_of_v<ContainerScreen, InventoryScreen>);
-static_assert(std::is_base_of_v<ContainerScreen, WorkbenchScreen>);
+static_assert(std::is_base_of<ContainerScreen, ChestScreen>::value, "ChestScreen must derive from ContainerScreen");
+static_assert(std::is_base_of<ContainerScreen, FurnaceScreen>::value, "FurnaceScreen must derive from ContainerScreen");
+static_assert(std::is_base_of<ContainerScreen, DispenserScreen>::value, "DispenserScreen must derive from ContainerScreen");
+static_assert(std::is_base_of<ContainerScreen, InventoryScreen>::value, "InventoryScreen must derive from ContainerScreen");
+static_assert(std::is_base_of<ContainerScreen, WorkbenchScreen>::value, "WorkbenchScreen must derive from ContainerScreen");
 
 bool expect(bool condition, const char *message)
 {

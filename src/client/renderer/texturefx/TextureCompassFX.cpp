@@ -74,7 +74,7 @@ void TextureCompassFX::onTick()
 		imageData[pixel * 4 + 0] = static_cast<byte_t>(red);
 		imageData[pixel * 4 + 1] = static_cast<byte_t>(green);
 		imageData[pixel * 4 + 2] = static_cast<byte_t>(blue);
-		imageData[pixel * 4 + 3] = 255;
+		imageData[pixel * 4 + 3] = static_cast<byte_t>(255);
 	}
 
 	for (int_t i = TileSize::compassNeedleMin; i <= TileSize::compassNeedleMax; ++i)
@@ -89,6 +89,6 @@ void TextureCompassFX::onTick()
 		imageData[pixel * 4 + 0] = static_cast<byte_t>(red);
 		imageData[pixel * 4 + 1] = static_cast<byte_t>(green);
 		imageData[pixel * 4 + 2] = static_cast<byte_t>(blue);
-		imageData[pixel * 4 + 3] = 255;
+		imageData[pixel * 4 + 3] = static_cast<byte_t>(255);
 	}
 }

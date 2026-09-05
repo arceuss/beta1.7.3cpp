@@ -154,10 +154,10 @@ void EntityRenderer::renderTileShadow(Tile &tt, double x, double y, double z, in
 	double z0 = zt + tt.zz0 + zo;
 	double z1 = zt + tt.zz1 + zo;
 	
-	float u0 = (x - x0) / 2.0 / r + 0.5;
-	float u1 = (x - x1) / 2.0 / r + 0.5;
-	float v0 = (z - z0) / 2.0 / r + 0.5;
-	float v1 = (z - z1) / 2.0 / r + 0.5;
+	float u0 = static_cast<float>((x - x0) / 2.0 / r + 0.5);
+	float u1 = static_cast<float>((x - x1) / 2.0 / r + 0.5);
+	float v0 = static_cast<float>((z - z0) / 2.0 / r + 0.5);
+	float v1 = static_cast<float>((z - z1) / 2.0 / r + 0.5);
 	
 	t.vertexUV(x0, y0, z0, u0, v0);
 	t.vertexUV(x0, y0, z1, u0, v1);
@@ -249,7 +249,7 @@ void EntityRenderer::postRender(Entity &entity, double x, double y, double z, fl
 	if (entityRenderDispatcher.options->fancyGraphics)
 	{
 		double dist = entityRenderDispatcher.distanceToSqr(entity.x, entity.y, entity.z);
-		float pow = (1.0 - dist / 256.0) * shadowStrength;
+		float pow = static_cast<float>((1.0 - dist / 256.0) * shadowStrength);
 		if (pow > 0.0f)
 			renderShadow(entity, x, y, z, pow, a);
 	}

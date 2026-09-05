@@ -21,7 +21,7 @@ public:
 
 	float timeOffs = 0.0f;
 
-	float rotA = (Math::random() + 1.0) * 0.01f;
+	float rotA = static_cast<float>(Math::random() + 1.0) * 0.01f;
 	float yBodyRot = 0.0f;
 	float yBodyRotO = 0.0f;
 
@@ -209,7 +209,7 @@ public:
 	Vec3 *getLookAngle() override;
 	Vec3 *getViewVector(float a);
 
-	HitResult pick(float length, float a);
+	HitResult pick(double length, float a);
 
 	virtual int_t getMaxSpawnClusterSize();
 

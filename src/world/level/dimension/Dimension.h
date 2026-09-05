@@ -53,7 +53,7 @@ public:
 
 	virtual bool isValidSpawn(int_t x, int_t z);
 
-	virtual float getTimeOfDay(int_t time, float add);
+	virtual float getTimeOfDay(long_t time, float add);
 	virtual float *getSunriseColor(float time, float unknown);
 	virtual Vec3 *getFogColor(float time, float unknown);
 

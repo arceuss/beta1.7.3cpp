@@ -48,7 +48,7 @@ bool HellDimension::isValidSpawn(int_t x, int_t z)
 	return Tile::solid[top];
 }
 
-float HellDimension::getTimeOfDay(int_t time, float add)
+float HellDimension::getTimeOfDay(long_t time, float add)
 {
 	(void)time; (void)add;
 	return 0.5f;

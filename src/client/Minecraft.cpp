@@ -57,8 +57,8 @@
 
 const jstring Minecraft::VERSION_STRING = u"Minecraft " + SharedConstants::VERSION_STRING;
 
-std::array<long, 512> Minecraft::frameTimes = {};
-std::array<long, 512> Minecraft::tickTimes = {};
+std::array<long_t, 512> Minecraft::frameTimes = {};
+std::array<long_t, 512> Minecraft::tickTimes = {};
 int_t Minecraft::frameTimePos = 0;
 
 std::shared_ptr<File> Minecraft::workDir;
@@ -399,7 +399,7 @@ void Minecraft::generateFlyby()
 		else
 			player_y += (target_y - player_y) * speed / check_distance * 4.0;
 
-		player->xRot = player->xRotO = (player_y - 64.0) / 2.0f;
+		player->xRot = player->xRotO = static_cast<float>((player_y - 64.0) / 2.0);
 		player->y = player->yo = player->yOld = player_y;
 
 		// Render world
@@ -587,7 +587,7 @@ void Minecraft::run()
 #endif
 }
 
-void Minecraft::renderFpsMeter(long tickNanos)
+void Minecraft::renderFpsMeter(long_t tickNanos)
 {
 	// Update times
 	long_t target = 16666666LL; // 1 / 60
@@ -619,39 +619,39 @@ void Minecraft::renderFpsMeter(long tickNanos)
 	Tesselator &t = Tesselator::instance;
 	t.begin(GL_QUADS);
 
-	int_t targetHeight = target / 200000LL;
+	int_t targetHeight = static_cast<int_t>(target / 200000LL);
 
 	t.color(0x20000000);
 	t.vertex(0.0, this->height - targetHeight, 0.0);
 	t.vertex(0.0, this->height, 0.0);
-	t.vertex(frameTimes.size(), this->height, 0.0);
-	t.vertex(frameTimes.size(), this->height - targetHeight, 0.0);
+	t.vertex(static_cast<double>(frameTimes.size()), this->height, 0.0);
+	t.vertex(static_cast<double>(frameTimes.size()), this->height - targetHeight, 0.0);
 
 	t.color(0x20200000);
 	t.vertex(0.0, this->height - targetHeight * 2, 0.0);
 	t.vertex(0.0, this->height - targetHeight, 0.0);
-	t.vertex(frameTimes.size(), this->height - targetHeight, 0.0);
-	t.vertex(frameTimes.size(), this->height - targetHeight * 2, 0.0);
+	t.vertex(static_cast<double>(frameTimes.size()), this->height - targetHeight, 0.0);
+	t.vertex(static_cast<double>(frameTimes.size()), this->height - targetHeight * 2, 0.0);
 
 	t.end();
 
-	int_t total = 0;
+	long_t total = 0;
 	for (int_t i = 0; i < frameTimes.size(); i++)
 		total += frameTimes[i];
-	int_t avg = total / 200000LL / frameTimes.size();
+	int_t avg = static_cast<int_t>(total / 200000LL / static_cast<long_t>(frameTimes.size()));
 
 	t.begin(GL_QUADS);
 	t.color(0x20400000);
 	t.vertex(0.0, (height - avg), 0.0);
 	t.vertex(0.0, height, 0.0);
-	t.vertex(frameTimes.size(), height, 0.0);
-	t.vertex(frameTimes.size(), (height - avg), 0.0);
+	t.vertex(static_cast<double>(frameTimes.size()), height, 0.0);
+	t.vertex(static_cast<double>(frameTimes.size()), (height - avg), 0.0);
 	t.end();
 
 	t.begin(GL_LINES);
 	for (int_t i = 0; i < frameTimes.size(); i++)
 	{
-		int_t x = ((i - frameTimePos) & (frameTimes.size() - 1)) * 255 / frameTimes.size();
+		int_t x = ((i - frameTimePos) & (static_cast<int_t>(frameTimes.size()) - 1)) * 255 / static_cast<int_t>(frameTimes.size());
 		int_t m = x * x / 255;
 		m = m * m / 255;
 		int_t n = m * m / 255;

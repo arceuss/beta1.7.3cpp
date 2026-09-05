@@ -11,10 +11,6 @@ class Frustum : public FrustumData
 private:
 	static Frustum frustum;
 
-	// std::array<float, 16> _proj = {};
-	// std::array<float, 16> _modl = {};
-	// std::array<float, 16> _clip = {};
-
 public:
 	static FrustumData &getFrustum();
 

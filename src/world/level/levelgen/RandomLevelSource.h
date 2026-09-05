@@ -32,8 +32,6 @@ private:
 	PerlinNoise perlinNoise3;
 	PerlinNoise scaleNoise;
 	PerlinNoise depthNoise;
-	// PerlinNoise floatingIslandScale;
-	// PerlinNoise floatingIslandNoise;
 	PerlinNoise forestNoise;
 
 	Level &level;

@@ -33,7 +33,7 @@ void MobRenderer::render(Entity &entity, double x, double y, double z, float rot
 	float headRot = mob.yRotO + (mob.yRot - mob.yRotO) * a;
 	float headRotx = mob.xRotO + (mob.xRot - mob.xRotO) * a;
 
-	glTranslatef(x, y, z);
+	glTranslatef(static_cast<float>(x), static_cast<float>(y), static_cast<float>(z));
 
 	float bob = getBob(mob, a);
 	setupRotations(mob, bob, bodyRot, a);

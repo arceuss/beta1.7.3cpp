@@ -88,8 +88,8 @@ void Entity::turn(float yRot, float xRot)
 	float ox = this->xRot;
 	float oy = this->yRot;
 
-	this->yRot += yRot * 0.15;
-	this->xRot -= xRot * 0.15;
+	this->yRot = static_cast<float>(this->yRot + yRot * 0.15);
+	this->xRot = static_cast<float>(this->xRot - xRot * 0.15);
 	if (this->xRot < -90.0f) this->xRot = -90.0f;
 	if (this->xRot > 90.0f) this->xRot = 90.0f;
 
@@ -99,8 +99,8 @@ void Entity::turn(float yRot, float xRot)
 
 void Entity::interpolateTurn(float yRot, float xRot)
 {
-	this->yRot = this->yRot + yRot * 0.15;
-	this->xRot = this->xRot - xRot * 0.15;
+	this->yRot = static_cast<float>(this->yRot + yRot * 0.15);
+	this->xRot = static_cast<float>(this->xRot - xRot * 0.15);
 	if (this->xRot < -90.0f) this->xRot = -90.0f;
 	if (this->xRot > 90.0f) this->xRot = 90.0f;
 }
@@ -370,7 +370,9 @@ void Entity::move(double xd, double yd, double zd)
 		}
 		else
 		{
-			ySlideOffset += (bb.y0 - std::floor(bb.y0)) + 0.01;
+			double stepFraction = bb.y0 - static_cast<double>(static_cast<int_t>(bb.y0));
+			if (stepFraction > 0.0)
+				ySlideOffset = static_cast<float>(static_cast<double>(ySlideOffset) + (stepFraction + 0.01));
 		}
 	}
 
@@ -394,12 +396,12 @@ void Entity::move(double xd, double yd, double zd)
 		this->zd = 0.0;
 
 	// Footsteps
-	float fdx = x - ox;
-	float fdz = z - oz;
+	double fdx = x - ox;
+	double fdz = z - oz;
 
 	if (makeStepSound && !sneaking)
 	{
-		walkDist += Mth::sqrt(fdx * fdx + fdz * fdz) * 0.6;
+		walkDist = static_cast<float>(walkDist + Mth::sqrt(fdx * fdx + fdz * fdz) * 0.6);
 
 		int_t sx = Mth::floor(x);
 		int_t sy = Mth::floor(y - 0.2 - heightOffset);

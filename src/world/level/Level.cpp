@@ -1149,21 +1149,21 @@ HitResult Level::clip(Vec3 &from, Vec3 &to, bool canPickLiquid)
 
 		Vec3 *newVec = Vec3::newTemp(from.x, from.y, from.z);
 
-		x1 = newVec->x = Mth::floor(from.x);
+		x1 = static_cast<int_t>(newVec->x = Mth::floor(from.x));
 		if (face == Facing::EAST)
 		{
 			x1--;
 			newVec->x++;
 		}
 
-		y1 = newVec->y = Mth::floor(from.y);
+		y1 = static_cast<int_t>(newVec->y = Mth::floor(from.y));
 		if (face == Facing::UP)
 		{
 			y1--;
 			newVec->y++;
 		}
 
-		z1 = newVec->z = Mth::floor(from.z);
+		z1 = static_cast<int_t>(newVec->z = Mth::floor(from.z));
 		if (face == Facing::SOUTH)
 		{
 			z1--;
@@ -1511,7 +1511,7 @@ Vec3 *Level::getSkyColor(Entity &entity, float a)
 	int_t x = Mth::floor(entity.x);
 	int_t z = Mth::floor(entity.z);
 
-	float temperature = getBiomeSource().getTemperature(x, z);
+	float temperature = static_cast<float>(getBiomeSource().getTemperature(x, z));
 	
 	float r = 0.0f;
 	float g = 0.0f;
@@ -2095,7 +2095,7 @@ void Level::forceSave(std::shared_ptr<ProgressListener> progressRenderer)
 
 int_t Level::getLightsToUpdate()
 {
-	return lightUpdates.size();
+	return static_cast<int_t>(lightUpdates.size());
 }
 
 bool Level::updateLights()
@@ -2148,7 +2148,7 @@ void Level::updateLight(int_t layer, int_t x0, int_t y0, int_t z0, int_t x1, int
 		return;
 	}
 
-	int_t updates = lightUpdates.size();
+	int_t updates = static_cast<int_t>(lightUpdates.size());
 	if (checkExpansion)
 	{
 		// Check if this light update can be handled by another nearby one

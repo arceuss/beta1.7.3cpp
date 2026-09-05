@@ -40,7 +40,7 @@ public:
 protected:
 	int_t getSize() override
 	{
-		return minecraft.texturePackRepository.getTexturePacks().size();
+		return static_cast<int_t>(minecraft.texturePackRepository.getTexturePacks().size());
 	}
 
 	void elementClicked(int_t index, bool doubleClick) override

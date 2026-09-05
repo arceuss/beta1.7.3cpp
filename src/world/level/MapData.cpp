@@ -73,8 +73,8 @@ void MapData::updatePlayer(Player &player, ItemInstance &item)
 	{
 		if (!info->player.removed /* && info->player.inventory.contains(item) */)
 		{
-			float dx = (info->player.x - xCenter) / (1 << scale);
-			float dz = (info->player.z - zCenter) / (1 << scale);
+			float dx = static_cast<float>(info->player.x - xCenter) / static_cast<float>(1 << scale);
+			float dz = static_cast<float>(info->player.z - zCenter) / static_cast<float>(1 << scale);
 			if (dx >= -64.0f && dz >= -64.0f && dx <= 64.0f && dz <= 64.0f)
 			{
 				byte_t icon = 0;

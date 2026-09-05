@@ -1,6 +1,8 @@
 #include "client/gamemode/SurvivalMode.h"
 
 #include "client/Minecraft.h"
+
+#include <cmath>
 #include "world/level/tile/StepSound.h"
 
 SurvivalMode::SurvivalMode(Minecraft &minecraft) : GameMode(minecraft)

@@ -2,8 +2,6 @@
 
 #include "client/particle/Particle.h"
 
-// newb12: ExplodeParticle.java - explosion particle for mob deaths and explosions
-// Ported 1:1 from newb12/net/minecraft/client/particle/ExplodeParticle.java
 class ExplodeParticle : public Particle
 {
 public:

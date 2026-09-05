@@ -35,7 +35,7 @@ TitleScreen::TitleScreen(Minecraft &minecraft) : Screen(minecraft)
 	}
 
 	if (!splashes.empty())
-		splash = String::fromUTF8(splashes[random.nextInt(splashes.size())]);
+		splash = String::fromUTF8(splashes[random.nextInt(static_cast<int_t>(splashes.size()))]);
 }
 
 void TitleScreen::init()

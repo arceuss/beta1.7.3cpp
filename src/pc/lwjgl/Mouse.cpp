@@ -181,8 +181,6 @@ bool isButtonDown(int_t button)
 bool isGrabbed()
 {
 	return SDL_GetRelativeMouseMode() == SDL_TRUE;
-	// return SDL_GetWindowFlags(GLContext::detail::getWindow()) & SDL_WINDOW_MOUSE_CAPTURE;
-	// return SDL_GetWindowGrab(GLContext::detail::getWindow()) == SDL_TRUE;
 }
 
 void setGrabbed(bool grabbed)
@@ -193,8 +191,6 @@ void setGrabbed(bool grabbed)
 	if (SDL_ShowCursor(grabbed ? SDL_DISABLE : SDL_ENABLE) < 0)
 		throw SDLException();
 	SDL_SetRelativeMouseMode(grabbed ? SDL_TRUE : SDL_FALSE);
-	// SDL_CaptureMouse(grabbed ? SDL_TRUE : SDL_FALSE);
-	// SDL_SetWindowMouseGrab(GLContext::detail::getWindow(), grabbed ? SDL_TRUE : SDL_FALSE);
 }
 
 }

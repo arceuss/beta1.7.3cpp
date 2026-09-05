@@ -318,9 +318,9 @@ void GameRenderer::moveCameraToPlayer(float a)
 
 		for (int_t i = 0; i < 8; i++)
 		{
-			float txo = (i & 1) * 2 - 1;
-			float tyo = ((i >> 1) & 1) * 2 - 1;
-			float tzo = ((i >> 2) & 1) * 2 - 1;
+			float txo = static_cast<float>((i & 1) * 2 - 1);
+			float tyo = static_cast<float>(((i >> 1) & 1) * 2 - 1);
+			float tzo = static_cast<float>(((i >> 2) & 1) * 2 - 1);
 			txo *= 0.1F;
 			tyo *= 0.1F;
 			tzo *= 0.1F;
@@ -334,7 +334,7 @@ void GameRenderer::moveCameraToPlayer(float a)
 
 		glRotatef(player.xRot - xRot, 1.0f, 0.0f, 0.0f);
 		glRotatef(player.yRot - yRot, 0.0f, 1.0f, 0.0f);
-		glTranslatef(0.0f, 0.0f, -distance);
+		glTranslatef(0.0f, 0.0f, static_cast<float>(-distance));
 		glRotatef(yRot - player.yRot, 0.0f, 1.0f, 0.0f);
 		glRotatef(xRot - player.xRot, 1.0f, 0.0f, 0.0f);
 
@@ -354,7 +354,7 @@ void GameRenderer::moveCameraToPlayer(float a)
 // B173-JAVA-METHOD: net.minecraft.src.EntityRenderer#setupCameraTransform(float,int)
 void GameRenderer::setupCamera(float a, int_t eye)
 {
-	renderDistance = 256 >> mc.options.viewDistance;
+	renderDistance = static_cast<float>(256 >> mc.options.viewDistance);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -365,7 +365,7 @@ void GameRenderer::setupCamera(float a, int_t eye)
 
 	if (zoom != 1.0)
 	{
-		glTranslatef(zoom_x, -zoom_y, 0.0f);
+		glTranslatef(static_cast<float>(zoom_x), static_cast<float>(-zoom_y), 0.0f);
 		glScaled(zoom, zoom, 1.0);
 		gluPerspective(getFov(a), static_cast<float>(mc.width) / static_cast<float>(mc.height), 0.05f, renderDistance * 2.0f);
 	}
@@ -874,17 +874,17 @@ void GameRenderer::setupClearColor(float a)
 	auto &player = mc.player;
 
 	float dist = 1.0f / (4 - mc.options.viewDistance);
-	dist = 1.0f - std::pow(dist, 0.25);
+	dist = 1.0f - static_cast<float>(std::pow(dist, 0.25));
 
 	Vec3 *skyColor = level->getSkyColor(*mc.player, a);
-	float sr = skyColor->x;
-	float sg = skyColor->y;
-	float sb = skyColor->z;
+	float sr = static_cast<float>(skyColor->x);
+	float sg = static_cast<float>(skyColor->y);
+	float sb = static_cast<float>(skyColor->z);
 
 	Vec3 *fogColor = level->getFogColor(a);
-	fr = fogColor->x;
-	fg = fogColor->y;
-	fb = fogColor->z;
+	fr = static_cast<float>(fogColor->x);
+	fg = static_cast<float>(fogColor->y);
+	fb = static_cast<float>(fogColor->z);
 
 	fr += (sr - fr) * dist;
 	fg += (sg - fg) * dist;

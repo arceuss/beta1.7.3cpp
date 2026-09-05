@@ -482,7 +482,7 @@ bool TileRenderer::tesselateCactusInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	if (noCulling || tt.shouldRenderFace(*level, x, y - 1, z, Facing::DOWN))
 	{
 		float br = tt.getBrightness(*level, x, y - 1, z);
-		tt.setShape(cactusxx0, cactusyy0, cactuszz0, cactusxx1, cactusyy1, cactuszz1);
+		tt.setShape(static_cast<float>(cactusxx0), static_cast<float>(cactusyy0), static_cast<float>(cactuszz0), static_cast<float>(cactusxx1), static_cast<float>(cactusyy1), static_cast<float>(cactuszz1));
 		Tesselator::instance.color(c10 * r * br, c10 * g * br, c10 * b * br);
 		renderFaceUp(tt, x, y, z, tt.getTexture(*level, x, y, z, Facing::DOWN));
 		changed = true;
@@ -492,7 +492,7 @@ bool TileRenderer::tesselateCactusInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	{
 		float br = tt.getBrightness(*level, x, y + 1, z);
 		if (cactusyy1 != 1.0 && !tt.material.isLiquid()) br = lightValueOwn;
-		tt.setShape(cactusxx0, cactusyy0, cactuszz0, cactusxx1, cactusyy1, cactuszz1);
+		tt.setShape(static_cast<float>(cactusxx0), static_cast<float>(cactusyy0), static_cast<float>(cactuszz0), static_cast<float>(cactusxx1), static_cast<float>(cactusyy1), static_cast<float>(cactuszz1));
 		Tesselator::instance.color(c11 * r * br, c11 * g * br, c11 * b * br);
 		renderFaceDown(tt, x, y, z, tt.getTexture(*level, x, y, z, Facing::UP));
 		changed = true;
@@ -532,7 +532,7 @@ bool TileRenderer::tesselateCactusInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		changed = true;
 	}
 
-	tt.setShape(oldxx0, oldyy0, oldzz0, oldxx1, oldyy1, oldzz1);
+	tt.setShape(static_cast<float>(oldxx0), static_cast<float>(oldyy0), static_cast<float>(oldzz0), static_cast<float>(oldxx1), static_cast<float>(oldyy1), static_cast<float>(oldzz1));
 	enableAO = false;
 	return changed;
 }

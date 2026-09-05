@@ -44,6 +44,7 @@ class Minecraft
 	friend class ConnectingScreen;
 
 public:
+	// B173 - Optional offline flyby capture (writes TGA frames to <workdir>/flyby). Not a vanilla path.
 	static constexpr bool FLYBY_MODE = false;
 	static const jstring VERSION_STRING;
 
@@ -106,8 +107,8 @@ public:
 
 	std::shared_ptr<File> workingDirectory;
 
-	static std::array<long, 512> frameTimes;
-	static std::array<long, 512> tickTimes;
+	static std::array<long_t, 512> frameTimes;
+	static std::array<long_t, 512> tickTimes;
 	static int_t frameTimePos;
 
 private:
@@ -164,7 +165,7 @@ public:
 
 	void run();
 
-	void renderFpsMeter(long tickNanos);
+	void renderFpsMeter(long_t tickNanos);
 	void screenshotListener();
 	bool isTakingScreenshot = false;
 

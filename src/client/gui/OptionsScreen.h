@@ -21,6 +21,7 @@ private:
 
 public:
 	OptionsScreen(Minecraft &minecraft, std::shared_ptr<Screen> lastScreen, Options &options);
+	~OptionsScreen() override;
 
 	void init() override;
 	void removed() override;

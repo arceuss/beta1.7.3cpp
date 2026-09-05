@@ -57,7 +57,7 @@ void Chunk::setPos(int_t x, int_t y, int_t z)
 
 void Chunk::translateToPos()
 {
-	glTranslatef(xRenderOffs, yRenderOffs, zRenderOffs);
+	glTranslatef(static_cast<float>(xRenderOffs), static_cast<float>(yRenderOffs), static_cast<float>(zRenderOffs));
 }
 
 void Chunk::rebuild()

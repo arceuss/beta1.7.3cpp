@@ -1,5 +1,6 @@
 #include "world/level/chunk/LevelChunk.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "world/level/Level.h"
@@ -35,7 +36,6 @@ bool LevelChunk::isAt(int_t x, int_t z)
 
 int_t LevelChunk::getHeightmap(int_t x, int_t z)
 {
-	// recalcHeightmapOnly();
 	return heightmap[(z * 16) | x];
 }
 
@@ -515,7 +515,7 @@ int_t LevelChunk::countEntities()
 {
 	int_t count = 0;
 	for (auto &b : entityBlocks)
-		count += b.size();
+		count += static_cast<int_t>(b.size());
 	return count;
 }
 
