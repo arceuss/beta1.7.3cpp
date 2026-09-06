@@ -20,11 +20,12 @@ int_t IceTile::getRenderLayer()
 
 bool IceTile::shouldRenderFace(LevelSource &level, int_t x, int_t y, int_t z, Facing face)
 {
-	if (face == Facing::DOWN)
-		return Tile::shouldRenderFace(level, x, y, z, Facing::UP);
-	if (face == Facing::UP)
-		return Tile::shouldRenderFace(level, x, y, z, Facing::DOWN);
-	return !level.isSolidTile(x, y, z);
+	// B173 - IceTile tests the opposite face: super.shouldRenderFace(..., 1 - face).
+	// The parent is the half-transparent rule, so ice against ice culls the shared
+	// face. For the four horizontal faces 1 - face is negative and matches no shape
+	// test, leaving the base rule at its !isSolidTile fallthrough.
+	const Facing opposite = static_cast<Facing>(1 - static_cast<int_t>(face));
+	return TransparentTile::shouldRenderFace(level, x, y, z, opposite);
 }
 
 void IceTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
