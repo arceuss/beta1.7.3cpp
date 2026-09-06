@@ -315,6 +315,8 @@ void LevelRenderer::renderEntities(Vec3 &cam, Culler &culler, float a)
 		// Resolve the renderer kind once per concrete type through the original
 		// ordered cast chain; disjoint leaf classes make the result exact.
 		TileEntity &te = *tileEntity;
+		if (!(te.distanceToSqr(EntityRenderDispatcher::xOff, EntityRenderDispatcher::yOff, EntityRenderDispatcher::zOff) < 4096.0))
+			continue;
 		auto kindIt = tileEntityRenderKind.find(std::type_index(typeid(te)));
 		if (kindIt == tileEntityRenderKind.end())
 		{

@@ -6,6 +6,7 @@
 #include "client/Minecraft.h"
 #include "java/System.h"
 #include "tools/BlockSmoke.h"
+#include "tools/FindingsSmoke.h"
 #include "tools/MultiplayerScreenSmoke.h"
 #include "tools/NetworkSmoke.h"
 #include "tools/RegionIoSmoke.h"
@@ -28,6 +29,8 @@ int main(int argc, char *argv[])
 #endif
 	if (argc >= 2 && std::strcmp(argv[1], "--block-smoke") == 0)
 		return runBlockSmoke();
+	if (argc >= 2 && std::strcmp(argv[1], "--findings-smoke") == 0)
+		return runFindingsSmoke();
 	if (argc >= 2 && std::strcmp(argv[1], "--network-smoke") == 0)
 		return runNetworkSmoke();
 	if (argc >= 2 && std::strcmp(argv[1], "--region-io-smoke") == 0)

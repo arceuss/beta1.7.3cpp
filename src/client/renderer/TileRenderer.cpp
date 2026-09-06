@@ -122,6 +122,8 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 		return tesselateBlockInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_CROSS_TEXTURE)
 		return tesselateCrossTextureInWorld(tt, x, y, z);
+	if (shape == Tile::SHAPE_ROWS)
+		return tesselateRowInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_CACTUS)
 		return tesselateCactusInWorld(tt, x, y, z);
 	if (shape == Tile::SHAPE_WATER)
@@ -153,6 +155,68 @@ bool TileRenderer::tesselateInWorld(Tile &tt, int_t x, int_t y, int_t z)
 	if (shape == Tile::SHAPE_BED)
 		return tesselateBedInWorld(tt, x, y, z);
 	return false;
+}
+
+bool TileRenderer::tesselateRowInWorld(Tile &tt, int_t x, int_t y, int_t z)
+{
+	float br = tt.getBrightness(*level, x, y, z);
+	Tesselator::instance.color(br, br, br);
+	tesselateRowTexture(tt, level->getData(x, y, z), x, static_cast<float>(y) - 0.0625f, z);
+	return true;
+}
+
+void TileRenderer::tesselateRowTexture(Tile &tt, int_t data, double x, double y, double z)
+{
+	Tesselator &t = Tesselator::instance;
+	int_t tex = tt.getTexture(Facing::DOWN, data);
+	if (fixedTexture >= 0)
+		tex = fixedTexture;
+	int_t xt = (tex & 15) << 4;
+	int_t yt = tex & 240;
+	double u0 = xt / 256.0f;
+	double u1 = (xt + 15.99f) / 256.0f;
+	double v0 = yt / 256.0f;
+	double v1 = (yt + 15.99f) / 256.0f;
+	double x0 = x + 0.5 - 0.25;
+	double x1 = x + 0.5 + 0.25;
+	double z0 = z + 0.5 - 0.5;
+	double z1 = z + 0.5 + 0.5;
+	t.vertexUV(x0, y + 1.0, z0, u0, v0);
+	t.vertexUV(x0, y + 0.0, z0, u0, v1);
+	t.vertexUV(x0, y + 0.0, z1, u1, v1);
+	t.vertexUV(x0, y + 1.0, z1, u1, v0);
+	t.vertexUV(x0, y + 1.0, z1, u0, v0);
+	t.vertexUV(x0, y + 0.0, z1, u0, v1);
+	t.vertexUV(x0, y + 0.0, z0, u1, v1);
+	t.vertexUV(x0, y + 1.0, z0, u1, v0);
+	t.vertexUV(x1, y + 1.0, z1, u0, v0);
+	t.vertexUV(x1, y + 0.0, z1, u0, v1);
+	t.vertexUV(x1, y + 0.0, z0, u1, v1);
+	t.vertexUV(x1, y + 1.0, z0, u1, v0);
+	t.vertexUV(x1, y + 1.0, z0, u0, v0);
+	t.vertexUV(x1, y + 0.0, z0, u0, v1);
+	t.vertexUV(x1, y + 0.0, z1, u1, v1);
+	t.vertexUV(x1, y + 1.0, z1, u1, v0);
+	x0 = x + 0.5 - 0.5;
+	x1 = x + 0.5 + 0.5;
+	z0 = z + 0.5 - 0.25;
+	z1 = z + 0.5 + 0.25;
+	t.vertexUV(x0, y + 1.0, z0, u0, v0);
+	t.vertexUV(x0, y + 0.0, z0, u0, v1);
+	t.vertexUV(x1, y + 0.0, z0, u1, v1);
+	t.vertexUV(x1, y + 1.0, z0, u1, v0);
+	t.vertexUV(x1, y + 1.0, z0, u0, v0);
+	t.vertexUV(x1, y + 0.0, z0, u0, v1);
+	t.vertexUV(x0, y + 0.0, z0, u1, v1);
+	t.vertexUV(x0, y + 1.0, z0, u1, v0);
+	t.vertexUV(x1, y + 1.0, z1, u0, v0);
+	t.vertexUV(x1, y + 0.0, z1, u0, v1);
+	t.vertexUV(x0, y + 0.0, z1, u1, v1);
+	t.vertexUV(x0, y + 1.0, z1, u1, v0);
+	t.vertexUV(x0, y + 1.0, z1, u0, v0);
+	t.vertexUV(x0, y + 0.0, z1, u0, v1);
+	t.vertexUV(x1, y + 0.0, z1, u1, v1);
+	t.vertexUV(x1, y + 1.0, z1, u1, v0);
 }
 
 bool TileRenderer::tesselateFireInWorld(Tile &tt, int_t x, int_t y, int_t z)

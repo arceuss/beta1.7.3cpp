@@ -35,6 +35,8 @@
 #include "world/item/ItemInstance.h"
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/CropsTile.h"
+#include "world/level/tile/FarmlandTile.h"
 #include "world/level/tile/LiquidTile.h"
 #include "world/level/tile/GlassTile.h"
 #include "world/level/tile/StoneTile.h"
@@ -761,6 +763,62 @@ public:
 	}
 };
 
+class CropsScenario : public Scenario
+{
+	int_t x0 = 0, z0 = 0;
+
+public:
+	const char *name() const override { return "crops"; }
+	int defaultFrames() const override { return 60; }
+
+	void setup(World &world, const Params &) override
+	{
+		x0 = Mth::floor(world.player.x) - 4;
+		z0 = Mth::floor(world.player.z);
+		Level &level = world.level;
+		for (int_t x = -1; x <= 8; ++x)
+			for (int_t z = -1; z <= 5; ++z)
+			{
+				for (int_t y = 96; y <= 105; ++y)
+					level.setTile(x0 + x, y, z0 + z, 0);
+				level.setTile(x0 + x, 94, z0 + z, Tile::rock.id);
+				const bool inside = x >= 0 && x < 8 && z >= 0 && z <= 4;
+				const int_t tile = !inside ? Tile::rock.id : z == 4 ? Tile::water.id : Tile::farmland.id;
+				level.setTileAndData(x0 + x, 95, z0 + z, tile, tile == Tile::farmland.id ? 7 : 0);
+			}
+		for (int_t stage = 0; stage < 8; ++stage)
+			for (int_t row = 0; row < 4; ++row)
+				level.setTileAndData(x0 + stage, 96, z0 + row, Tile::crops.id, stage);
+		onTick(world, 0);
+	}
+
+	void onTick(World &world, long_t) override
+	{
+		pinPlayer(world.player, x0 + 4.0, 99.0, z0 - 6.0, 0.0f, 30.0f);
+		// Keep each column at its reference stage after the normal world tick.
+		for (int_t stage = 0; stage < 8; ++stage)
+			for (int_t row = 0; row < 4; ++row)
+				if (world.level.getTile(x0 + stage, 96, z0 + row) == Tile::crops.id &&
+					world.level.getData(x0 + stage, 96, z0 + row) != stage)
+					world.level.setData(x0 + stage, 96, z0 + row, stage);
+	}
+
+	void report(World &world, std::vector<std::string> &lines) override
+	{
+		int_t present = 0, matching = 0;
+		for (int_t stage = 0; stage < 8; ++stage)
+			for (int_t row = 0; row < 4; ++row)
+				if (world.level.getTile(x0 + stage, 96, z0 + row) == Tile::crops.id)
+				{
+					++present;
+					if (world.level.getData(x0 + stage, 96, z0 + row) == stage)
+						++matching;
+				}
+		lines.push_back("crops_present " + std::to_string(present) + " expected 32");
+		lines.push_back("crops_matching_stage " + std::to_string(matching) + " expected 32");
+	}
+};
+
 class CloudsScenario : public Scenario
 {
 	double x = 0.0, z = 0.0;
@@ -801,6 +859,7 @@ std::unique_ptr<Scenario> makeScenario(const std::string &name)
 	if (name == "mobs") return std::make_unique<MobsScenario>();
 	if (name == "entities") return std::make_unique<EntitiesScenario>();
 	if (name == "cave") return std::make_unique<CaveScenario>();
+	if (name == "crops") return std::make_unique<CropsScenario>();
 	if (name == "clouds") return std::make_unique<CloudsScenario>();
 	return nullptr;
 }
@@ -808,7 +867,7 @@ std::unique_ptr<Scenario> makeScenario(const std::string &name)
 std::vector<std::string> scenarioNames()
 {
 	return { "idle", "spin", "walk", "daycycle", "travel", "farlands", "building",
-		"lighting", "fluids", "tnt", "mobs", "entities", "cave", "clouds" };
+		"lighting", "fluids", "tnt", "mobs", "entities", "cave", "crops", "clouds" };
 }
 
 }

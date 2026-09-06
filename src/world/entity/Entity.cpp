@@ -257,6 +257,8 @@ void Entity::move(double xd, double yd, double zd)
 		return;
 	}
 
+	ySlideOffset *= 0.4f;
+
 	if (isInWeb)
 	{
 		isInWeb = false;
@@ -328,7 +330,7 @@ void Entity::move(double xd, double yd, double zd)
 		xd = yd = zd = 0;
 
 	// Check for steps
-	if (footSize > 0.0f && grounded && ySlideOffset < 0.05f && (oxd != xd || ozd != zd))
+	if (footSize > 0.0f && grounded && (sneaking || ySlideOffset < 0.05f) && (oxd != xd || ozd != zd))
 	{
 		double ooxd = xd;
 		double ooyd = yd;
@@ -339,7 +341,7 @@ void Entity::move(double xd, double yd, double zd)
 		zd = ozd;
 
 		AABB *obb = bb.copy();
-		bb.set(*obb);
+		bb.set(*oldBb);
 
 		const auto &cubes = level.getCubes(*this, *bb.expand(xd, yd, zd));
 
@@ -362,10 +364,15 @@ void Entity::move(double xd, double yd, double zd)
 			xd = yd = zd = 0;
 
 		// Step back down
-		yd = -footSize;
-		for (auto &cube : level.getCubes(*this, *bb.expand(0.0, yd, 0.0)))
-			yd = cube->clipYCollide(bb, yd);
-		bb.move(0.0, yd, 0.0);
+		if (!slide && oyd != yd)
+			xd = yd = zd = 0;
+		else
+		{
+			yd = -footSize;
+			for (auto &cube : cubes)
+				yd = cube->clipYCollide(bb, yd);
+			bb.move(0.0, yd, 0.0);
+		}
 
 		if (ooxd * ooxd + oozd * oozd >= xd * xd + zd * zd)
 		{
@@ -392,7 +399,7 @@ void Entity::move(double xd, double yd, double zd)
 	onGround = oyd != yd && oyd < 0.0;
 	collision = horizontalCollision || verticalCollision;
 	
-	checkFallDamage(oyd, onGround);
+	checkFallDamage(yd, onGround);
 
 	if (oxd != xd)
 		this->xd = 0.0;
@@ -455,7 +462,6 @@ void Entity::move(double xd, double yd, double zd)
 		}
 	}
 
-	ySlideOffset *= 0.4f;
 }
 
 void Entity::checkFallDamage(double yd, bool onGround)

@@ -402,6 +402,8 @@ set(McBetaCpp_SOURCES
 	"src/util/Profiler.h"
 	"src/tools/BlockSmoke.cpp"
 	"src/tools/BlockSmoke.h"
+	"src/tools/FindingsSmoke.cpp"
+	"src/tools/FindingsSmoke.h"
 	"src/tools/MultiplayerScreenSmoke.cpp"
 	"src/tools/MultiplayerScreenSmoke.h"
 	"src/tools/NetworkSmoke.cpp"

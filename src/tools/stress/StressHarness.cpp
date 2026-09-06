@@ -112,7 +112,7 @@ void validateOptions(const Options &options)
 		{ "lighting", { "count", "period", "width", "depth" } },
 		{ "fluids", { "size", "spacing" } }, { "tnt", { "count", "period" } },
 		{ "mobs", { "count" } }, { "entities", { "count" } },
-		{ "cave", { "width", "depth" } }, { "clouds", {} }, { "all", {} }
+		{ "cave", { "width", "depth" } }, { "crops", {} }, { "clouds", {} }, { "all", {} }
 	};
 	const auto &allowed = keys.at(options.scenario);
 	for (const auto &entry : options.params.values)

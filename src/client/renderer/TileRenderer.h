@@ -46,6 +46,8 @@ public:
 	bool tesselateBlockInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateBlockInWorld(Tile &tt, int_t x, int_t y, int_t z, float r, float g, float b);
 	bool tesselateCrossTextureInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	bool tesselateRowInWorld(Tile &tt, int_t x, int_t y, int_t z);
+	void tesselateRowTexture(Tile &tt, int_t data, double x, double y, double z);
 	bool tesselateCactusInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateLiquidInWorld(Tile &tt, int_t x, int_t y, int_t z);
 	bool tesselateTorchInWorld(Tile &tt, int_t x, int_t y, int_t z);
