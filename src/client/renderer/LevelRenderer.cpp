@@ -843,7 +843,7 @@ void LevelRenderer::renderClouds(float alpha)
 	xo -= xOffs * 2048;
 	zo -= zOffs * 2048;
 
-	float yy = 120.0f - yOffs + 0.33f;
+	float yy = level->dimension->getCloudHeight() - yOffs + 0.33f;
 	float uo = static_cast<float>(xo * scale);
 	float vo = static_cast<float>(zo * scale);
 
@@ -878,7 +878,7 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 	double xo = (mc.player->xo + (mc.player->x - mc.player->xo) * alpha + ((ticks + alpha) * 0.03f)) / ss;
 	double zo = (mc.player->zo + (mc.player->z - mc.player->zo) * alpha) / ss + 0.33;
 
-	float yy = 108.0f - yOffs + 0.33f;
+	float yy = level->dimension->getCloudHeight() - yOffs + 0.33f;
 
 	int_t xOffs = Mth::floor(xo / 2048.0);
 	int_t zOffs = Mth::floor(zo / 2048.0);

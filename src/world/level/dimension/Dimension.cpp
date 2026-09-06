@@ -111,6 +111,11 @@ Vec3 *Dimension::getFogColor(float time, float unknown)
 	return Vec3::newTemp(r, g, b);
 }
 
+float Dimension::getCloudHeight()
+{
+	return 108.0f;
+}
+
 bool Dimension::mayRespawn()
 {
 	return true;

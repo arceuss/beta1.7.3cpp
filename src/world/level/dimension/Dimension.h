@@ -56,6 +56,7 @@ public:
 	virtual float getTimeOfDay(long_t time, float add);
 	virtual float *getSunriseColor(float time, float unknown);
 	virtual Vec3 *getFogColor(float time, float unknown);
+	virtual float getCloudHeight();
 
 	virtual bool mayRespawn();
 
