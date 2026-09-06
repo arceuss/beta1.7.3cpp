@@ -91,8 +91,10 @@ void Wolf::tick()
 	{
 		if (shakeTime == 0.0f)
 		{
+			const float pitchA = random.nextFloat();
+			const float pitchB = random.nextFloat();
 			level.playSoundAtEntity(*this, u"mob.wolf.shake", getSoundVolume(),
-				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+				(pitchA - pitchB) * 0.2f + 1.0f);
 		}
 
 		shakeTimeOld = shakeTime;
@@ -304,10 +306,13 @@ void Wolf::showHeartsOrSmokeFX(bool hearts)
 		double xa = random.nextGaussian() * 0.02;
 		double ya = random.nextGaussian() * 0.02;
 		double za = random.nextGaussian() * 0.02;
+		const float px = random.nextFloat();
+		const float py = random.nextFloat();
+		const float pz = random.nextFloat();
 		level.addParticle(particle,
-			x + random.nextFloat() * bbWidth * 2.0f - bbWidth,
-			y + 0.5 + random.nextFloat() * bbHeight,
-			z + random.nextFloat() * bbWidth * 2.0f - bbWidth,
+			x + px * bbWidth * 2.0f - bbWidth,
+			y + 0.5 + py * bbHeight,
+			z + pz * bbWidth * 2.0f - bbWidth,
 			xa, ya, za);
 	}
 }

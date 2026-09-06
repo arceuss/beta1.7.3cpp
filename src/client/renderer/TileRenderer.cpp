@@ -647,8 +647,21 @@ bool TileRenderer::tesselateBlockInWorld(Tile &tt, int_t x, int_t y, int_t z, fl
 	float lightValueOwn = tt.getBrightness(*level, x, y, z);
 	bool useAO = ambientOcclusion && !noCulling && !cactusShape && tt.xx0 == 0.0 && tt.xx1 == 1.0 && tt.yy0 == 0.0 && tt.yy1 == 1.0 && tt.zz0 == 0.0 && tt.zz1 == 1.0;
 
+	float sampledBrightness[27];
+	uint_t sampledMask = 0;
 	auto sample = [&](int_t sx, int_t sy, int_t sz) {
-		return tt.getBrightness(*level, sx, sy, sz);
+		if (!useAO)
+			return tt.getBrightness(*level, sx, sy, sz);
+		// Faces share edge/corner reads. Cache the exact Beta result only for
+		// this block, without changing the ramp, averaging or byte conversion.
+		const int_t index = (sx - x + 1) * 9 + (sy - y + 1) * 3 + sz - z + 1;
+		const uint_t bit = 1U << index;
+		if ((sampledMask & bit) == 0)
+		{
+			sampledBrightness[index] = tt.getBrightness(*level, sx, sy, sz);
+			sampledMask |= bit;
+		}
+		return sampledBrightness[index];
 	};
 	auto setVertexColors = [&](float v0, float v1, float v2, float v3, float cr, float cg, float cb) {
 		enableAO = true;

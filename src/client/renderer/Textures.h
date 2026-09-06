@@ -52,6 +52,14 @@ private:
 	bool clamp = false;
 	bool blur = false;
 
+	// Atlas GL ids resolved once per texture-pack generation; reset in reloadAll().
+	int_t terrainAtlasId = -1;
+	int_t itemsAtlasId = -1;
+
+	// Reusable scratch for anaglyph upload transform and mipmap downsampling.
+	std::vector<unsigned char> uploadScratch;
+	std::vector<int_t> mipScratch;
+
 public:
 	Textures(TexturePackRepository &skins, Options &options, Minecraft &minecraft);
 	~Textures();

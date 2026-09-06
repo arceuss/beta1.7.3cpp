@@ -38,6 +38,8 @@
 #include "util/Mth.h"
 #include "util/Memory.h"
 
+bool LevelRenderer::cacheCloudGeometry = B173_CACHE_CLOUDS != 0;
+
 LevelRenderer::LevelRenderer(Minecraft &mc, Textures &textures) : mc(mc), textures(textures)
 {
 	int_t maxChunksWidth = 64;
@@ -97,6 +99,12 @@ LevelRenderer::LevelRenderer(Minecraft &mc, Textures &textures) : mc(mc), textur
 	glEndList();
 
 	pistonRenderer = std::make_unique<PistonTileEntityRenderer>(&textures);
+}
+
+LevelRenderer::~LevelRenderer()
+{
+	if (cloudBuffer != 0)
+		glDeleteBuffers(1, &cloudBuffer);
 }
 
 void LevelRenderer::renderStars()
@@ -219,7 +227,10 @@ void LevelRenderer::allChanged()
 	zMaxChunk = zChunks;
 
 	for (auto &chunk : dirtyChunks)
+	{
 		chunk->dirty = false;
+		chunk->queuedDirty = false;
+	}
 	dirtyChunks.clear();
 
 	renderableTileEntities.clear();
@@ -242,6 +253,7 @@ void LevelRenderer::allChanged()
 				chunk->setDirty();
 
 				sortedChunks[(z * yChunks + y) * xChunks + x] = chunk;
+				chunk->queuedDirty = true;
 				dirtyChunks.push_back(chunk);
 
 				id += 3;
@@ -300,25 +312,41 @@ void LevelRenderer::renderEntities(Vec3 &cam, Culler &culler, float a)
 	// Render tile entities (signs, etc.)
 	for (auto &tileEntity : renderableTileEntities)
 	{
-		auto signEntity = std::dynamic_pointer_cast<SignTileEntity>(tileEntity);
-		if (signEntity)
+		// Resolve the renderer kind once per concrete type through the original
+		// ordered cast chain; disjoint leaf classes make the result exact.
+		TileEntity &te = *tileEntity;
+		auto kindIt = tileEntityRenderKind.find(std::type_index(typeid(te)));
+		if (kindIt == tileEntityRenderKind.end())
 		{
+			int_t kind = 0;
+			if (std::dynamic_pointer_cast<SignTileEntity>(tileEntity))
+				kind = 1;
+			else if (std::dynamic_pointer_cast<PistonTileEntity>(tileEntity))
+				kind = 2;
+			else if (std::dynamic_pointer_cast<MobSpawnerTileEntity>(tileEntity))
+				kind = 3;
+			kindIt = tileEntityRenderKind.emplace(std::type_index(typeid(te)), kind).first;
+		}
+
+		if (kindIt->second == 1)
+		{
+			auto signEntity = std::static_pointer_cast<SignTileEntity>(tileEntity);
 			float brightness = level->getBrightness(signEntity->x, signEntity->y, signEntity->z);
 			glColor3f(brightness, brightness, brightness);
 			SignRenderer::renderSign(*signEntity, signEntity->x - EntityRenderDispatcher::xOff, signEntity->y - EntityRenderDispatcher::yOff, signEntity->z - EntityRenderDispatcher::zOff, a, *mc.font, mc.textures);
 		}
 
-		auto pistonEntity = std::dynamic_pointer_cast<PistonTileEntity>(tileEntity);
-		if (pistonEntity && pistonRenderer != nullptr)
+		if (kindIt->second == 2 && pistonRenderer != nullptr)
 		{
+			auto pistonEntity = std::static_pointer_cast<PistonTileEntity>(tileEntity);
 			float brightness = level->getBrightness(pistonEntity->x, pistonEntity->y, pistonEntity->z);
 			glColor3f(brightness, brightness, brightness);
 			pistonRenderer->render(*pistonEntity, pistonEntity->x - EntityRenderDispatcher::xOff, pistonEntity->y - EntityRenderDispatcher::yOff, pistonEntity->z - EntityRenderDispatcher::zOff, a);
 		}
 
-		auto spawnerEntity = std::dynamic_pointer_cast<MobSpawnerTileEntity>(tileEntity);
-		if (spawnerEntity && level != nullptr)
+		if (kindIt->second == 3 && level != nullptr)
 		{
+			auto spawnerEntity = std::static_pointer_cast<MobSpawnerTileEntity>(tileEntity);
 			auto it = spawnerRenderMobs.find(spawnerEntity->getEntityId());
 			if (it == spawnerRenderMobs.end())
 				it = spawnerRenderMobs.emplace(spawnerEntity->getEntityId(), EntityIO::newEntity(spawnerEntity->getEntityId(), *level)).first;
@@ -344,7 +372,7 @@ void LevelRenderer::renderEntities(Vec3 &cam, Culler &culler, float a)
 			}
 		}
 	}
-	}
+}
 
 jstring LevelRenderer::gatherStats1()
 {
@@ -405,7 +433,10 @@ void LevelRenderer::resortChunks(int_t xc, int_t yc, int_t zc)
 				bool wasDirty = chunk->dirty;
 				chunk->setPos(xx, yy, zz);
 				if (!wasDirty && chunk->dirty)
+				{
+					chunk->queuedDirty = true;
 					dirtyChunks.push_back(chunk);
+				}
 			}
 		}
 	}
@@ -419,18 +450,13 @@ int_t LevelRenderer::render(Player &player, int_t layer, double alpha)
 		auto &c = chunks[chunkFixOffs];
 		if (c->dirty)
 		{
-			bool in_dirty = false;
-			for (auto &chunk : dirtyChunks)
+			// B173 - queuedDirty replaces the linear membership scan (report:
+			// O(1) dirty membership); queue order is unchanged.
+			if (!c->queuedDirty)
 			{
-				if (chunk == c)
-				{
-					in_dirty = true;
-					break;
-				}
-			}
-
-			if (!in_dirty)
+				c->queuedDirty = true;
 				dirtyChunks.push_back(c);
+			}
 		}
 	}
 
@@ -588,15 +614,29 @@ int_t LevelRenderer::renderChunks(int_t from, int_t to, int_t layer, double alph
 	for (auto &l : renderLists)
 		l.clear();
 
+	// B173 - Direct region lookup (report: render-list indexing). Regions are
+	// 1024-aligned (xRenderOffs = x & 0x3FF) and the wrapped world span is under
+	// 1024 blocks with yRender always 0, so bit 10 of xRender/zRender uniquely
+	// identifies each of the at most four live regions. renderLists still fill
+	// in first-seen order, so draw order is byte-identical to the linear scan.
+	int_t regionSlot[4] = {-1, -1, -1, -1};
+
 	for (int_t i = 0; i < renderChunksList.size(); i++)
 	{
 		auto &chunk = renderChunksList[i];
-		
-		int_t list = -1;
-		for (int_t l = 0; l < lists; l++)
+
+		int_t slot = ((chunk->xRender >> 10) & 1) | (((chunk->zRender >> 10) & 1) << 1);
+		int_t list = regionSlot[slot];
+		if (list >= 0 && !renderLists[list].isAt(chunk->xRender, chunk->yRender, chunk->zRender))
 		{
-			if (renderLists[l].isAt(chunk->xRender, chunk->yRender, chunk->zRender))
-				list = l;
+			// Defensive: slot aliasing cannot happen within one frame's span,
+			// but fall back to the original scan rather than misgroup.
+			list = -1;
+			for (int_t l = 0; l < lists; l++)
+			{
+				if (renderLists[l].isAt(chunk->xRender, chunk->yRender, chunk->zRender))
+					list = l;
+			}
 		}
 
 		if (list < 0)
@@ -604,6 +644,7 @@ int_t LevelRenderer::renderChunks(int_t from, int_t to, int_t layer, double alph
 			list = lists++;
 			renderLists[list].init(chunk->xRender, chunk->yRender, chunk->zRender, layer, xOff, yOff, zOff);
 		}
+		regionSlot[slot] = list;
 
 		renderLists[list].add(chunk.get());
 	}
@@ -880,13 +921,7 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 
 	glScalef(ss, 1.0f, ss);
 
-	for (int_t pass = 0; pass < 2; pass++)
-	{
-		if (pass == 0)
-			glColorMask(false, false, false, false);
-		else
-			glColorMask(true, true, true, true);
-
+	auto drawGeometry = [&]() {
 		for (int_t xPos = -radius + 1; xPos <= radius; xPos++)
 		{
 			for (int_t zPos = -radius + 1; zPos <= radius; zPos++)
@@ -974,6 +1009,65 @@ void LevelRenderer::renderAdvancedClouds(float alpha)
 				t.end();
 			}
 		}
+	};
+
+	if (cacheCloudGeometry)
+	{
+		// Both passes use the same vertices this frame; capture the exact 32-byte
+		// tesselator stream once and draw it twice through the same client arrays.
+		cloudMesh.resetKeepCapacity();
+		cloudMesh.format = MeshCapture::Format::Arrays;
+		t.captureTo(&cloudMesh);
+		try
+		{
+			drawGeometry();
+		}
+		catch (...)
+		{
+			t.captureTo(nullptr);
+			throw;
+		}
+		t.captureTo(nullptr);
+		if (cloudBuffer == 0)
+			glGenBuffers(1, &cloudBuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, cloudBuffer);
+		glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(cloudMesh.data.size()), cloudMesh.data.data(), GL_STREAM_DRAW);
+		if (cloudMesh.hasTexture)
+		{
+			glTexCoordPointer(2, GL_FLOAT, 32, reinterpret_cast<const void *>(12));
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
+		if (cloudMesh.hasColor)
+		{
+			glColorPointer(4, GL_UNSIGNED_BYTE, 32, reinterpret_cast<const void *>(20));
+			glEnableClientState(GL_COLOR_ARRAY);
+		}
+		if (cloudMesh.hasNormal)
+		{
+			glNormalPointer(GL_BYTE, 32, reinterpret_cast<const void *>(24));
+			glEnableClientState(GL_NORMAL_ARRAY);
+		}
+		glVertexPointer(3, GL_FLOAT, 32, nullptr);
+		glEnableClientState(GL_VERTEX_ARRAY);
+	}
+	for (int_t pass = 0; pass < 2; pass++)
+	{
+		if (pass == 0)
+			glColorMask(false, false, false, false);
+		else
+			glColorMask(true, true, true, true);
+		if (cacheCloudGeometry)
+			glDrawArrays(cloudMesh.mode, 0, cloudMesh.vertices);
+		else
+			drawGeometry();
+	}
+	if (cacheCloudGeometry)
+	{
+		glDisableClientState(GL_VERTEX_ARRAY);
+		if (cloudMesh.hasTexture) glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		if (cloudMesh.hasColor) glDisableClientState(GL_COLOR_ARRAY);
+		if (cloudMesh.hasNormal) glDisableClientState(GL_NORMAL_ARRAY);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1018,6 +1112,7 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 			chunk->rebuild();
 			dirtyChunks.erase(dirtyChunks.begin() + (s - i));
 			chunk->dirty = false;
+			chunk->queuedDirty = false;
 		}
 
 		if (dirtyChunks.empty())
@@ -1062,6 +1157,7 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 
 			pendingChunkRemoved++;
 			nearChunks.emplace_back(chunk);
+			chunk->queuedDirty = false;
 			dirtyChunks[i] = nullptr;
 			continue;
 		}
@@ -1092,6 +1188,8 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 				}
 				toAdd[j]->rebuild();
 				toAdd[j]->dirty = false;
+				// The compaction below removes this non-null entry from the queue.
+				toAdd[j]->queuedDirty = false;
 				secondaryRemoved++;
 			}
 		}
@@ -1257,6 +1355,7 @@ void LevelRenderer::setDirty(int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, i
 				auto &chunk = chunks[(zz * yChunks + yy) * xChunks + xx];
 				if (!chunk->dirty)
 				{
+					chunk->queuedDirty = true;
 					dirtyChunks.push_back(chunk);
 					chunk->setDirty();
 				}
@@ -1374,6 +1473,7 @@ void LevelRenderer::skyColorChanged()
 	{
 		if (i->skyLit && !i->dirty)
 		{
+			i->queuedDirty = true;
 			dirtyChunks.push_back(i);
 			i->setDirty();
 		}
@@ -1408,9 +1508,13 @@ void LevelRenderer::levelEvent(Player *player, int_t event, int_t x, int_t y, in
 			level->playSoundEffect(x + 0.5, y + 0.5, z + 0.5, u"random.door_close", 1.0f, level->random.nextFloat() * 0.1f + 0.9f);
 		break;
 	case 1004:
+	{
+		const float fizzA = random.nextFloat();
+		const float fizzB = random.nextFloat();
 		level->playSoundEffect(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f,
-			u"random.fizz", 0.5f, 2.6f + (random.nextFloat() - random.nextFloat()) * 0.8f);
+			u"random.fizz", 0.5f, 2.6f + (fizzA - fizzB) * 0.8f);
 		break;
+	}
 	case 1005:
 	{
 		RecordItem *record = nullptr;

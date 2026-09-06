@@ -1,3 +1,5 @@
+#pragma once
+
 #include "world/level/material/Material.h"
 
 class GasMaterial : public Material

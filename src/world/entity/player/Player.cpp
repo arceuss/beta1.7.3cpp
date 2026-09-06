@@ -606,7 +606,9 @@ void Player::drop(ItemInstance &stack, bool randomSpread)
 		float randomAngle = random.nextFloat() * Mth::PI * 2.0f;
 		speed *= random.nextFloat();
 		itemEntity->xd += Mth::cos(randomAngle) * speed;
-		itemEntity->yd += (random.nextFloat() - random.nextFloat()) * 0.1f;
+		const float ydA = random.nextFloat();
+		const float ydB = random.nextFloat();
+		itemEntity->yd += (ydA - ydB) * 0.1f;
 		itemEntity->zd += Mth::sin(randomAngle) * speed;
 	}
 

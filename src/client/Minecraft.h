@@ -69,7 +69,7 @@ public:
 	Options options = Options(*this);
 	TexturePackRepository texturePackRepository{*this};
 	Textures textures{texturePackRepository, options, *this};
-	LevelRenderer levelRenderer = LevelRenderer(*this, textures);
+	LevelRenderer levelRenderer{*this, textures};
 
 	std::shared_ptr<LocalPlayer> player;
 

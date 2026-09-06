@@ -183,72 +183,54 @@ std::vector<byte_t> RegionFile::getChunkData(int_t x, int_t z)
 	dataFile.read(reinterpret_cast<char *>(&compressionType), 1);
 
 	int_t dataLength = length - 1;
-	std::vector<byte_t> compressedData(dataLength);
-	dataFile.read(reinterpret_cast<char *>(compressedData.data()), dataLength);
+	// Reuse the compressed-input scratch across reads; the file mutex guards it.
+	if (compressedScratch.size() < static_cast<size_t>(dataLength))
+		compressedScratch.resize(dataLength);
+	dataFile.read(reinterpret_cast<char *>(compressedScratch.data()), dataLength);
 
-	// Decompress
-	if (compressionType == 1)
+	// Decompress: type 1 is gzip-wrapped deflate, type 2 is zlib-wrapped deflate.
+	if (compressionType != 1 && compressionType != 2)
+		return {};
+
+	z_stream strm = {};
+	strm.next_in = reinterpret_cast<Bytef *>(compressedScratch.data());
+	strm.avail_in = static_cast<uInt>(dataLength);
+
+	int windowBits = (compressionType == 1) ? 16 + MAX_WBITS : MAX_WBITS;
+	if (inflateInit2(&strm, windowBits) != Z_OK)
+		return {};
+
+	// Inflate straight into the result with geometric growth instead of staging
+	// through a fixed stack buffer and copying every iteration.
+	std::vector<byte_t> result;
+	result.resize(std::max<size_t>(static_cast<size_t>(dataLength) * 4, 16384));
+	size_t total = 0;
+	int ret;
+	do
 	{
-		// GZip - use gzip decompression (inflate with gzip header)
-		z_stream strm = {};
-		strm.next_in = reinterpret_cast<Bytef *>(compressedData.data());
-		strm.avail_in = static_cast<uInt>(dataLength);
-
-		if (inflateInit2(&strm, 16 + MAX_WBITS) != Z_OK)
-			return {};
-
-		std::vector<byte_t> result;
-		byte_t outbuf[16384];
-		int ret;
-		do
+		if (total == result.size())
+			result.resize(result.size() * 2);
+		strm.next_out = reinterpret_cast<Bytef *>(result.data() + total);
+		uInt availOut = static_cast<uInt>(result.size() - total);
+		strm.avail_out = availOut;
+		ret = inflate(&strm, Z_NO_FLUSH);
+		if (ret == Z_STREAM_ERROR || ret == Z_DATA_ERROR || ret == Z_MEM_ERROR)
 		{
-			strm.next_out = reinterpret_cast<Bytef *>(outbuf);
-			strm.avail_out = sizeof(outbuf);
-			ret = inflate(&strm, Z_NO_FLUSH);
-			if (ret == Z_STREAM_ERROR || ret == Z_DATA_ERROR || ret == Z_MEM_ERROR)
-			{
-				inflateEnd(&strm);
-				return {};
-			}
-			size_t have = sizeof(outbuf) - strm.avail_out;
-			result.insert(result.end(), outbuf, outbuf + have);
-		} while (ret != Z_STREAM_END);
-
-		inflateEnd(&strm);
-		return result;
-	}
-	else if (compressionType == 2)
-	{
-		// Zlib (deflate with zlib header)
-		z_stream strm = {};
-		strm.next_in = reinterpret_cast<Bytef *>(compressedData.data());
-		strm.avail_in = static_cast<uInt>(dataLength);
-
-		if (inflateInit(&strm) != Z_OK)
+			inflateEnd(&strm);
 			return {};
-
-		std::vector<byte_t> result;
-		byte_t outbuf[16384];
-		int ret;
-		do
+		}
+		total += availOut - strm.avail_out;
+		// Truncated input: no more bytes to consume and the stream never ended.
+		if (ret == Z_BUF_ERROR && strm.avail_in == 0 && strm.avail_out != 0)
 		{
-			strm.next_out = reinterpret_cast<Bytef *>(outbuf);
-			strm.avail_out = sizeof(outbuf);
-			ret = inflate(&strm, Z_NO_FLUSH);
-			if (ret == Z_STREAM_ERROR || ret == Z_DATA_ERROR || ret == Z_MEM_ERROR)
-			{
-				inflateEnd(&strm);
-				return {};
-			}
-			size_t have = sizeof(outbuf) - strm.avail_out;
-			result.insert(result.end(), outbuf, outbuf + have);
-		} while (ret != Z_STREAM_END);
+			inflateEnd(&strm);
+			return {};
+		}
+	} while (ret != Z_STREAM_END);
 
-		inflateEnd(&strm);
-		return result;
-	}
-
-	return {};
+	inflateEnd(&strm);
+	result.resize(total);
+	return result;
 }
 
 void RegionFile::writeChunkData(int_t x, int_t z, const byte_t *data, int_t length)

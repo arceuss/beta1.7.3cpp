@@ -189,6 +189,8 @@ set(McBetaCpp_SOURCES
 	
 	"src/client/renderer/Chunk.cpp"
 	"src/client/renderer/Chunk.h"
+	"src/client/renderer/TerrainBufferPool.cpp"
+	"src/client/renderer/TerrainBufferPool.h"
 	"src/client/renderer/DirtyChunkSorter.h"
 	"src/client/renderer/DistanceChunkSorter.h"
 	"src/client/renderer/GameRenderer.cpp"
@@ -205,6 +207,9 @@ set(McBetaCpp_SOURCES
 	"src/client/renderer/OffsettedRenderList.h"
 	"src/client/renderer/Tesselator.cpp"
 	"src/client/renderer/Tesselator.h"
+	"src/client/renderer/TerrainIndexBuffer.cpp"
+	"src/client/renderer/TerrainIndexBuffer.h"
+	"src/client/renderer/TerrainVertex.h"
 	"src/client/renderer/Textures.cpp"
 	"src/client/renderer/Textures.h"
 	"src/client/renderer/TileRenderer.cpp"
@@ -403,6 +408,10 @@ set(McBetaCpp_SOURCES
 	"src/tools/NetworkSmoke.h"
 	"src/tools/SaveConverterSmoke.cpp"
 	"src/tools/SaveConverterSmoke.h"
+	"src/tools/RegionIoSmoke.cpp"
+	"src/tools/RegionIoSmoke.h"
+	"src/tools/TerrainStorageSmoke.cpp"
+	"src/tools/TerrainStorageSmoke.h"
 	"src/tools/SoundSmoke.cpp"
 	"src/tools/SoundSmoke.h"
 	"src/util/ProgressListener.h"
@@ -602,6 +611,7 @@ set(McBetaCpp_SOURCES
 	"src/world/level/LightLayer.h"
 	"src/world/level/LightUpdate.cpp"
 	"src/world/level/LightUpdate.h"
+	"src/world/level/LightNeighborhood.h"
 	"src/world/level/Region.cpp"
 	"src/world/level/Region.h"
 	"src/world/level/SaveConverterMcRegion.cpp"
@@ -965,7 +975,15 @@ add_executable(McBetaCppStress EXCLUDE_FROM_ALL
 	"src/tools/stress/StressMain.cpp"
 	"src/tools/stress/StressHarness.cpp"
 	"src/tools/stress/Scenarios.cpp"
+	"src/tools/stress/Sha256.cpp"
+	"src/tools/stress/Sha256.h"
+	"src/tools/stress/StateDigest.cpp"
+	"src/tools/stress/StateDigest.h"
 )
+
+
+add_executable(McBetaCppLightCacheSmoke EXCLUDE_FROM_ALL "src/tools/LightCacheSmoke.cpp")
+target_link_libraries(McBetaCppLightCacheSmoke PRIVATE McBetaCppCore)
 target_link_libraries(McBetaCppStress PRIVATE McBetaCppCore)
 target_include_directories(McBetaCppCore PUBLIC "src/pc")
 
@@ -999,7 +1017,7 @@ elseif(UNIX)
 endif()
 
 # Use C++14
-set_target_properties(McBetaCppCore McBetaCpp McBetaCppStress PROPERTIES
+set_target_properties(McBetaCppCore McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke PROPERTIES
 	CXX_STANDARD 14
 	CXX_STANDARD_REQUIRED YES
 	CXX_EXTENSIONS NO
@@ -1024,6 +1042,183 @@ endif()
 option(B173_ENABLE_SPC "Enable non-vanilla single-player commands" OFF)
 if(B173_ENABLE_SPC)
 	target_compile_definitions(McBetaCppCore PUBLIC B173_ENABLE_SPC)
+endif()
+
+option(B173_FAST_LIGHT_ACCESS "Use the LightNeighborhood brightness accessor in lighting updates (benchmark gated)" OFF)
+if(B173_FAST_LIGHT_ACCESS)
+	target_compile_definitions(McBetaCppCore PUBLIC B173_FAST_LIGHT_ACCESS)
+endif()
+
+# Geometry rollback switches; always defined explicitly (=0/1) so the header
+# #ifndef defaults never decide silently.
+option(B173_COMPACT_TERRAIN_VERTEX "Use the 28-byte compact terrain vertex format" ON)
+option(B173_INDEXED_TERRAIN "Render terrain with indexed quads and a shared index buffer" ON)
+option(B173_REGION_RENDERER "Pool terrain storage by render region while retaining exact per-chunk transforms" OFF)
+option(B173_CACHE_CLOUDS "Reuse exact fancy-cloud geometry between depth and color passes" OFF)
+target_compile_definitions(McBetaCppCore PUBLIC
+	B173_COMPACT_TERRAIN_VERTEX=$<BOOL:${B173_COMPACT_TERRAIN_VERTEX}>
+	B173_INDEXED_TERRAIN=$<BOOL:${B173_INDEXED_TERRAIN}>
+	B173_REGION_RENDERER=$<BOOL:${B173_REGION_RENDERER}>
+	B173_CACHE_CLOUDS=$<BOOL:${B173_CACHE_CLOUDS}>
+)
+
+# Optional Release IPO/LTO, gated on toolchain support. Per-source strict-FP
+# options above are unaffected; no fast-math anywhere.
+option(B173_ENABLE_IPO "Enable interprocedural optimization (LTO) for Release builds when supported" OFF)
+if(B173_ENABLE_IPO)
+	include(CheckIPOSupported)
+	check_ipo_supported(RESULT B173_IPO_SUPPORTED OUTPUT B173_IPO_ERROR LANGUAGES C CXX)
+	if(B173_IPO_SUPPORTED)
+		set_target_properties(McBetaCppCore McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke PROPERTIES
+			INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE
+			INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE
+		)
+		message(STATUS "B173: Release IPO/LTO enabled")
+	else()
+		message(STATUS "B173: IPO/LTO unavailable: ${B173_IPO_ERROR}")
+	endif()
+endif()
+
+# Profile-guided optimization: B173_PGO = OFF (default), GENERATE (instrumented
+# build), or USE (rebuild from collected profiles). USE fails at configure when
+# required profile files are missing. Regenerate the training corpus after
+# source changes; profiles live in B173_PGO_DIR.
+set(B173_PGO "OFF" CACHE STRING "Profile-guided optimization mode: OFF, GENERATE, or USE")
+set_property(CACHE B173_PGO PROPERTY STRINGS OFF GENERATE USE)
+set(B173_PGO_DIR "${CMAKE_BINARY_DIR}/pgo" CACHE PATH "Directory holding PGO profile data")
+if(NOT B173_PGO MATCHES "^(OFF|GENERATE|USE)$")
+	message(FATAL_ERROR "B173_PGO must be OFF, GENERATE, or USE (got '${B173_PGO}')")
+endif()
+
+if(NOT B173_PGO STREQUAL "OFF")
+	file(MAKE_DIRECTORY "${B173_PGO_DIR}")
+	set(B173_PGO_TARGETS McBetaCppCore McBetaCpp McBetaCppStress)
+	set(B173_PGO_CFG "$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>")
+
+	# Train the game module through its own --stress entry. Keep the same
+	# translation units in GENERATE and USE builds.
+	target_sources(McBetaCpp PRIVATE
+		"src/tools/stress/StressMain.cpp"
+		"src/tools/stress/StressHarness.cpp"
+		"src/tools/stress/Scenarios.cpp"
+		"src/tools/stress/Sha256.cpp"
+		"src/tools/stress/StateDigest.cpp"
+	)
+	target_compile_definitions(McBetaCpp PRIVATE B173_PGO_STRESS_EMBED)
+
+	if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+		# MSVC PGO requires whole-program optimization objects.
+		if(NOT B173_ENABLE_IPO OR NOT B173_IPO_SUPPORTED)
+			foreach(tgt IN LISTS B173_PGO_TARGETS)
+				target_compile_options(${tgt} PRIVATE "$<${B173_PGO_CFG}:/GL>")
+			endforeach()
+		endif()
+		foreach(exe McBetaCpp McBetaCppStress)
+			set(pgd "${B173_PGO_DIR}/${exe}.pgd")
+			if(B173_PGO STREQUAL "GENERATE")
+				target_link_options(${exe} PRIVATE
+					"$<${B173_PGO_CFG}:/LTCG>" "$<${B173_PGO_CFG}:/GENPROFILE:EXACT,PGD=${pgd}>")
+			else() # USE
+				if(NOT EXISTS "${pgd}")
+					message(FATAL_ERROR
+						"B173_PGO=USE but '${pgd}' is missing. Build and run a "
+						"B173_PGO=GENERATE tree first (training .pgc files merge "
+						"into the .pgd at link), or configure with B173_PGO=OFF "
+						"for an ordinary Release build.")
+				endif()
+				target_link_options(${exe} PRIVATE
+					"$<${B173_PGO_CFG}:/LTCG>" "$<${B173_PGO_CFG}:/USEPROFILE:PGD=${pgd}>")
+			endif()
+		endforeach()
+		# LightCacheSmoke links the /GL core objects but is never profile-trained.
+		target_link_options(McBetaCppLightCacheSmoke PRIVATE "$<${B173_PGO_CFG}:/LTCG>")
+	elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+		if(B173_PGO STREQUAL "GENERATE")
+			foreach(tgt IN LISTS B173_PGO_TARGETS)
+				target_compile_options(${tgt} PRIVATE -fprofile-generate=${B173_PGO_DIR})
+			endforeach()
+			foreach(exe McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke)
+				target_link_options(${exe} PRIVATE -fprofile-generate=${B173_PGO_DIR})
+			endforeach()
+		else() # USE
+			set(B173_PGO_PROFILE "${B173_PGO_DIR}/merged.profdata" CACHE FILEPATH
+				"Merged llvm-profdata file for B173_PGO=USE (Clang)")
+			if(NOT EXISTS "${B173_PGO_PROFILE}")
+				message(FATAL_ERROR
+					"B173_PGO=USE but '${B173_PGO_PROFILE}' is missing. Run the "
+					"instrumented binaries, merge with "
+					"'llvm-profdata merge -output=${B173_PGO_PROFILE} ${B173_PGO_DIR}/*.profraw', "
+					"or configure with B173_PGO=OFF.")
+			endif()
+			foreach(tgt IN LISTS B173_PGO_TARGETS)
+				target_compile_options(${tgt} PRIVATE -fprofile-use=${B173_PGO_PROFILE})
+			endforeach()
+			foreach(exe McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke)
+				target_link_options(${exe} PRIVATE -fprofile-use=${B173_PGO_PROFILE})
+			endforeach()
+		endif()
+	elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		if(B173_PGO STREQUAL "GENERATE")
+			foreach(tgt IN LISTS B173_PGO_TARGETS)
+				target_compile_options(${tgt} PRIVATE -fprofile-generate "-fprofile-dir=${B173_PGO_DIR}")
+			endforeach()
+			foreach(exe McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke)
+				target_link_options(${exe} PRIVATE -fprofile-generate)
+			endforeach()
+		else() # USE
+			file(GLOB B173_PGO_GCDA "${B173_PGO_DIR}/*.gcda" "${B173_PGO_DIR}/**/*.gcda")
+			if(NOT B173_PGO_GCDA)
+				message(FATAL_ERROR
+					"B173_PGO=USE but no .gcda profiles found in '${B173_PGO_DIR}'. "
+					"Run a B173_PGO=GENERATE build's binaries first, or configure "
+					"with B173_PGO=OFF.")
+			endif()
+			foreach(tgt IN LISTS B173_PGO_TARGETS)
+				target_compile_options(${tgt} PRIVATE -fprofile-use "-fprofile-dir=${B173_PGO_DIR}" -fprofile-correction)
+			endforeach()
+			foreach(exe McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke)
+				target_link_options(${exe} PRIVATE -fprofile-use "-fprofile-dir=${B173_PGO_DIR}" -fprofile-correction)
+			endforeach()
+		endif()
+	else()
+		message(FATAL_ERROR "B173_PGO is only implemented for MSVC, GNU-frontend Clang, and GCC. Configure with B173_PGO=OFF.")
+	endif()
+	message(STATUS "B173: PGO mode ${B173_PGO}, data in ${B173_PGO_DIR}")
+endif()
+
+# Optional precompiled headers (build-time only). Needs CMake 3.16; project
+# minimum stays 3.14. CXX-only: the core target also compiles C (minizip) and
+# RC sources, which must not receive a C++ PCH.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.16)
+	option(B173_USE_PCH "Use precompiled standard-library headers (CMake >= 3.16)" OFF)
+	if(B173_USE_PCH)
+		set_source_files_properties(src/java/Random.cpp src/java/StrictMath.cpp src/util/Mth.cpp
+			src/world/entity/Entity.cpp src/world/phys/AABB.cpp src/world/phys/Vec3.cpp
+			PROPERTIES SKIP_PRECOMPILE_HEADERS YES)
+		target_precompile_headers(McBetaCppCore PRIVATE
+			"$<$<COMPILE_LANGUAGE:CXX>:<algorithm$<ANGLE-R>>"
+			"$<$<COMPILE_LANGUAGE:CXX>:<cmath$<ANGLE-R>>"
+			"$<$<COMPILE_LANGUAGE:CXX>:<cstdint$<ANGLE-R>>"
+			"$<$<COMPILE_LANGUAGE:CXX>:<memory$<ANGLE-R>>"
+			"$<$<COMPILE_LANGUAGE:CXX>:<string$<ANGLE-R>>"
+			"$<$<COMPILE_LANGUAGE:CXX>:<vector$<ANGLE-R>>"
+		)
+	endif()
+
+	option(B173_USE_UNITY "Combine compatible core translation units for developer builds" OFF)
+	set_target_properties(McBetaCppCore PROPERTIES UNITY_BUILD ${B173_USE_UNITY})
+	# These groups reuse TU-local helpers or depend on platform include order.
+	get_target_property(B173_CORE_FILES McBetaCppCore SOURCES)
+	foreach(source IN LISTS B173_CORE_FILES)
+		if(source MATCHES "^src/(pc|tools|network|client/gui|world/item|world/entity/item)/" OR
+			source STREQUAL "src/world/level/SaveConverterMcRegion.cpp" OR
+			source STREQUAL "src/java/BufferedImage.cpp" OR source STREQUAL "src/client/ScreenShotHelper.cpp")
+			set_source_files_properties("${source}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION YES)
+		endif()
+	endforeach()
+	set_source_files_properties(src/java/Random.cpp src/java/StrictMath.cpp src/util/Mth.cpp
+		src/world/entity/Entity.cpp src/world/phys/AABB.cpp src/world/phys/Vec3.cpp
+		PROPERTIES SKIP_UNITY_BUILD_INCLUSION YES)
 endif()
 
 # Third party
@@ -1059,27 +1254,44 @@ endif()
 
 # Output to bin/ directory
 set(B173_OUTPUT_SUFFIX "" CACHE STRING "Suffix appended to executable names, for side-by-side variant builds")
-set_target_properties(McBetaCpp McBetaCppStress PROPERTIES
+set_target_properties(McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke PROPERTIES
 	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 	OUTPUT_NAME "McBetaCpp${B173_OUTPUT_SUFFIX}"
 )
 set_target_properties(McBetaCppStress PROPERTIES OUTPUT_NAME "McBetaCppStress${B173_OUTPUT_SUFFIX}")
+set_target_properties(McBetaCppLightCacheSmoke PROPERTIES OUTPUT_NAME "McBetaCppLightCacheSmoke${B173_OUTPUT_SUFFIX}")
 
-# Shared runtime files are copied once when either executable is requested.
+# Shared runtime files. The resource tree is staged into bin/resource only when
+# a resource file changes (stamp-driven). cmake/StageResources.cmake copies per
+# file with copy_if_different and prunes only files a previous staging run
+# created (tracked in a manifest); unrelated runtime files in bin/ are never
+# touched. CONFIGURE_DEPENDS reruns the glob when files are added or removed.
+file(GLOB_RECURSE B173_RESOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/resource/*")
+file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/McBetaCppResources.inputs" CONTENT "${B173_RESOURCE_FILES}\n")
+set(B173_RESOURCE_STAMP "${CMAKE_BINARY_DIR}/McBetaCppResources.stamp")
+add_custom_command(
+	OUTPUT "${B173_RESOURCE_STAMP}"
+	COMMAND ${CMAKE_COMMAND}
+		-DSOURCE_DIR=${CMAKE_SOURCE_DIR}/resource
+		-DDEST_DIR=${CMAKE_SOURCE_DIR}/bin/resource
+		-DMANIFEST=${CMAKE_BINARY_DIR}/McBetaCppResources.manifest
+		-P "${CMAKE_SOURCE_DIR}/cmake/StageResources.cmake"
+	COMMAND ${CMAKE_COMMAND} -E touch "${B173_RESOURCE_STAMP}"
+	DEPENDS ${B173_RESOURCE_FILES} "${CMAKE_BINARY_DIR}/McBetaCppResources.inputs"
+		"${CMAKE_SOURCE_DIR}/cmake/StageResources.cmake"
+	COMMENT "Staging resource/ into bin/resource"
+	VERBATIM
+)
 if(WIN32)
 	add_custom_target(McBetaCppResources
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/bin"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 			"$<TARGET_FILE:OpenAL32>" "${CMAKE_SOURCE_DIR}/bin"
-		COMMAND ${CMAKE_COMMAND} -E copy_directory
-			"${CMAKE_SOURCE_DIR}/resource" "${CMAKE_SOURCE_DIR}/bin/resource"
-		DEPENDS OpenAL32
+		DEPENDS OpenAL32 "${B173_RESOURCE_STAMP}"
 	)
 else()
-	add_custom_target(McBetaCppResources
-		COMMAND ${CMAKE_COMMAND} -E copy_directory
-			"${CMAKE_SOURCE_DIR}/resource" "${CMAKE_SOURCE_DIR}/bin/resource"
-	)
+	add_custom_target(McBetaCppResources DEPENDS "${B173_RESOURCE_STAMP}")
 endif()
 add_dependencies(McBetaCpp McBetaCppResources)
 add_dependencies(McBetaCppStress McBetaCppResources)
+add_dependencies(McBetaCppLightCacheSmoke McBetaCppResources)

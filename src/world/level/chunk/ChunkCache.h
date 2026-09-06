@@ -38,4 +38,7 @@ public:
 	bool tick() override;
 	bool shouldSave() override;
 	jstring gatherStats() override;
+	// Read-only audit view of every chunk this cache holds, in load order;
+	// lets the stress tool enumerate loaded chunks without triggering loads.
+	const std::vector<std::shared_ptr<LevelChunk>> &auditChunks() const { return chunks; }
 };

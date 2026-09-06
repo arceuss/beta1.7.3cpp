@@ -8,6 +8,7 @@
 
 #include "client/renderer/Chunk.h"
 #include "client/renderer/Tesselator.h"
+#include "client/renderer/TerrainIndexBuffer.h"
 #include "client/gui/DeathScreen.h"
 #include "client/gui/ConnectingScreen.h"
 #include "client/gui/InventoryScreen.h"
@@ -310,6 +311,7 @@ Minecraft::~Minecraft()
 		statFileWriter.reset();
 	}
 	achievementToast.reset();
+	TerrainIndexBuffer::release();
 	MemoryTracker::release();
 }
 

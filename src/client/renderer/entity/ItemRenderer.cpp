@@ -65,9 +65,14 @@ void ItemRenderer::render(Entity &entity, double x, double y, double z, float ro
 		{
 			glPushMatrix();
 			if (i > 0)
-				glTranslatef((random.nextFloat() * 2.0f - 1.0f) * 0.2f / scale,
-					(random.nextFloat() * 2.0f - 1.0f) * 0.2f / scale,
-					(random.nextFloat() * 2.0f - 1.0f) * 0.2f / scale);
+			{
+				const float ox = random.nextFloat();
+				const float oy = random.nextFloat();
+				const float oz = random.nextFloat();
+				glTranslatef((ox * 2.0f - 1.0f) * 0.2f / scale,
+					(oy * 2.0f - 1.0f) * 0.2f / scale,
+					(oz * 2.0f - 1.0f) * 0.2f / scale);
+			}
 			tileRenderer.renderTile(*tile, item.getAuxValue());
 			glPopMatrix();
 		}
@@ -96,9 +101,14 @@ void ItemRenderer::render(Entity &entity, double x, double y, double z, float ro
 		{
 			glPushMatrix();
 			if (i > 0)
-				glTranslatef((random.nextFloat() * 2.0f - 1.0f) * 0.3f,
-					(random.nextFloat() * 2.0f - 1.0f) * 0.3f,
-					(random.nextFloat() * 2.0f - 1.0f) * 0.3f);
+			{
+				const float ox = random.nextFloat();
+				const float oy = random.nextFloat();
+				const float oz = random.nextFloat();
+				glTranslatef((ox * 2.0f - 1.0f) * 0.3f,
+					(oy * 2.0f - 1.0f) * 0.3f,
+					(oz * 2.0f - 1.0f) * 0.3f);
+			}
 			glRotatef(180.0f - entityRenderDispatcher.playerRotY, 0.0f, 1.0f, 0.0f);
 			t.begin();
 			t.normal(0.0f, 1.0f, 0.0f);

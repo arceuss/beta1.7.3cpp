@@ -38,7 +38,16 @@ struct Options
 	int warmupFrames = 60;
 	int sampleEvery = 100;
 	int viewDistance = 0;
+	int anaglyph = 0;
+	int regionRenderer = -1;
+	int cacheClouds = -1;
+	bool frameHash = false;
 	bool finishEachFrame = true;
+	// Opt-in per-tick SHA-256 state/light digests; costs real time per tick,
+	// so it stays off unless a parity run asks for it.
+	bool stateHash = false;
+	// Opt-in ordered rebuild/publish log with canonical mesh SHA-256 per publish.
+	bool chunkLog = false;
 	Params params;
 };
 
@@ -69,4 +78,7 @@ void pinPlayer(LocalPlayer &player, double x, double y, double z, float yRot, fl
 long_t parseInteger(const std::string &text);
 void validateOptions(const Options &options);
 int run(const Options &options);
+// Full CLI entry (parsing, usage, terminate handler); used by the standalone
+// stress executable and by the PGO-embedded --stress dispatch in the game.
+int runCommandLine(int argc, char *argv[]);
 }

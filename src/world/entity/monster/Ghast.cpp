@@ -82,11 +82,17 @@ void Ghast::updateAi()
 		if (canSee(*targetRef))
 		{
 			if (attackCounter == 10)
-				level.playSoundAtEntity(*this, u"mob.ghast.charge", getSoundVolume(), (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+			{
+				const float pitchA = random.nextFloat();
+				const float pitchB = random.nextFloat();
+				level.playSoundAtEntity(*this, u"mob.ghast.charge", getSoundVolume(), (pitchA - pitchB) * 0.2f + 1.0f);
+			}
 			attackCounter++;
 			if (attackCounter == 20)
 			{
-				level.playSoundAtEntity(*this, u"mob.ghast.fireball", getSoundVolume(), (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+				const float pitchA = random.nextFloat();
+				const float pitchB = random.nextFloat();
+				level.playSoundAtEntity(*this, u"mob.ghast.fireball", getSoundVolume(), (pitchA - pitchB) * 0.2f + 1.0f);
 				auto fireball = std::make_shared<EntityFireball>(level, *this, tx, ty, tz);
 				double lookX = -Mth::sin(yRot * Mth::DEGRAD) * Mth::cos(xRot * Mth::DEGRAD);
 				double lookZ = Mth::cos(yRot * Mth::DEGRAD) * Mth::cos(xRot * Mth::DEGRAD);

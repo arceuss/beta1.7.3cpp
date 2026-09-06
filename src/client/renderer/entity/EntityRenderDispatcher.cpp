@@ -58,6 +58,9 @@
 #include "world/entity/player/Player.h"
 #include "OpenGL.h"
 
+#include <typeindex>
+#include <unordered_map>
+
 
 FallingTileRenderer &EntityRenderDispatcher::getFallingTileRenderer()
 {
@@ -241,6 +244,8 @@ double EntityRenderDispatcher::xOff = 0.0;
 double EntityRenderDispatcher::yOff = 0.0;
 double EntityRenderDispatcher::zOff = 0.0;
 
+
+bool EntityRenderDispatcher::useRendererCache = true;
 PlayerRenderer EntityRenderDispatcher::playerRenderer = PlayerRenderer(EntityRenderDispatcher::instance);
 
 void EntityRenderDispatcher::prepare(std::shared_ptr<Level> level, Textures &textures, Font &font, std::shared_ptr<Player> player, Options &options, float a)
@@ -272,244 +277,121 @@ void EntityRenderDispatcher::render(Entity &entity, float a)
 
 void EntityRenderDispatcher::render(Entity &entity, double x, double y, double z, float rot, float a)
 {
-	if (dynamic_cast<FallingTile *>(&entity) != nullptr)
+	EntityRenderer *renderer;
+	if (useRendererCache)
 	{
-		FallingTileRenderer &fallingTileRenderer = getFallingTileRenderer();
-		fallingTileRenderer.render(entity, x, y, z, rot, a);
-		fallingTileRenderer.postRender(entity, x, y, z, rot, a);
-		return;
+		static std::unordered_map<std::type_index, EntityRenderer *> rendererCache;
+		std::type_index key(typeid(entity));
+		auto it = rendererCache.find(key);
+		if (it != rendererCache.end())
+		{
+			renderer = it->second;
+		}
+		else
+		{
+			renderer = &resolveRenderer(entity);
+			rendererCache.emplace(key, renderer);
+		}
 	}
+	else
+	{
+		renderer = &resolveRenderer(entity);
+	}
+
+	renderer->render(entity, x, y, z, rot, a);
+	renderer->postRender(entity, x, y, z, rot, a);
+}
+
+EntityRenderer &EntityRenderDispatcher::resolveRenderer(Entity &entity)
+{
+	if (dynamic_cast<FallingTile *>(&entity) != nullptr)
+		return getFallingTileRenderer();
 
 	if (dynamic_cast<EntityArrow *>(&entity) != nullptr)
-	{
-		ArrowRenderer &renderer = getArrowRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getArrowRenderer();
 
 	if (dynamic_cast<EntityFireball *>(&entity) != nullptr)
-	{
-		FireballRenderer &renderer = getFireballRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
-
+		return getFireballRenderer();
 
 	if (dynamic_cast<EntitySnowball *>(&entity) != nullptr)
-	{
-		EntityRenderer &renderer = getSnowballRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getSnowballRenderer();
 
 	if (dynamic_cast<EntityThrownEgg *>(&entity) != nullptr)
-	{
-		EntityRenderer &renderer = getThrownEggRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getThrownEggRenderer();
 
 	if (dynamic_cast<EntityFish *>(&entity) != nullptr)
-	{
-		FishingHookRenderer &renderer = getFishingHookRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getFishingHookRenderer();
 
 	if (dynamic_cast<EntityPainting *>(&entity) != nullptr)
-	{
-		PaintingRenderer &renderer = getPaintingRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getPaintingRenderer();
 
 	if (dynamic_cast<EntityLightningBolt *>(&entity) != nullptr)
-	{
-		LightningBoltRenderer &renderer = getLightningBoltRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getLightningBoltRenderer();
 
 	if (dynamic_cast<EntityItem *>(&entity) != nullptr)
-	{
-		ItemRenderer &itemRenderer = getItemRenderer();
-		itemRenderer.render(entity, x, y, z, rot, a);
-		itemRenderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getItemRenderer();
+
 	if (dynamic_cast<EntityMinecart *>(&entity) != nullptr)
-	{
-		MinecartRenderer &minecartRenderer = getMinecartRenderer();
-		minecartRenderer.render(entity, x, y, z, rot, a);
-		minecartRenderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getMinecartRenderer();
 
 	if (dynamic_cast<EntityBoat *>(&entity) != nullptr)
-	{
-		BoatRenderer &boatRenderer = getBoatRenderer();
-		boatRenderer.render(entity, x, y, z, rot, a);
-		boatRenderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getBoatRenderer();
 
 	if (dynamic_cast<Ghast *>(&entity) != nullptr)
-	{
-		GhastRenderer &renderer = getGhastRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
-
+		return getGhastRenderer();
 
 	if (dynamic_cast<Creeper *>(&entity) != nullptr)
-	{
-		CreeperRenderer &renderer = getCreeperRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getCreeperRenderer();
 
 	if (dynamic_cast<Spider *>(&entity) != nullptr)
-	{
-		SpiderRenderer &renderer = getSpiderRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getSpiderRenderer();
 
 	if (dynamic_cast<Slime *>(&entity) != nullptr)
-	{
-		SlimeRenderer &renderer = getSlimeRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
-
+		return getSlimeRenderer();
 
 	if (dynamic_cast<Giant *>(&entity) != nullptr)
-	{
-		GiantRenderer &renderer = getGiantRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
-
+		return getGiantRenderer();
 
 	if (dynamic_cast<PigZombie *>(&entity) != nullptr)
-	{
-		HumanoidMobRenderer &renderer = getPigZombieRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getPigZombieRenderer();
 
 	if (dynamic_cast<Zombie *>(&entity) != nullptr)
-	{
-		HumanoidMobRenderer &renderer = getZombieRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getZombieRenderer();
 
 	if (dynamic_cast<Skeleton *>(&entity) != nullptr)
-	{
-		HumanoidMobRenderer &renderer = getSkeletonRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
-	
+		return getSkeletonRenderer();
+
 	if (dynamic_cast<Chicken *>(&entity) != nullptr)
-	{
-		ChickenRenderer &renderer = getChickenRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getChickenRenderer();
 
 	if (dynamic_cast<Sheep *>(&entity) != nullptr)
-	{
-		SheepRenderer &renderer = getSheepRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getSheepRenderer();
 
 	if (dynamic_cast<Wolf *>(&entity) != nullptr)
-	{
-		WolfRenderer &renderer = getWolfRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
-
+		return getWolfRenderer();
 
 	if (dynamic_cast<Pig *>(&entity) != nullptr)
-	{
-		PigRenderer &renderer = getPigRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getPigRenderer();
 
 	if (dynamic_cast<Cow *>(&entity) != nullptr)
-	{
-		MobRenderer &renderer = getCowRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getCowRenderer();
 
 	if (dynamic_cast<Squid *>(&entity) != nullptr)
-	{
-		SquidRenderer &renderer = getSquidRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getSquidRenderer();
 
 	if (dynamic_cast<Monster *>(&entity) != nullptr)
-	{
-		HumanoidMobRenderer &renderer = getMonsterRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
-	
+		return getMonsterRenderer();
+
 	if (dynamic_cast<PrimedTNT *>(&entity) != nullptr)
-	{
-		TNTPrimedRenderer &tntRenderer = getTNTPrimedRenderer();
-		tntRenderer.render(entity, x, y, z, rot, a);
-		tntRenderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getTNTPrimedRenderer();
 
 	if (dynamic_cast<Player *>(&entity) != nullptr)
-	{
-		playerRenderer.render(entity, x, y, z, rot, a);
-		playerRenderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return playerRenderer;
 
 	if (dynamic_cast<Mob *>(&entity) != nullptr)
-	{
-		HumanoidMobRenderer &renderer = getMonsterRenderer();
-		renderer.render(entity, x, y, z, rot, a);
-		renderer.postRender(entity, x, y, z, rot, a);
-		return;
-	}
+		return getMonsterRenderer();
 
-	GenericEntityRenderer &renderer = getGenericEntityRenderer();
-	renderer.render(entity, x, y, z, rot, a);
-	renderer.postRender(entity, x, y, z, rot, a);
+	return getGenericEntityRenderer();
 }
 
 void EntityRenderDispatcher::setLevel(std::shared_ptr<Level> level)

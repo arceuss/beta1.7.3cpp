@@ -37,6 +37,9 @@ public:
 
 	std::shared_ptr<Tag> get(const jstring &name) const;
 	bool contains(const jstring &name) const;
+	// Read-only view so the stress tool can hash entries in sorted-key order;
+	// the underlying unordered_map iteration order is not canonical.
+	const std::unordered_map<jstring, std::shared_ptr<Tag>> &getAllTags() const { return tags; }
 
 	byte_t getByte(const jstring &name) const;
 	short_t getShort(const jstring &name) const;

@@ -256,8 +256,10 @@ void EntityFish::tick()
 				{
 					ticksCatchable = random.nextInt(30) + 10;
 					yd -= 0.2f;
+					const float splashA = random.nextFloat();
+					const float splashB = random.nextFloat();
 					level.playSoundAtEntity(*this, u"random.splash", 0.25f,
-						1.0f + (random.nextFloat() - random.nextFloat()) * 0.4f);
+						1.0f + (splashA - splashB) * 0.4f);
 					float waterY = static_cast<float>(Mth::floor(bb.y0));
 					for (int_t i = 0; i < 1.0f + bbWidth * 20.0f; i++)
 					{

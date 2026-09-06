@@ -43,8 +43,26 @@ void Tesselator::end()
 
 	if (vertices > 0 && capture != nullptr)
 	{
-		capture->data.insert(capture->data.end(), buffer.get(), buffer_p);
+		if (B173_COMPACT_TERRAIN_VERTEX && capture->format == MeshCapture::Format::Terrain)
+		{
+			std::size_t oldSize = capture->data.size();
+			capture->data.resize(oldSize + static_cast<std::size_t>(vertices) * TERRAIN_VERTEX_STRIDE);
+			char *dst = capture->data.data() + oldSize;
+			const char *src = buffer.get();
+			for (int_t i = 0; i < vertices; i++, src += 32, dst += TERRAIN_VERTEX_STRIDE)
+				std::memcpy(dst, src, TERRAIN_VERTEX_STRIDE);
+		}
+		else
+		{
+			capture->data.insert(capture->data.end(), buffer.get(), buffer_p);
+		}
 		capture->vertices += vertices;
+#if B173_INDEXED_TERRAIN
+		// vertex() skipped the quad-to-triangle duplication for captured quads,
+		// so the data holds exactly four vertices per quad.
+		if (capture->format == MeshCapture::Format::Terrain && draw_mode == GL_QUADS && TRIANGLE_MODE)
+			capture->quads += vertices / 4;
+#endif
 		capture->hasTexture = hasTexture;
 		capture->hasColor = hasColor;
 		capture->hasNormal = hasNormal;
@@ -190,7 +208,14 @@ void Tesselator::vertex(double x, double y, double z)
 	// Convert quads to triangles
 	count++;
 
-	if (draw_mode == GL_QUADS && TRIANGLE_MODE && (count % 4) == 0)
+	bool duplicateQuad = draw_mode == GL_QUADS && TRIANGLE_MODE && (count % 4) == 0;
+#if B173_INDEXED_TERRAIN
+	// B173 - Captured terrain keeps four vertices per quad; the shared index
+	// buffer replays the exact duplication order (v0,v1,v2,v0,v2,v3) at draw time.
+	if (capture != nullptr && capture->format == MeshCapture::Format::Terrain)
+		duplicateQuad = false;
+#endif
+	if (duplicateQuad)
 	{
 		for (int_t i = 0; i < 2; i++)
 		{

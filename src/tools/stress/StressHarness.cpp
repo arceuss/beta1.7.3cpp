@@ -4,6 +4,8 @@
 #endif
 
 #include "tools/stress/StressHarness.h"
+#include "tools/stress/StateDigest.h"
+#include "tools/stress/Sha256.h"
 
 #include <algorithm>
 #include <chrono>
@@ -21,6 +23,7 @@
 #include "client/renderer/Chunk.h"
 #include "java/File.h"
 #include "java/String.h"
+#include "java/Random.h"
 #include "lwjgl/Display.h"
 #include "lwjgl/GLContext.h"
 #include "util/Profiler.h"
@@ -97,7 +100,9 @@ void validateOptions(const Options &options)
 	if (options.frames < 0 || options.frames > 1000000 || options.warmupFrames < 0 ||
 		options.warmupFrames > 1000000 || options.tickInterval < 1 || options.tickInterval > 1000000 ||
 		options.sampleEvery < 1 || options.sampleEvery > 1000000 ||
-		options.viewDistance < 0 || options.viewDistance > 3 || options.fancyGraphics < 0 || options.fancyGraphics > 1)
+		options.viewDistance < 0 || options.viewDistance > 3 || options.fancyGraphics < 0 || options.fancyGraphics > 1 ||
+		options.anaglyph < 0 || options.anaglyph > 1 || options.regionRenderer < -1 || options.regionRenderer > 1 ||
+		options.cacheClouds < -1 || options.cacheClouds > 1)
 		throw std::invalid_argument("Out-of-range runner option");
 	const std::map<std::string, std::vector<std::string>> keys = {
 		{ "idle", {} }, { "spin", { "rate" } }, { "walk", { "radius" } },
@@ -107,7 +112,7 @@ void validateOptions(const Options &options)
 		{ "lighting", { "count", "period", "width", "depth" } },
 		{ "fluids", { "size", "spacing" } }, { "tnt", { "count", "period" } },
 		{ "mobs", { "count" } }, { "entities", { "count" } },
-		{ "cave", { "width", "depth" } }, { "all", {} }
+		{ "cave", { "width", "depth" } }, { "clouds", {} }, { "all", {} }
 	};
 	const auto &allowed = keys.at(options.scenario);
 	for (const auto &entry : options.params.values)
@@ -190,6 +195,24 @@ static void checkGl(int frame)
 		throw std::runtime_error("OpenGL error " + std::to_string(error) + " at frame " + std::to_string(frame));
 }
 
+static void readFramePixels(std::vector<unsigned char> &pixels, int width, int height, GLenum format)
+{
+	if (width <= 0 || height <= 0)
+		throw std::runtime_error("Empty drawable for framebuffer capture");
+	const int components = format == GL_RGBA ? 4 : 3;
+	pixels.resize(static_cast<std::size_t>(width) * height * components);
+	GLint alignment = 4, readBuffer = GL_BACK;
+	glGetIntegerv(GL_PACK_ALIGNMENT, &alignment);
+	glGetIntegerv(GL_READ_BUFFER, &readBuffer);
+	glReadBuffer(GL_BACK);
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glFinish();
+	glReadPixels(0, 0, width, height, format, GL_UNSIGNED_BYTE, pixels.data());
+	glPixelStorei(GL_PACK_ALIGNMENT, alignment);
+	glReadBuffer(static_cast<GLenum>(readBuffer));
+	checkGl(-1);
+}
+
 static void captureFrame(File &directory, const std::string &name)
 {
 	int width = 0, height = 0;
@@ -199,17 +222,8 @@ static void captureFrame(File &directory, const std::string &name)
 	std::unique_ptr<File> file(File::open(directory, String::fromUTF8(name)));
 	if (file->exists())
 		throw std::runtime_error("Capture already exists: " + name);
-	std::vector<unsigned char> pixels(static_cast<std::size_t>(width) * height * 3);
-	GLint alignment = 4, readBuffer = GL_BACK;
-	glGetIntegerv(GL_PACK_ALIGNMENT, &alignment);
-	glGetIntegerv(GL_READ_BUFFER, &readBuffer);
-	glReadBuffer(GL_BACK);
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	glFinish();
-	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-	glPixelStorei(GL_PACK_ALIGNMENT, alignment);
-	glReadBuffer(static_cast<GLenum>(readBuffer));
-	checkGl(-1);
+	std::vector<unsigned char> pixels;
+	readFramePixels(pixels, width, height, GL_RGB);
 	stbi_flip_vertically_on_write(1);
 	const int written = stbi_write_png(String::toUTF8(file->toString()).c_str(), width, height, 3,
 		pixels.data(), width * 3);
@@ -224,6 +238,68 @@ static double elapsedMs(Clock::time_point start)
 	return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
 
+// Chunk rebuild/publish ordering log (report validation section). The observers
+// write into the current scenario's chunks.csv; both are detached after each run.
+static std::ostream *chunkLogStream = nullptr;
+static int chunkLogFrame = 0;
+static long_t chunkRebuildSeq = 0;
+static long_t chunkPublishSeq = 0;
+
+// Canonical mesh digest: position(12B)+uv(8B)+rgba(4B) per vertex; the packed
+// normal is excluded because the baseline duplicated stream never copies it
+// (stale bytes) and terrain never enables the normal array. Quad streams are
+// expanded with the Tesselator duplication pattern 0,1,2,0,2,3 so 4-vertex and
+// 6-vertex builds hash identical canonical bytes.
+static std::string canonicalMeshHash(const unsigned char *data, std::size_t bytes,
+	int_t vertices, int_t quads, int_t stride)
+{
+	if (stride < 24 || bytes < static_cast<std::size_t>(vertices) * stride ||
+		quads * 4 > vertices)
+		return "SHORT_BUFFER";
+	Sha256 hash;
+	const auto putVertex = [&](const unsigned char *vertex)
+	{
+		hash.update(vertex, 12);
+		hash.update(vertex + 12, 8);
+		hash.update(vertex + 20, 4);
+	};
+	static const int pattern[6] = { 0, 1, 2, 0, 2, 3 };
+	for (int_t quad = 0; quad < quads; ++quad)
+	{
+		const unsigned char *base = data + static_cast<std::size_t>(quad) * 4 * stride;
+		for (int corner = 0; corner < 6; ++corner)
+			putVertex(base + pattern[corner] * stride);
+	}
+	for (int_t vertex = quads * 4; vertex < vertices; ++vertex)
+		putVertex(data + static_cast<std::size_t>(vertex) * stride);
+	return hash.finishHex();
+}
+
+static void observeRebuild(int_t x, int_t y, int_t z)
+{
+	if (!chunkLogStream)
+		return;
+	*chunkLogStream << chunkLogFrame << ",rebuild," << chunkRebuildSeq++ << ',' <<
+		x << ',' << y << ',' << z << ",,,,,\n";
+}
+
+static void observePublish(int_t x, int_t y, int_t z, int_t layer,
+	const unsigned char *data, std::size_t bytes, int_t vertices, int_t quads, int_t stride)
+{
+	if (!chunkLogStream)
+		return;
+	*chunkLogStream << chunkLogFrame << ",publish," << chunkPublishSeq++ << ',' <<
+		x << ',' << y << ',' << z << ',' << layer << ',' << vertices << ',' << quads << ',' <<
+		stride << ',' << canonicalMeshHash(data, bytes, vertices, quads, stride) << '\n';
+}
+
+class SimulationClock
+{
+public:
+	SimulationClock() { System::setSimulationTimeMillis(1000000); }
+	~SimulationClock() { System::setSimulationTimeMillis(-1); }
+};
+
 int run(const Options &options)
 try
 {
@@ -234,9 +310,18 @@ try
 	if (!gameDirectory->mkdirs())
 		throw std::runtime_error("Cannot create isolated stress directory");
 
+	SimulationClock clock;
+	long_t clockFrame = 0;
 	lwjgl::GLContext::instantiate();
 	if (!GLAD_GL_VERSION_2_1)
 		throw std::runtime_error("OpenGL 2.1 required; no null rendering fallback exists");
+	// Repeatability: every default-constructed Random (per-entity RNG, sound
+	// selection, Math.random) draws from a deterministic sequence in this tool.
+	Random::enableDeterministicDefaultSeeds(options.params.longOr("seed", 1234567));
+	if (options.regionRenderer >= 0)
+		Chunk::useRegionBuffers = options.regionRenderer != 0;
+	if (options.cacheClouds >= 0)
+		LevelRenderer::cacheCloudGeometry = options.cacheClouds != 0;
 	std::unique_ptr<Minecraft> owner = std::make_unique<Minecraft>(854, 480, false);
 	Minecraft &minecraft = *owner;
 	minecraft.unattended = true;
@@ -248,7 +333,10 @@ try
 	minecraft.options.difficulty = 2;
 	minecraft.options.showDebugInfo = false;
 	minecraft.options.hideGui = false;
-	minecraft.options.anaglyph3d = false;
+	minecraft.options.anaglyph3d = options.anaglyph != 0;
+	// Renderer-only tool: fully silent so probes never open an audio backend path.
+	minecraft.options.sound = 0.0f;
+	minecraft.options.music = 0.0f;
 	minecraft.init(gameDirectory);
 	if (lwjgl::Display::isVisible())
 		throw std::runtime_error("Stress window unexpectedly became visible");
@@ -276,7 +364,10 @@ try
 		emit("width " + std::to_string(minecraft.width));
 		emit("height " + std::to_string(minecraft.height));
 		emit("view_distance " + std::to_string(options.viewDistance));
+		emit("anaglyph " + std::to_string(options.anaglyph));
 		emit("fancy_graphics " + std::to_string(options.fancyGraphics));
+		emit("region_renderer " + std::to_string(Chunk::useRegionBuffers));
+		emit("cache_clouds " + std::to_string(LevelRenderer::cacheCloudGeometry));
 		emit("tick_interval_frames " + std::to_string(options.tickInterval));
 		emit("warmup_frames " + std::to_string(options.warmupFrames));
 		emit("sample_every_frames " + std::to_string(options.sampleEvery));
@@ -317,6 +408,36 @@ try
 		emit("timing_exclusions initialization,setup,settling,warmup,CSV,capture; no GPU timer queries");
 		emit("unavailable_metrics process_memory,heap_histogram,live_chunk_count,scheduled_tick_count,backend_residency,legacygl_retention,backend_phase_profiles");
 		emit("natural_spawning disabled by unattended client; explicit scenario entities tick and render normally");
+		std::unique_ptr<std::ostream> stateCsv;
+		if (options.stateHash)
+		{
+			stateCsv = outputFile(*directory, prefix + "state.csv");
+			*stateCsv << "tick,state_sha256,light_sha256,chunks\n";
+			emit("state_hash enabled; all loaded chunks enumerated via ChunkCache");
+			emit(std::string("state_hash_coverage ") + coverageStatement());
+			emit("state_hash_warning per-tick SHA-256 adds real CPU time inside the tick; do not use this run's frame timings as a performance sample");
+		}
+		std::unique_ptr<std::ostream> frameCsv;
+		std::vector<unsigned char> framePixels;
+		if (options.frameHash)
+		{
+			frameCsv = outputFile(*directory, prefix + "frames.csv");
+			*frameCsv << "frame,width,height,rgba_sha256\n";
+			emit("frame_hash_warning per-frame RGBA readback and hashing invalidate timing samples");
+		}
+		std::unique_ptr<std::ostream> chunkCsv;
+		if (options.chunkLog)
+		{
+			chunkCsv = outputFile(*directory, prefix + "chunks.csv");
+			*chunkCsv << "frame,event,seq,x,y,z,layer,vertices,quads,stride,canonical_sha256\n";
+			chunkLogStream = chunkCsv.get();
+			chunkRebuildSeq = chunkPublishSeq = 0;
+			Chunk::rebuildObserver = &observeRebuild;
+			Chunk::publishObserver = &observePublish;
+			emit("chunk_log enabled; frame column is frame-warmup (measured frames start at 0, warmup negative)");
+			emit("chunk_log_canonical per-vertex pos+uv+rgba bytes, quads expanded 0,1,2,0,2,3; packed normal excluded (stale in duplicated baseline stream, never enabled for terrain)");
+			emit("chunk_log_warning per-publish SHA-256 adds CPU time; do not use this run's frame timings as a performance sample");
+		}
 		*samples << "frame,tick,chunk_updates,entities,light_queue,x,y,z\n" << std::setprecision(17);
 		Profiler::reset(static_cast<std::size_t>(measuredFrames));
 		long_t gameTicks = 0;
@@ -324,7 +445,9 @@ try
 		std::size_t peakLightQueue = 0;
 		for (int frame = 0; frame < options.warmupFrames + measuredFrames; ++frame)
 		{
+			System::setSimulationTimeMillis(1000000 + clockFrame++ * 50 / options.tickInterval);
 			AABB::resetPool();
+			chunkLogFrame = frame - options.warmupFrames;
 			Vec3::resetPool();
 			lwjgl::Display::processMessages();
 			if (lwjgl::Display::isCloseRequested())
@@ -340,6 +463,12 @@ try
 				{
 					minecraft.stressTick();
 					scenario->onTick(world, gameTicks++);
+					if (stateCsv)
+					{
+						const DigestResult digest = digestLevel(*level);
+						*stateCsv << (gameTicks - 1) << ',' << digest.stateHex << ',' <<
+							digest.lightHex << ',' << digest.chunkCount << '\n';
+					}
 				}
 				const float partialTick = static_cast<float>(frame % options.tickInterval) / options.tickInterval;
 				{
@@ -363,6 +492,15 @@ try
 			}
 			Profiler::enable(false);
 			checkGl(frame);
+			if (frameCsv)
+			{
+				int width = 0, height = 0;
+				SDL_GL_GetDrawableSize(lwjgl::GLContext::detail::getWindow(), &width, &height);
+				readFramePixels(framePixels, width, height, GL_RGBA);
+				Sha256 hash;
+				hash.update(framePixels.data(), framePixels.size());
+				*frameCsv << frame - options.warmupFrames << ',' << width << ',' << height << ',' << hash.finishHex() << '\n';
+			}
 			const int rebuilt = Chunk::updates - beforeRebuilds;
 			if (measured) measuredChunkUpdates += rebuilt;
 			else warmupChunkUpdates += rebuilt;
@@ -376,6 +514,12 @@ try
 					String::toUTF8(minecraft.levelRenderer.gatherStats1()) + " | " +
 					String::toUTF8(minecraft.levelRenderer.gatherStats2()));
 			}
+		}
+		if (options.chunkLog)
+		{
+			Chunk::rebuildObserver = nullptr;
+			Chunk::publishObserver = nullptr;
+			chunkLogStream = nullptr;
 		}
 		Profiler::report(*raw, *summary);
 		if (!options.capturePath.empty())
@@ -396,6 +540,9 @@ try
 		for (const std::string &line : extra) emit(line);
 		emit("status COMPLETE");
 		log->flush(); raw->flush(); summary->flush(); samples->flush();
+		if (stateCsv) stateCsv->flush();
+		if (frameCsv) frameCsv->flush();
+		if (chunkCsv) chunkCsv->flush();
 	}
 	minecraft.running = false;
 	std::cout << "stress: complete; results in " << options.outputDirectory << '\n';
@@ -404,6 +551,10 @@ try
 catch (const std::exception &error)
 {
 	Profiler::enable(false);
+	Chunk::rebuildObserver = nullptr;
+	Chunk::publishObserver = nullptr;
+	chunkLogStream = nullptr;
+	Tesselator::instance.captureTo(nullptr);
 	std::cerr << "stress: " << error.what() << '\n';
 	return 1;
 }

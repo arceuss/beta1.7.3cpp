@@ -127,7 +127,11 @@ void LiquidTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &ra
 	{
 		int_t data = level.getData(x, y, z);
 		if (data > 0 && data < 8)
-			level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"liquid.water", random.nextFloat() * 0.25f + 12.0f / 16.0f, random.nextFloat() + 0.5f);
+		{
+			const float vol = random.nextFloat();
+			const float pitch = random.nextFloat();
+			level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"liquid.water", vol * 0.25f + 12.0f / 16.0f, pitch + 0.5f);
+		}
 	}
 
 	if (&material == static_cast<const Material *>(&Material::lava))
@@ -292,7 +296,9 @@ void LiquidTile::updateLiquid(Level &level, int_t x, int_t y, int_t z)
 
 void LiquidTile::fizz(Level &level, int_t x, int_t y, int_t z)
 {
-	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"random.fizz", 0.5f, 2.6f + (level.random.nextFloat() - level.random.nextFloat()) * 0.8f);
+	const float fa = level.random.nextFloat();
+	const float fb = level.random.nextFloat();
+	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"random.fizz", 0.5f, 2.6f + (fa - fb) * 0.8f);
 }
 
 LiquidTileDynamic::LiquidTileDynamic(int_t id, int_t tex, const Material &material) : LiquidTile(id, tex, material)

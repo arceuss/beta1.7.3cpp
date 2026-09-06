@@ -230,7 +230,9 @@ void EntityArrow::playerTouch(Player &player)
 		ItemInstance stack(Items::arrow->getShiftedIndex(), 1, 0);
 		if (player.inventory.add(stack))
 		{
-			level.playSoundAtEntity(*this, u"random.pop", 0.2f, ((random.nextFloat() - random.nextFloat()) * 0.7f + 1.0f) * 2.0f);
+			const float popA = random.nextFloat();
+			const float popB = random.nextFloat();
+			level.playSoundAtEntity(*this, u"random.pop", 0.2f, ((popA - popB) * 0.7f + 1.0f) * 2.0f);
 			player.take(*this, 1);
 			remove();
 		}

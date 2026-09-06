@@ -761,6 +761,31 @@ public:
 	}
 };
 
+class CloudsScenario : public Scenario
+{
+	double x = 0.0, z = 0.0;
+public:
+	const char *name() const override { return "clouds"; }
+	int defaultFrames() const override { return 600; }
+	void setup(World &world, const Params &) override
+	{
+		x = world.player.x;
+		z = world.player.z;
+		pinPlayer(world.player, x, 96.0, z, 0.0f, 0.0f);
+	}
+	void onTick(World &world, long_t tick) override
+	{
+		const double oldX = world.player.x, oldY = world.player.y, oldZ = world.player.z;
+		pinPlayer(world.player, x + 20.0 * std::sin(tick * 0.31),
+			108.0 + 12.0 * std::sin(tick * 0.17), z + 20.0 * std::cos(tick * 0.23),
+			static_cast<float>(tick * 7 % 360), 0.0f);
+		world.player.xo = world.player.xOld = oldX;
+		world.player.yo = world.player.yOld = oldY;
+		world.player.zo = world.player.zOld = oldZ;
+		world.level.setTime(world.level.time + 200);
+	}
+};
+
 std::unique_ptr<Scenario> makeScenario(const std::string &name)
 {
 	if (name == "idle") return std::make_unique<IdleScenario>();
@@ -776,13 +801,14 @@ std::unique_ptr<Scenario> makeScenario(const std::string &name)
 	if (name == "mobs") return std::make_unique<MobsScenario>();
 	if (name == "entities") return std::make_unique<EntitiesScenario>();
 	if (name == "cave") return std::make_unique<CaveScenario>();
+	if (name == "clouds") return std::make_unique<CloudsScenario>();
 	return nullptr;
 }
 
 std::vector<std::string> scenarioNames()
 {
 	return { "idle", "spin", "walk", "daycycle", "travel", "farlands", "building",
-		"lighting", "fluids", "tnt", "mobs", "entities", "cave" };
+		"lighting", "fluids", "tnt", "mobs", "entities", "cave", "clouds" };
 }
 
 }

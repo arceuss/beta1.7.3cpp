@@ -441,6 +441,35 @@ public:
 	int_t getUniqueDataId(const jstring &key);
 	void saveAllItemData();
 
+	// Read-only audit surface for the stress-tool state digest; not game logic.
+	struct WeatherAudit
+	{
+		float previousRainingStrength, rainingStrength;
+		float previousThunderingStrength, thunderingStrength;
+		bool raining, thundering;
+		int_t rainTime, thunderTime;
+		int_t randValue, addend;
+	};
+	WeatherAudit auditWeather() const
+	{
+		return { previousRainingStrength, rainingStrength, previousThunderingStrength,
+			thunderingStrength, raining, thundering, rainTime, thunderTime, randValue, addend };
+	}
+	// Appends each pending scheduled tile tick as six values (x, y, z, tileId,
+	// delay, order) in the set's deterministic execution order.
+	void auditPendingTicks(std::vector<long_t> &out) const
+	{
+		for (const auto &entry : tickNextTickList)
+		{
+			out.push_back(entry.x);
+			out.push_back(entry.y);
+			out.push_back(entry.z);
+			out.push_back(entry.tileId);
+			out.push_back(entry.delay);
+			out.push_back(entry.order);
+		}
+	}
+
 	bool allPlayersSleeping = false;
 	void updateAllPlayersSleepingFlag();
 	void wakeUpAllPlayers();

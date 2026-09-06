@@ -81,9 +81,13 @@ void MobSpawnerTileEntity::tick()
 			return;
 		}
 
-		double sx = x + (level->random.nextDouble() - level->random.nextDouble()) * 4.0;
+		const double sxa = level->random.nextDouble();
+		const double sxb = level->random.nextDouble();
+		double sx = x + (sxa - sxb) * 4.0;
 		double sy = y + level->random.nextInt(3) - 1;
-		double sz = z + (level->random.nextDouble() - level->random.nextDouble()) * 4.0;
+		const double sza = level->random.nextDouble();
+		const double szb = level->random.nextDouble();
+		double sz = z + (sza - szb) * 4.0;
 		mob->moveTo(sx, sy, sz, level->random.nextFloat() * 360.0f, 0.0f);
 		if (mob->canSpawn())
 		{

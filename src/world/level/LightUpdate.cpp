@@ -1,6 +1,9 @@
 #include "world/level/LightUpdate.h"
 
 #include "world/level/Level.h"
+#ifdef B173_FAST_LIGHT_ACCESS
+#include "world/level/LightNeighborhood.h"
+#endif
 
 LightUpdate::LightUpdate(int_t layer, int_t x0, int_t y0, int_t z0, int_t x1, int_t y1, int_t z1)
 {
@@ -26,20 +29,29 @@ void LightUpdate::update(Level &level)
 		return;
 	}
 
-	int lastChunkX = 0;
-	int lastChunkZ = 0;
+	int lastMinChunkX = 0, lastMaxChunkX = 0;
+	int lastMinChunkZ = 0, lastMaxChunkZ = 0;
 	bool checkLastChunk = false;
 	bool hasLastChunk = false;
+#ifdef B173_FAST_LIGHT_ACCESS
+	LightNeighborhood lightReads(level);
+#else
+	Level &lightReads = level;
+#endif
 
 	for (int x = x0; x <= x1; x++)
 	{
 		for (int z = z0; z <= z1; z++)
 		{
-			int xc = x >> 4;
-			int zc = z >> 4;
+			const int minChunkX = (x - 1) >> 4;
+			const int maxChunkX = (x + 1) >> 4;
+			const int minChunkZ = (z - 1) >> 4;
+			const int maxChunkZ = (z + 1) >> 4;
 			bool hasChunk = false;
 
-			if (checkLastChunk && xc == lastChunkX && zc == lastChunkZ)
+			// The one-block availability border changes inside a chunk at local 0 and 15.
+			if (checkLastChunk && minChunkX == lastMinChunkX && maxChunkX == lastMaxChunkX &&
+				minChunkZ == lastMinChunkZ && maxChunkZ == lastMaxChunkZ)
 			{
 				hasChunk = hasLastChunk;
 			}
@@ -54,14 +66,20 @@ void LightUpdate::update(Level &level)
 				}
 
 				hasLastChunk = hasChunk;
-				lastChunkX = xc;
-				lastChunkZ = zc;
+				lastMinChunkX = minChunkX;
+				lastMaxChunkX = maxChunkX;
+				lastMinChunkZ = minChunkZ;
+				lastMaxChunkZ = maxChunkZ;
+				checkLastChunk = true;
 			}
 
 			if (hasChunk)
 			{
 				if (y0 < 0) y0 = 0;
 				if (y1 >= Level::DEPTH) y1 = Level::DEPTH - 1;
+#ifdef B173_FAST_LIGHT_ACCESS
+				lightReads.setCenter(x, z);
+#endif
 
 				for (int_t y = y0; y <= y1; y++)
 				{
@@ -90,12 +108,12 @@ void LightUpdate::update(Level &level)
 					}
 					else
 					{
-						int_t bnx = level.getBrightness(layer, x - 1, y, z);
-						int_t bpx = level.getBrightness(layer, x + 1, y, z);
-						int_t bny = level.getBrightness(layer, x, y - 1, z);
-						int_t bpy = level.getBrightness(layer, x, y + 1, z);
-						int_t bnz = level.getBrightness(layer, x, y, z - 1);
-						int_t bpz = level.getBrightness(layer, x, y, z + 1);
+						int_t bnx = lightReads.getBrightness(layer, x - 1, y, z);
+						int_t bpx = lightReads.getBrightness(layer, x + 1, y, z);
+						int_t bny = lightReads.getBrightness(layer, x, y - 1, z);
+						int_t bpy = lightReads.getBrightness(layer, x, y + 1, z);
+						int_t bnz = lightReads.getBrightness(layer, x, y, z - 1);
+						int_t bpz = lightReads.getBrightness(layer, x, y, z + 1);
 
 						newBrightness = bnx;
 						if (bpx > newBrightness) newBrightness = bpx;

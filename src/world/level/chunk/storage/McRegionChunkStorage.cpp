@@ -75,6 +75,9 @@ McRegionChunkStorage::~McRegionChunkStorage()
 std::shared_ptr<LevelChunk> McRegionChunkStorage::load(Level &level, int_t x, int_t z)
 {
 	// A snapshot still waiting for the worker is exactly what the region file will contain.
+	// The shared_ptr copy keeps the queued bytes alive for the whole load even if the worker
+	// finishes the write and erases the pending entry meanwhile, so the stream can read the
+	// string in place without duplicating it.
 	std::shared_ptr<const std::string> queuedNbt;
 	{
 		std::lock_guard<std::mutex> lock(mutex);
@@ -84,15 +87,24 @@ std::shared_ptr<LevelChunk> McRegionChunkStorage::load(Level &level, int_t x, in
 	}
 
 	std::vector<byte_t> data;
+	const char *bytes;
+	size_t size;
 	if (queuedNbt != nullptr)
-		data.assign(reinterpret_cast<const byte_t *>(queuedNbt->data()), reinterpret_cast<const byte_t *>(queuedNbt->data()) + queuedNbt->size());
+	{
+		bytes = queuedNbt->data();
+		size = queuedNbt->size();
+	}
 	else
+	{
 		data = RegionFileCache::getRegionFile(baseDir, x, z)->getChunkData(x & 31, z & 31);
-	if (data.empty())
+		bytes = reinterpret_cast<const char *>(data.data());
+		size = data.size();
+	}
+	if (size == 0)
 		return nullptr;
 
 	// Parse NBT from decompressed data
-	MemStream ms(reinterpret_cast<const char *>(data.data()), data.size());
+	MemStream ms(bytes, size);
 	std::unique_ptr<CompoundTag> rootTag(NbtIo::read(ms));
 
 	if (!rootTag->contains(u"Level"))
@@ -158,13 +170,15 @@ void McRegionChunkStorage::save(Level &level, LevelChunk &chunk)
 
 void McRegionChunkStorage::writeChunk(int_t x, int_t z, const std::string &nbt)
 {
-	// Zlib compress
+	// Zlib compress into the worker-owned scratch buffer (writeChunk runs only on the worker
+	// thread, so the buffer is never contended).
 	uLongf compBound = compressBound(static_cast<uLong>(nbt.size()));
-	std::vector<byte_t> compressed(compBound);
+	if (compressedScratch.size() < compBound)
+		compressedScratch.resize(compBound);
 	uLongf compSize = compBound;
 
 	int ret = compress2(
-		reinterpret_cast<Bytef *>(compressed.data()), &compSize,
+		reinterpret_cast<Bytef *>(compressedScratch.data()), &compSize,
 		reinterpret_cast<const Bytef *>(nbt.data()), static_cast<uLong>(nbt.size()),
 		Z_DEFAULT_COMPRESSION
 	);
@@ -177,7 +191,7 @@ void McRegionChunkStorage::writeChunk(int_t x, int_t z, const std::string &nbt)
 
 	// Write to region file
 	auto regionFile = RegionFileCache::getRegionFile(baseDir, x, z);
-	regionFile->writeChunkData(x & 31, z & 31, compressed.data(), static_cast<int_t>(compSize));
+	regionFile->writeChunkData(x & 31, z & 31, compressedScratch.data(), static_cast<int_t>(compSize));
 
 	int_t delta = regionFile->getSizeDelta();
 	std::lock_guard<std::mutex> lock(mutex);

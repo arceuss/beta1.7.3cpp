@@ -139,6 +139,8 @@ public:
 
 	DataWatcher &getDataWatcher();
 	const DataWatcher &getDataWatcher() const;
+	// Read-only RNG audit for the stress-tool state digest.
+	const Random &auditRandom() const { return random; }
 
 protected:
 	virtual void resetPos();

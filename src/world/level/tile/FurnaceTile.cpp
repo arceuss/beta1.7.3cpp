@@ -170,9 +170,15 @@ void FurnaceTile::dropContents(Level &level, int_t x, int_t y, int_t z) const
 			ItemInstance dropped(stack.itemID, amount, stack.itemDamage);
 			auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, dropped);
 			float velocity = 0.05f;
-			entity->xd = (level.random.nextFloat() - level.random.nextFloat()) * velocity;
-			entity->yd = (level.random.nextFloat() - level.random.nextFloat()) * velocity + 0.2f;
-			entity->zd = (level.random.nextFloat() - level.random.nextFloat()) * velocity;
+			const float xda = level.random.nextFloat();
+			const float xdb = level.random.nextFloat();
+			entity->xd = (xda - xdb) * velocity;
+			const float yda = level.random.nextFloat();
+			const float ydb = level.random.nextFloat();
+			entity->yd = (yda - ydb) * velocity + 0.2f;
+			const float zda = level.random.nextFloat();
+			const float zdb = level.random.nextFloat();
+			entity->zd = (zda - zdb) * velocity;
 			level.addEntity(entity);
 		}
 		stack = ItemInstance();

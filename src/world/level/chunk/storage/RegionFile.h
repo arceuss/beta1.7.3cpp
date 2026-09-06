@@ -20,6 +20,8 @@ private:
 	std::vector<bool> sectorFree;
 	int_t sizeDelta = 0;
 	long_t lastModified = 0;
+	// Compressed-input scratch reused across getChunkData calls; guarded by `mutex`.
+	std::vector<byte_t> compressedScratch;
 
 	std::recursive_mutex mutex;
 

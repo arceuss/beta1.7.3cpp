@@ -8,11 +8,23 @@
 
 #include "util/Mth.h"
 #include "util/Profiler.h"
+#include "client/renderer/TerrainIndexBuffer.h"
+#include "client/renderer/TerrainVertex.h"
 #include <algorithm>
+#include <cstdint>
 
 int_t Chunk::updates = 0;
+bool Chunk::useRegionBuffers = B173_REGION_RENDERER != 0;
 
 Tesselator &Chunk::t = Tesselator::instance;
+
+void (*Chunk::rebuildObserver)(int_t x, int_t y, int_t z) = nullptr;
+void (*Chunk::publishObserver)(int_t x, int_t y, int_t z, int_t layer, const unsigned char *data, std::size_t bytes, int_t vertices, int_t quads, int_t stride) = nullptr;
+
+// B173 - Reusable staging capture (report: retain terrain mesh staging
+// allocations). Rebuilds run on the render thread only; a future snapshot
+// worker pipeline needs one scratch per worker instead.
+static MeshCapture chunkMeshScratch;
 
 Chunk::Chunk(Level &level, std::vector<std::shared_ptr<TileEntity>> &globalRenderableTileEntities, int_t x, int_t y, int_t z, int_t size, int_t lists, bool ambientOcclusion, bool fancyGraphics) : level(level), globalRenderableTileEntities(globalRenderableTileEntities), ambientOcclusion(ambientOcclusion), fancyGraphics(fancyGraphics)
 {
@@ -63,6 +75,8 @@ void Chunk::translateToPos()
 void Chunk::rebuild()
 {
 	if (!dirty) return;
+	if (rebuildObserver)
+		rebuildObserver(x, y, z);
 	updates++;
 
 	int_t x0 = x;
@@ -86,7 +100,7 @@ void Chunk::rebuild()
 	TileRenderer tileRenderer(&region, ambientOcclusion, fancyGraphics);
 	captureProfile.finish();
 
-	MeshCapture mesh;
+	MeshCapture &mesh = chunkMeshScratch;
 	for (int_t i = 0; i < 2; i++)
 	{
 		Profiler::Scope tessellationProfile(Profiler::Section::ChunkTessellation);
@@ -108,7 +122,7 @@ void Chunk::rebuild()
 						{
 							started = true;
 
-							mesh = MeshCapture();
+							mesh.resetKeepCapacity();
 							t.captureTo(&mesh);
 							t.begin();
 							t.offset(-this->x, -this->y, -this->z);
@@ -143,12 +157,34 @@ void Chunk::rebuild()
 			t.end();
 			t.captureTo(nullptr);
 			t.offset(0.0, 0.0, 0.0);
-			if (meshBuffers[i] == 0)
-				glGenBuffers(1, &meshBuffers[i]);
-			glBindBuffer(GL_ARRAY_BUFFER, meshBuffers[i]);
-			glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(mesh.data.size()), mesh.data.data(), GL_STATIC_DRAW);
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			if (publishObserver)
+				publishObserver(this->x, this->y, this->z, i, reinterpret_cast<const unsigned char *>(mesh.data.data()), mesh.data.size(), mesh.vertices, mesh.quads, TERRAIN_VERTEX_STRIDE);
+			if (useRegionBuffers)
+			{
+				if (!meshPools[i])
+					meshPools[i] = TerrainBufferPool::get(xRender, zRender, i);
+				meshPools[i]->upload(meshRanges[i], mesh.data.data(), mesh.data.size());
+				if (meshBuffers[i] != 0)
+				{
+					glDeleteBuffers(1, &meshBuffers[i]);
+					meshBuffers[i] = 0;
+				}
+			}
+			else
+			{
+				if (meshPools[i])
+				{
+					meshPools[i]->release(meshRanges[i]);
+					meshPools[i].reset();
+				}
+				if (meshBuffers[i] == 0)
+					glGenBuffers(1, &meshBuffers[i]);
+				glBindBuffer(GL_ARRAY_BUFFER, meshBuffers[i]);
+				glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(mesh.data.size()), mesh.data.data(), GL_STATIC_DRAW);
+				glBindBuffer(GL_ARRAY_BUFFER, 0);
+			}
 			meshVertices[i] = mesh.vertices;
+			meshQuads[i] = mesh.quads;
 			meshTexture[i] = mesh.hasTexture;
 			meshColor[i] = mesh.hasColor;
 			meshNormal[i] = mesh.hasNormal;
@@ -197,6 +233,7 @@ void Chunk::reset()
 	empty.fill(true);
 	visible = false;
 	compiled = false;
+	releasePooledMeshes();
 }
 
 void Chunk::remove()
@@ -222,27 +259,40 @@ void Chunk::draw(int_t layer)
 
 	if (meshVertices[layer] > 0)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, meshBuffers[layer]);
-		const char *base = nullptr;
+		glBindBuffer(GL_ARRAY_BUFFER, meshPools[layer] ? meshPools[layer]->getBuffer() : meshBuffers[layer]);
+		const std::uintptr_t base = meshPools[layer] ? meshRanges[layer].offset : 0;
 		if (meshTexture[layer])
 		{
-			glTexCoordPointer(2, GL_FLOAT, 32, base + 12);
+			glTexCoordPointer(2, GL_FLOAT, TERRAIN_VERTEX_STRIDE, reinterpret_cast<const void *>(base + TERRAIN_UV_OFFSET));
 			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 		if (meshColor[layer])
 		{
-			glColorPointer(4, GL_UNSIGNED_BYTE, 32, base + 20);
+			glColorPointer(4, GL_UNSIGNED_BYTE, TERRAIN_VERTEX_STRIDE, reinterpret_cast<const void *>(base + TERRAIN_COLOR_OFFSET));
 			glEnableClientState(GL_COLOR_ARRAY);
 		}
 		if (meshNormal[layer])
 		{
-			glNormalPointer(GL_BYTE, 32, base + 24);
+			glNormalPointer(GL_BYTE, TERRAIN_VERTEX_STRIDE, reinterpret_cast<const void *>(base + TERRAIN_NORMAL_OFFSET));
 			glEnableClientState(GL_NORMAL_ARRAY);
 		}
-		glVertexPointer(3, GL_FLOAT, 32, base);
+		glVertexPointer(3, GL_FLOAT, TERRAIN_VERTEX_STRIDE, reinterpret_cast<const void *>(base + TERRAIN_POS_OFFSET));
 		glEnableClientState(GL_VERTEX_ARRAY);
 
-		glDrawArrays(meshMode[layer], 0, meshVertices[layer]);
+		if (meshQuads[layer] > 0)
+		{
+			// B173 - Indexed terrain: the shared IBO replays the exact
+			// Tesselator duplication order over four unique vertices per quad.
+			GLenum indexType = 0;
+			GLuint ibo = TerrainIndexBuffer::get(meshQuads[layer], indexType);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+			glDrawElements(GL_TRIANGLES, meshQuads[layer] * 6, indexType, nullptr);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		}
+		else
+		{
+			glDrawArrays(meshMode[layer], 0, meshVertices[layer]);
+		}
 
 		glDisableClientState(GL_VERTEX_ARRAY);
 		if (meshTexture[layer])
@@ -259,10 +309,23 @@ void Chunk::draw(int_t layer)
 
 Chunk::~Chunk()
 {
+	releasePooledMeshes();
 	for (GLuint &buffer : meshBuffers)
 	{
 		if (buffer != 0)
 			glDeleteBuffers(1, &buffer);
+	}
+}
+
+void Chunk::releasePooledMeshes()
+{
+	for (int layer = 0; layer < 2; ++layer)
+	{
+		if (meshPools[layer])
+		{
+			meshPools[layer]->release(meshRanges[layer]);
+			meshPools[layer].reset();
+		}
 	}
 }
 

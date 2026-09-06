@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <typeindex>
 
 #include "client/MemoryTracker.h"
 #include "client/renderer/Chunk.h"
@@ -32,6 +33,7 @@ public:
 	static constexpr int_t CHUNK_SIZE = 16;
 	static constexpr int_t MAX_VISIBLE_REBUILDS_PER_FRAME = 3;
 	static constexpr int_t MAX_INVISIBLE_REBUILDS_PER_FRAME = 1;
+	static bool cacheCloudGeometry;
 
 	std::vector<std::shared_ptr<TileEntity>> renderableTileEntities;
 
@@ -52,6 +54,10 @@ private:
 	std::unique_ptr<TileRenderer> tileRenderer;
 	std::unique_ptr<PistonTileEntityRenderer> pistonRenderer;
 	std::unordered_map<jstring, std::shared_ptr<Entity>> spawnerRenderMobs;
+	// B173 - Caches the tile-entity renderer kind per concrete dynamic type so the
+	// per-frame dynamic_pointer_cast chain runs once per type (report: dispatch cache).
+	// 0 = none, 1 = sign, 2 = piston, 3 = spawner; resolved by the original cast order.
+	std::unordered_map<std::type_index, int_t> tileEntityRenderKind;
 
 	std::vector<int_t> occlusionCheckIds;
 	bool occlusionCheck = false;
@@ -59,6 +65,8 @@ private:
 	int_t ticks = 0;
 
 	int_t starList = 0, skyList = 0, darkList = 0;
+	MeshCapture cloudMesh;
+	GLuint cloudBuffer = 0;
 
 	int_t xMinChunk = 0, yMinChunk = 0, zMinChunk = 0;
 	int_t xMaxChunk = 0, yMaxChunk = 0, zMaxChunk = 0;
@@ -96,6 +104,7 @@ public:
 	int_t cullStep = 0;
 
 	LevelRenderer(Minecraft &mc, Textures &textures);
+	~LevelRenderer() override;
 
 private:
 	void renderStars();

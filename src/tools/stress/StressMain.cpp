@@ -19,6 +19,14 @@ static void stressUsage()
 		"  --view-distance N   0=far, 1=normal, 2=short, 3=tiny, default 0\n"
 		"  --fancy 0|1         Fancy graphics and ambient occlusion, default 1\n"
 		"  --no-finish         Do not glFinish each measured/warm-up frame\n"
+		"  --anaglyph 0|1      Anaglyph 3D render path, default 0\n"
+		"  --region-renderer 0|1  Per-chunk VBOs or pooled region storage\n"
+		"  --cache-clouds 0|1  Reuse fancy-cloud geometry between its two passes\n"
+		"  --frame-hash        Per-frame RGBA SHA-256 to <scenario>-frames.csv (parity only)\n"
+		"  --state-hash        Per-tick canonical SHA-256 state+light digests to <scenario>-state.csv\n"
+		"                      (parity runs only; invalidates frame timings)\n"
+		"  --chunk-log         Ordered chunk rebuild/publish log with canonical mesh\n"
+		"                      SHA-256 per publish to <scenario>-chunks.csv (parity runs only)\n"
 		"  --output directory Fresh isolated output/game directory, default stress-results\n"
 		"  --log filename     Report basename inside output directory\n"
 		"  --capture filename Final framebuffer PNG basename inside output directory\n"
@@ -31,6 +39,7 @@ static void stressUsage()
 		"  lighting [--count N --period ticks --width blocks --depth blocks]\n"
 		"  fluids [--size blocks --spacing blocks], tnt [--count N --period ticks]\n"
 		"  mobs [--count N], entities [--count N], cave [--width blocks --depth blocks]\n"
+		"  clouds (interpolated cloud-boundary crossings and changing daylight)\n"
 		"all runs each offline renderer scenario once with normal lighting and a fresh level.\n"
 		"Only --seed is accepted as a scenario parameter for all. Options may be mixed.\n"
 		"Real hidden OpenGL 2.1, no pacing. No backend/null sink, fullbright, server,\n"
@@ -52,7 +61,10 @@ static void stressTerminate()
 	std::abort();
 }
 
-int main(int argc, char *argv[])
+namespace stress
+{
+// argv[0] is the program name; arguments start at argv[1], matching main().
+int runCommandLine(int argc, char *argv[])
 {
 	std::set_terminate(&stressTerminate);
 	stress::Options options;
@@ -69,6 +81,21 @@ int main(int argc, char *argv[])
 			if (arg == "--no-finish")
 			{
 				options.finishEachFrame = false;
+				continue;
+			}
+			if (arg == "--state-hash")
+			{
+				options.stateHash = true;
+				continue;
+			}
+			if (arg == "--frame-hash")
+			{
+				options.frameHash = true;
+				continue;
+			}
+			if (arg == "--chunk-log")
+			{
+				options.chunkLog = true;
 				continue;
 			}
 			if (arg == "--backend" || arg == "--null-sink" || arg == "--no-lighting" ||
@@ -88,7 +115,8 @@ int main(int argc, char *argv[])
 			else if (arg == "--log") options.logPath = value;
 			else if (arg == "--capture") options.capturePath = value;
 			else if (arg == "--frames" || arg == "--warmup" || arg == "--tick-interval" ||
-				arg == "--sample-every" || arg == "--view-distance" || arg == "--fancy")
+				arg == "--sample-every" || arg == "--view-distance" || arg == "--fancy" ||
+				arg == "--anaglyph" || arg == "--region-renderer" || arg == "--cache-clouds")
 			{
 				const long_t number = stress::parseInteger(value);
 				if (number < 0 || number > 1000000)
@@ -100,6 +128,9 @@ int main(int argc, char *argv[])
 				if (arg == "--sample-every") options.sampleEvery = parsed;
 				if (arg == "--view-distance") options.viewDistance = parsed;
 				if (arg == "--fancy") options.fancyGraphics = parsed;
+				if (arg == "--anaglyph") options.anaglyph = parsed;
+				if (arg == "--region-renderer") options.regionRenderer = parsed;
+				if (arg == "--cache-clouds") options.cacheClouds = parsed;
 			}
 			else
 				options.params.values[arg.substr(2)] = value;
@@ -114,3 +145,14 @@ int main(int argc, char *argv[])
 	}
 	return stress::run(options);
 }
+}
+
+// The PGO training build embeds this translation unit in the game executable
+// (B173_PGO_STRESS_EMBED); the game's own main dispatches --stress to
+// stress::runCommandLine, so only the standalone tool defines main here.
+#ifndef B173_PGO_STRESS_EMBED
+int main(int argc, char *argv[])
+{
+	return stress::runCommandLine(argc, argv);
+}
+#endif

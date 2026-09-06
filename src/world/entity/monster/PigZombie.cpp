@@ -26,7 +26,11 @@ void PigZombie::tick()
 {
 	runSpeed = attackTarget != nullptr ? 0.95f : 0.5f;
 	if (playAngrySoundIn > 0 && --playAngrySoundIn == 0)
-		level.playSoundAtEntity(*this, u"mob.zombiepig.zpigangry", getSoundVolume() * 2.0f, ((random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f) * 1.8f);
+	{
+		const float pitchA = random.nextFloat();
+		const float pitchB = random.nextFloat();
+		level.playSoundAtEntity(*this, u"mob.zombiepig.zpigangry", getSoundVolume() * 2.0f, ((pitchA - pitchB) * 0.2f + 1.0f) * 1.8f);
+	}
 	Zombie::tick();
 }
 

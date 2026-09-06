@@ -99,13 +99,15 @@ void NotGateTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 			if (checkForBurnout(level, x, y, z, true))
 			{
 				// Burnout: fizz sound + smoke particles
+				const float fa = level.random.nextFloat();
+				const float fb = level.random.nextFloat();
 				level.playSoundEffect(
 					static_cast<double>(x) + 0.5,
 					static_cast<double>(y) + 0.5,
 					static_cast<double>(z) + 0.5,
 					u"random.fizz",
 					0.5f,
-					2.4f + (level.random.nextFloat() - level.random.nextFloat()) * 0.8f
+					2.4f + (fa - fb) * 0.8f
 				);
 				for (int_t i = 0; i < 5; i++)
 				{

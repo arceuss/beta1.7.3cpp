@@ -290,8 +290,10 @@ void FireTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &rand
 {
 	if (random.nextInt(24) == 0)
 	{
+		const float fa = random.nextFloat();
+		const float fb = random.nextFloat();
 		level.playSoundEffect((double)x + 0.5, (double)y + 0.5, (double)z + 0.5,
-			u"fire.fire", 1.0f + random.nextFloat(), random.nextFloat() * 0.7f + 0.3f);
+			u"fire.fire", 1.0f + fa, fb * 0.7f + 0.3f);
 	}
 
 	if (!level.isBlockNormalCube(x, y - 1, z) && !canBlockCatchFire(level, x, y - 1, z))
@@ -299,37 +301,65 @@ void FireTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &rand
 		if (canBlockCatchFire(level, x - 1, y, z))
 		{
 			for (int_t i = 0; i < 2; ++i)
-				addSmokeParticle(level, (double)x + random.nextFloat() * 0.1, (double)y + random.nextFloat(), (double)z + random.nextFloat());
+			{
+				const float pa = random.nextFloat();
+				const float pb = random.nextFloat();
+				const float pc = random.nextFloat();
+				addSmokeParticle(level, (double)x + pa * 0.1, (double)y + pb, (double)z + pc);
+			}
 		}
 		if (canBlockCatchFire(level, x + 1, y, z))
 		{
 			for (int_t i = 0; i < 2; ++i)
-				addSmokeParticle(level, (double)(x + 1) - random.nextFloat() * 0.1, (double)y + random.nextFloat(), (double)z + random.nextFloat());
+			{
+				const float pa = random.nextFloat();
+				const float pb = random.nextFloat();
+				const float pc = random.nextFloat();
+				addSmokeParticle(level, (double)(x + 1) - pa * 0.1, (double)y + pb, (double)z + pc);
+			}
 		}
 		if (canBlockCatchFire(level, x, y, z - 1))
 		{
 			for (int_t i = 0; i < 2; ++i)
-				addSmokeParticle(level, (double)x + random.nextFloat(), (double)y + random.nextFloat(), (double)z + random.nextFloat() * 0.1);
+			{
+				const float pa = random.nextFloat();
+				const float pb = random.nextFloat();
+				const float pc = random.nextFloat();
+				addSmokeParticle(level, (double)x + pa, (double)y + pb, (double)z + pc * 0.1);
+			}
 		}
 		if (canBlockCatchFire(level, x, y, z + 1))
 		{
 			for (int_t i = 0; i < 2; ++i)
-				addSmokeParticle(level, (double)x + random.nextFloat(), (double)y + random.nextFloat(), (double)(z + 1) - random.nextFloat() * 0.1);
+			{
+				const float pa = random.nextFloat();
+				const float pb = random.nextFloat();
+				const float pc = random.nextFloat();
+				addSmokeParticle(level, (double)x + pa, (double)y + pb, (double)(z + 1) - pc * 0.1);
+			}
 		}
 		if (canBlockCatchFire(level, x, y + 1, z))
 		{
 			for (int_t i = 0; i < 2; ++i)
-				addSmokeParticle(level, (double)x + random.nextFloat(), (double)(y + 1) - random.nextFloat() * 0.1, (double)z + random.nextFloat());
+			{
+				const float pa = random.nextFloat();
+				const float pb = random.nextFloat();
+				const float pc = random.nextFloat();
+				addSmokeParticle(level, (double)x + pa, (double)(y + 1) - pb * 0.1, (double)z + pc);
+			}
 		}
 		return;
 	}
 
 	for (int_t i = 0; i < 3; ++i)
 	{
+		const float pa = random.nextFloat();
+		const float pb = random.nextFloat();
+		const float pc = random.nextFloat();
 		addSmokeParticle(level,
-			(double)x + random.nextFloat(),
-			(double)y + random.nextFloat() * 0.5 + 0.5,
-			(double)z + random.nextFloat());
+			(double)x + pa,
+			(double)y + pb * 0.5 + 0.5,
+			(double)z + pc);
 	}
 }
 

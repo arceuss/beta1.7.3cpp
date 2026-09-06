@@ -3,6 +3,7 @@
 #include <array>
 
 #include "client/renderer/Tesselator.h"
+#include "client/renderer/TerrainBufferPool.h"
 #include "client/renderer/culling/Culler.h"
 
 #include "world/level/Level.h"
@@ -22,7 +23,11 @@ private:
 	// B173 - Chunk geometry lives in buffer objects instead of compiled display lists.
 	// The display list body (matrix setup, client arrays, draw) is replayed by draw().
 	GLuint meshBuffers[2] = {0, 0};
+	std::shared_ptr<TerrainBufferPool> meshPools[2];
+	TerrainBufferPool::Range meshRanges[2];
 	GLsizei meshVertices[2] = {0, 0};
+	// B173 - Quad count for indexed terrain draws; 0 means legacy array draw.
+	GLsizei meshQuads[2] = {0, 0};
 	bool meshTexture[2] = {false, false};
 	bool meshColor[2] = {false, false};
 	bool meshNormal[2] = {false, false};
@@ -33,6 +38,7 @@ public:
 	int_t xs = 0, ys = 0, zs = 0;
 
 	static int_t updates;
+	static bool useRegionBuffers;
 
 	int_t xRender = 0, yRender = 0, zRender = 0;
 	int_t xRenderOffs = 0, yRenderOffs = 0, zRenderOffs = 0;
@@ -44,6 +50,10 @@ public:
 
 	float radius = 0.0f;
 	bool dirty = false;
+	// B173 - Mirrors membership in LevelRenderer::dirtyChunks so enqueue checks
+	// are O(1). Set exactly when pushed, cleared exactly when the entry leaves
+	// the queue; the queue itself stays an ordered vector.
+	bool queuedDirty = false;
 
 	std::unique_ptr<AABB> bb;
 
@@ -54,6 +64,11 @@ public:
 	int_t occlusion_id = 0;
 
 	bool skyLit = false;
+
+	// B173 - Stress-parity observers (compiled consumers live in tools/stress).
+	// Called only when set; zero overhead otherwise.
+	static void (*rebuildObserver)(int_t x, int_t y, int_t z);
+	static void (*publishObserver)(int_t x, int_t y, int_t z, int_t layer, const unsigned char *data, std::size_t bytes, int_t vertices, int_t quads, int_t stride);
 
 private:
 	bool compiled = false;
@@ -76,6 +91,7 @@ public:
 
 private:
 	void translateToPos();
+	void releasePooledMeshes();
 
 public:
 	void rebuild();

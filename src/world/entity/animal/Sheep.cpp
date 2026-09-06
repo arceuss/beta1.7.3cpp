@@ -28,8 +28,12 @@ bool Sheep::interact(Player &player)
 			{
 				auto dropped = std::make_shared<EntityItem>(level, x, y + 1.0, z, ItemInstance(Tile::wool.id, 1, getFleeceColor()));
 				dropped->yd += random.nextFloat() * 0.05f;
-				dropped->xd += (random.nextFloat() - random.nextFloat()) * 0.1f;
-				dropped->zd += (random.nextFloat() - random.nextFloat()) * 0.1f;
+				const float xdA = random.nextFloat();
+				const float xdB = random.nextFloat();
+				dropped->xd += (xdA - xdB) * 0.1f;
+				const float zdA = random.nextFloat();
+				const float zdB = random.nextFloat();
+				dropped->zd += (zdA - zdB) * 0.1f;
 				level.addEntity(dropped);
 			}
 		}

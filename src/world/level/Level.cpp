@@ -394,8 +394,12 @@ Level::Level(File *workingDirectory, const jstring &name, const jstring &levelNa
 		zSpawn = 0;
 		while (!this->dimension->isValidSpawn(xSpawn, zSpawn))
 		{
-			xSpawn += random.nextInt(64) - random.nextInt(64);
-			zSpawn += random.nextInt(64) - random.nextInt(64);
+			const int_t xa = random.nextInt(64);
+			const int_t xb = random.nextInt(64);
+			xSpawn += xa - xb;
+			const int_t za = random.nextInt(64);
+			const int_t zb = random.nextInt(64);
+			zSpawn += za - zb;
 		}
 		isFindingSpawn = false;
 	}
@@ -442,8 +446,12 @@ void Level::setSpawnLocation()
 	int_t z = zSpawn;
 	while (getTopTile(x, z) == 0)
 	{
-		x += random.nextInt(8) - random.nextInt(8);
-		z += random.nextInt(8) - random.nextInt(8);
+		const int_t xa = random.nextInt(8);
+		const int_t xb = random.nextInt(8);
+		x += xa - xb;
+		const int_t za = random.nextInt(8);
+		const int_t zb = random.nextInt(8);
+		z += za - zb;
 	}
 
 	xSpawn = x;
@@ -2016,8 +2024,10 @@ void Level::extinguishFire(int_t x, int_t y, int_t z, Facing f)
 
 	if (getTile(x, y, z) == Tile::fire.id)
 	{
+		const float fa = random.nextFloat();
+		const float fb = random.nextFloat();
 		playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5,
-			u"random.fizz", 0.5f, 2.6f + (random.nextFloat() - random.nextFloat()) * 0.8f);
+			u"random.fizz", 0.5f, 2.6f + (fa - fb) * 0.8f);
 		setTile(x, y, z, 0);
 	}
 }
@@ -2572,9 +2582,15 @@ namespace
 					constexpr int_t spawnDistance = 6;
 					for (int_t inner = 0; inner < 4; ++inner)
 					{
-						x = javaIntAdd(x, javaIntSubtract(level.random.nextInt(spawnDistance), level.random.nextInt(spawnDistance)));
-						y = javaIntAdd(y, javaIntSubtract(level.random.nextInt(1), level.random.nextInt(1)));
-						z = javaIntAdd(z, javaIntSubtract(level.random.nextInt(spawnDistance), level.random.nextInt(spawnDistance)));
+						const int_t xa = level.random.nextInt(spawnDistance);
+						const int_t xb = level.random.nextInt(spawnDistance);
+						x = javaIntAdd(x, javaIntSubtract(xa, xb));
+						const int_t ya = level.random.nextInt(1);
+						const int_t yb = level.random.nextInt(1);
+						y = javaIntAdd(y, javaIntSubtract(ya, yb));
+						const int_t za = level.random.nextInt(spawnDistance);
+						const int_t zb = level.random.nextInt(spawnDistance);
+						z = javaIntAdd(z, javaIntSubtract(za, zb));
 						bool waterCreature = creatureType.creatureMaterial == &Material::water;
 						if (!canCreatureTypeSpawnAtLocation(level, waterCreature, x, y, z))
 							continue;
@@ -2707,9 +2723,15 @@ bool Level::performSleepSpawning()
 		bool interrupted = false;
 		for (int_t attempt = 0; attempt < 20 && !interrupted; attempt++)
 		{
-			int_t sx = Mth::floor(player->x) + random.nextInt(32) - random.nextInt(32);
-			int_t sz = Mth::floor(player->z) + random.nextInt(32) - random.nextInt(32);
-			int_t sy = Mth::floor(player->y) + random.nextInt(16) - random.nextInt(16);
+			const int_t sxa = random.nextInt(32);
+			const int_t sxb = random.nextInt(32);
+			int_t sx = Mth::floor(player->x) + sxa - sxb;
+			const int_t sza = random.nextInt(32);
+			const int_t szb = random.nextInt(32);
+			int_t sz = Mth::floor(player->z) + sza - szb;
+			const int_t sya = random.nextInt(16);
+			const int_t syb = random.nextInt(16);
+			int_t sy = Mth::floor(player->y) + sya - syb;
 			if (sy < 1)
 				sy = 1;
 			else if (sy > 128)
@@ -2918,9 +2940,15 @@ void Level::animateTick(int_t x, int_t y, int_t z)
 
 	for (int_t i = 0; i < 1000; i++)
 	{
-		int_t xt = x + random.nextInt(range) - random.nextInt(range);
-		int_t yt = y + random.nextInt(range) - random.nextInt(range);
-		int_t zt = z + random.nextInt(range) - random.nextInt(range);
+		const int_t xa = random.nextInt(range);
+		const int_t xb = random.nextInt(range);
+		int_t xt = x + xa - xb;
+		const int_t ya = random.nextInt(range);
+		const int_t yb = random.nextInt(range);
+		int_t yt = y + ya - yb;
+		const int_t za = random.nextInt(range);
+		const int_t zb = random.nextInt(range);
+		int_t zt = z + za - zb;
 
 		if (!hasChunkAt(xt, yt, zt))
 			continue;

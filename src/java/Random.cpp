@@ -10,8 +10,24 @@ static const ulong_t RANDOM_MUL = 0x5DEECE66DULL;
 static const ulong_t RANDOM_ADD = 0xBULL;
 static const ulong_t RANDOM_AND = (1ULL << 48) - 1;
 
+static bool deterministicDefaults = false;
+static ulong_t deterministicCounter = 0;
+
+void Random::enableDeterministicDefaultSeeds(long_t base)
+{
+	deterministicDefaults = true;
+	deterministicCounter = static_cast<ulong_t>(base);
+}
+
 Random::Random()
 {
+	if (deterministicDefaults)
+	{
+		// Fibonacci-hash stride keeps successive default seeds decorrelated.
+		deterministicCounter += 0x9E3779B97F4A7C15ULL;
+		setSeed(static_cast<long_t>(deterministicCounter));
+		return;
+	}
 	auto now = std::chrono::high_resolution_clock::now();
 	auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 	setSeed(static_cast<long_t>(nanos));

@@ -5,19 +5,39 @@
 
 #include "java/Type.h"
 
+#include "client/renderer/TerrainVertex.h"
+
 #include "OpenGL.h"
 
 #include "util/Memory.h"
 
 // B173 - CPU copy of one begin/end sequence, used to upload chunk meshes as buffer objects.
+// Terrain captures hold four vertices per quad at TERRAIN_VERTEX_STRIDE bytes and
+// draw through the shared TerrainIndexBuffer. Arrays captures keep the raw 32-byte
+// triangle stream the immediate path would have drawn.
 struct MeshCapture
 {
+	enum class Format { Terrain, Arrays };
 	std::vector<char> data;
 	int_t vertices = 0;
+	int_t quads = 0;
 	bool hasTexture = false;
 	bool hasColor = false;
 	bool hasNormal = false;
 	GLenum mode = 0;
+	Format format = Format::Terrain;
+
+	// Report: retain staging allocations across rebuilds; clear() keeps capacity.
+	void resetKeepCapacity()
+	{
+		data.clear();
+		vertices = 0;
+		quads = 0;
+		hasTexture = false;
+		hasColor = false;
+		hasNormal = false;
+		mode = 0;
+	}
 };
 
 class Tesselator

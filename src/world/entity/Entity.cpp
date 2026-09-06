@@ -133,7 +133,9 @@ void Entity::baseTick()
 			float splashVolume = Mth::sqrt(xd * xd * 0.2f + yd * yd + zd * zd * 0.2f) * 0.2f;
 			if (splashVolume > 1.0f)
 				splashVolume = 1.0f;
-			level.playSoundAtEntity(*this, u"random.splash", splashVolume, 1.0f + (random.nextFloat() - random.nextFloat()) * 0.4f);
+			const float splashA = random.nextFloat();
+			const float splashB = random.nextFloat();
+			level.playSoundAtEntity(*this, u"random.splash", splashVolume, 1.0f + (splashA - splashB) * 0.4f);
 
 			float waterY = static_cast<float>(Mth::floor(bb.y0));
 			for (int_t i = 0; i < static_cast<int_t>(1.0f + bbWidth * 20.0f); i++)
@@ -154,7 +156,11 @@ void Entity::baseTick()
 		fallDistance = 0.0f;
 		wasInWater = true;
 		if (onFire > 0)
-			level.playSoundAtEntity(*this, u"random.fizz", 0.7f, 1.6f + (random.nextFloat() - random.nextFloat()) * 0.4f);
+		{
+			const float fizzA = random.nextFloat();
+			const float fizzB = random.nextFloat();
+			level.playSoundAtEntity(*this, u"random.fizz", 0.7f, 1.6f + (fizzA - fizzB) * 0.4f);
+		}
 		onFire = 0;
 	}
 	else

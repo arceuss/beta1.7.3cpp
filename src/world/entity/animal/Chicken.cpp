@@ -29,7 +29,9 @@ void Chicken::aiStep()
 	flap += flapping * 2.0f;
 	if (!level.isOnline && --eggTime <= 0)
 	{
-		level.playSoundAtEntity(*this, u"mob.chickenplop", 1.0f, (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+		const float pitchA = random.nextFloat();
+		const float pitchB = random.nextFloat();
+		level.playSoundAtEntity(*this, u"mob.chickenplop", 1.0f, (pitchA - pitchB) * 0.2f + 1.0f);
 		spawnAtLocation(ItemInstance(Items::egg->getShiftedIndex(), 1, 0), 0.0f);
 		eggTime = random.nextInt(6000) + 6000;
 	}

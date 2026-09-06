@@ -63,8 +63,10 @@ void Mob::baseTick()
 		ambientSoundTime = -getAmbientSoundInterval();
 		if (!ambientSound.empty())
 		{
+			const float pitchA = random.nextFloat();
+			const float pitchB = random.nextFloat();
 			level.playSoundAtEntity(*this, ambientSound, getSoundVolume(),
-				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+				(pitchA - pitchB) * 0.2f + 1.0f);
 		}
 	}
 
@@ -82,9 +84,15 @@ void Mob::baseTick()
 			airSupply = 0;
 			for (int_t i = 0; i < 8; ++i)
 			{
-				float xo = random.nextFloat() - random.nextFloat();
-				float yo = random.nextFloat() - random.nextFloat();
-				float zo = random.nextFloat() - random.nextFloat();
+				const float xoA = random.nextFloat();
+				const float xoB = random.nextFloat();
+				float xo = xoA - xoB;
+				const float yoA = random.nextFloat();
+				const float yoB = random.nextFloat();
+				float yo = yoA - yoB;
+				const float zoA = random.nextFloat();
+				const float zoB = random.nextFloat();
+				float zo = zoA - zoB;
 				level.addParticle(u"bubble", x + xo, y + yo, z + zo, xd, yd, zd);
 			}
 			hurt(nullptr, 2);
@@ -114,11 +122,14 @@ void Mob::baseTick()
 				double xa = random.nextGaussian() * 0.02;
 				double ya = random.nextGaussian() * 0.02;
 				double za = random.nextGaussian() * 0.02;
+				const float px = random.nextFloat();
+				const float py = random.nextFloat();
+				const float pz = random.nextFloat();
 				level.addParticle(
 					u"explode",
-					x + random.nextFloat() * bbWidth * 2.0f - bbWidth,
-					y + random.nextFloat() * bbHeight,
-					z + random.nextFloat() * bbWidth * 2.0f - bbWidth,
+					x + px * bbWidth * 2.0f - bbWidth,
+					y + py * bbHeight,
+					z + pz * bbWidth * 2.0f - bbWidth,
 					xa, ya, za);
 			}
 		}
@@ -135,8 +146,10 @@ void Mob::playAmbientSound()
 	const jstring &ambientSound = getAmbientSound();
 	if (!ambientSound.empty())
 	{
+		const float pitchA = random.nextFloat();
+		const float pitchB = random.nextFloat();
 		level.playSoundAtEntity(*this, ambientSound, getSoundVolume(),
-			(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+			(pitchA - pitchB) * 0.2f + 1.0f);
 	}
 }
 
@@ -148,11 +161,14 @@ void Mob::spawnAnim()
 		double ya = random.nextGaussian() * 0.02;
 		double za = random.nextGaussian() * 0.02;
 		double scale = 10.0;
+		const float px = random.nextFloat();
+		const float py = random.nextFloat();
+		const float pz = random.nextFloat();
 		level.addParticle(
 			u"explode",
-			x + random.nextFloat() * bbWidth * 2.0f - bbWidth - xa * scale,
-			y + random.nextFloat() * bbHeight - ya * scale,
-			z + random.nextFloat() * bbWidth * 2.0f - bbWidth - za * scale,
+			x + px * bbWidth * 2.0f - bbWidth - xa * scale,
+			y + py * bbHeight - ya * scale,
+			z + pz * bbWidth * 2.0f - bbWidth - za * scale,
 			xa, ya, za);
 	}
 }
@@ -298,8 +314,12 @@ bool Mob::hurt(Entity *source, int_t dmg)
 			double dz = source->z - z;
 			while (dx * dx + dz * dz < 1.0E-4)
 			{
-				dx = (random.nextFloat() - random.nextFloat()) * 0.01;
-				dz = (random.nextFloat() - random.nextFloat()) * 0.01;
+				const float dxA = random.nextFloat();
+				const float dxB = random.nextFloat();
+				dx = (dxA - dxB) * 0.01;
+				const float dzA = random.nextFloat();
+				const float dzB = random.nextFloat();
+				dz = (dzA - dzB) * 0.01;
 			}
 			hurtDir = static_cast<float>(std::atan2(dz, dx) * 180.0 / Mth::PI) - yRot;
 			knockback(*source, dmg, dx, dz);
@@ -316,7 +336,11 @@ bool Mob::hurt(Entity *source, int_t dmg)
 		{
 			jstring deathSound = getDeathSound();
 			if (!deathSound.empty())
-				level.playSoundAtEntity(*this, deathSound, getSoundVolume(), (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+			{
+				const float pitchA = random.nextFloat();
+				const float pitchB = random.nextFloat();
+				level.playSoundAtEntity(*this, deathSound, getSoundVolume(), (pitchA - pitchB) * 0.2f + 1.0f);
+			}
 		}
 		die(source);
 	}
@@ -324,7 +348,11 @@ bool Mob::hurt(Entity *source, int_t dmg)
 	{
 		jstring hurtSound = getHurtSound();
 		if (!hurtSound.empty())
-			level.playSoundAtEntity(*this, hurtSound, getSoundVolume(), (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+		{
+			const float pitchA = random.nextFloat();
+			const float pitchB = random.nextFloat();
+			level.playSoundAtEntity(*this, hurtSound, getSoundVolume(), (pitchA - pitchB) * 0.2f + 1.0f);
+		}
 	}
 
 	return true;
@@ -822,16 +850,24 @@ void Mob::handleEntityEvent(byte_t event)
 		hurtDir = 0.0f;
 		jstring hurtSound = getHurtSound();
 		if (!hurtSound.empty())
+		{
+			const float pitchA = random.nextFloat();
+			const float pitchB = random.nextFloat();
 			level.playSoundAtEntity(*this, hurtSound, getSoundVolume(),
-				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+				(pitchA - pitchB) * 0.2f + 1.0f);
+		}
 		hurt(nullptr, 0);
 	}
 	else if (event == 3)
 	{
 		jstring deathSound = getDeathSound();
 		if (!deathSound.empty())
+		{
+			const float pitchA = random.nextFloat();
+			const float pitchB = random.nextFloat();
 			level.playSoundAtEntity(*this, deathSound, getSoundVolume(),
-				(random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+				(pitchA - pitchB) * 0.2f + 1.0f);
+		}
 		health = 0;
 		die(nullptr);
 	}

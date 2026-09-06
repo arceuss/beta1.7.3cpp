@@ -646,41 +646,52 @@ void Textures::loadTexture(BufferedImage &img, int_t id)
 	int_t h = img.getHeight();
 
 	const unsigned char *rawPixels = img.getRawPixels();
-	std::unique_ptr<unsigned char[]> newPixels(new unsigned char[w * h * 4]);
+	const unsigned char *uploadPixels = rawPixels;
 
-	const unsigned char *rawPixels_p = rawPixels;
-	unsigned char *newPixels_p = newPixels.get();
-
-	for (int_t i = 0; i < w * h; i++, rawPixels_p += 4, newPixels_p += 4)
+	if (options.anaglyph3d)
 	{
-		int_t a = rawPixels_p[3];
-		int_t r = rawPixels_p[0];
-		int_t g = rawPixels_p[1];
-		int_t b = rawPixels_p[2];
+		// Reusable scratch: identical integer transform as before, no per-upload allocation.
+		if (uploadScratch.size() < static_cast<size_t>(w) * h * 4)
+			uploadScratch.resize(static_cast<size_t>(w) * h * 4);
 
-		if (options.anaglyph3d)
+		const unsigned char *rawPixels_p = rawPixels;
+		unsigned char *newPixels_p = uploadScratch.data();
+
+		for (int_t i = 0; i < w * h; i++, rawPixels_p += 4, newPixels_p += 4)
 		{
+			int_t a = rawPixels_p[3];
+			int_t r = rawPixels_p[0];
+			int_t g = rawPixels_p[1];
+			int_t b = rawPixels_p[2];
+
 			int_t rr = (r * 30 + g * 59 + b * 11) / 100;
 			int_t gg = (r * 30 + g * 70) / 100;
 			int_t bb = (r * 30 + b * 70) / 100;
 
-			r = rr;
-			g = gg;
-			b = bb;
+			newPixels_p[0] = rr;
+			newPixels_p[1] = gg;
+			newPixels_p[2] = bb;
+			newPixels_p[3] = a;
 		}
 
-		newPixels_p[0] = r;
-		newPixels_p[1] = g;
-		newPixels_p[2] = b;
-		newPixels_p[3] = a;
+		uploadPixels = uploadScratch.data();
 	}
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, newPixels.get());
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, uploadPixels);
 
 	if (MIPMAP)
 	{
-		std::unique_ptr<int_t[]> mipmapPixels(new int_t[w * h * 4]);
-		int_t *inPixels = (int_t*)newPixels.get();
+		// Levels intentionally read the full-resolution buffer with the halved
+		// stride, exactly as the Java original did; do not "fix" the indexing.
+		auto readPixel = [uploadPixels](int_t index) {
+			int_t pixel;
+			std::memcpy(&pixel, uploadPixels + static_cast<size_t>(index) * sizeof(pixel), sizeof(pixel));
+			return pixel;
+		};
+
+		size_t mipCap = static_cast<size_t>(w >> 1) * (h >> 1);
+		if (mipScratch.size() < mipCap || mipScratch.empty())
+			mipScratch.resize(mipCap > 0 ? mipCap : 1);
 
 		for (int level = 1; level <= 4; level++)
 		{
@@ -693,16 +704,16 @@ void Textures::loadTexture(BufferedImage &img, int_t id)
 			{
 				for (int_t y = 0; y < hh; y++)
 				{
-					int_t c0 = inPixels[x * 2 + 0 + (y * 2 + 0) * ow];
-					int_t c1 = inPixels[x * 2 + 1 + (y * 2 + 0) * ow];
-					int_t c2 = inPixels[x * 2 + 1 + (y * 2 + 1) * ow];
-					int_t c3 = inPixels[x * 2 + 0 + (y * 2 + 1) * ow];
+					int_t c0 = readPixel(x * 2 + 0 + (y * 2 + 0) * ow);
+					int_t c1 = readPixel(x * 2 + 1 + (y * 2 + 0) * ow);
+					int_t c2 = readPixel(x * 2 + 1 + (y * 2 + 1) * ow);
+					int_t c3 = readPixel(x * 2 + 0 + (y * 2 + 1) * ow);
 					int_t col = crispBlend(crispBlend(c0, c1), crispBlend(c3, c2));
-					mipmapPixels[x + y * ww] = col;
+					mipScratch[x + y * ww] = col;
 				}
 			}
 
-			glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, ww, hh, 0, GL_RGBA, GL_UNSIGNED_BYTE, mipmapPixels.get());
+			glTexImage2D(GL_TEXTURE_2D, level, GL_RGBA, ww, hh, 0, GL_RGBA, GL_UNSIGNED_BYTE, mipScratch.data());
 		}
 	}
 }
@@ -920,15 +931,37 @@ void Textures::refreshColorizers()
 
 void Textures::tick()
 {
+	// Atlas ids are stable for the lifetime of a texture-pack generation
+	// (reloadAll reuses GL ids and resets these caches). Resolve lazily so a
+	// list with no item-atlas FX never loads /gui/items.png from here, exactly
+	// like the original per-iteration loadTexture calls.
+
+	// Bound-texture tracking is valid only within this call: every bind below
+	// is ours. Start unknown so the first bind always executes; external raw
+	// binds before/after tick can never be assumed away.
+	int_t bound = -1;
+
 	for (auto &fx : textureList)
 	{
 		fx->anaglyphEnabled = options.anaglyph3d;
 		fx->onTick();
 
 		if (fx->tileImage == 0)
-			glBindTexture(GL_TEXTURE_2D, loadTexture(u"/terrain.png"));
+		{
+			if (terrainAtlasId < 0)
+				terrainAtlasId = loadTexture(u"/terrain.png");
+			if (bound != terrainAtlasId)
+				glBindTexture(GL_TEXTURE_2D, terrainAtlasId);
+			bound = terrainAtlasId;
+		}
 		else if (fx->tileImage == 1)
-			glBindTexture(GL_TEXTURE_2D, loadTexture(u"/gui/items.png"));
+		{
+			if (itemsAtlasId < 0)
+				itemsAtlasId = loadTexture(u"/gui/items.png");
+			if (bound != itemsAtlasId)
+				glBindTexture(GL_TEXTURE_2D, itemsAtlasId);
+			bound = itemsAtlasId;
+		}
 		for (int_t tx = 0; tx < fx->tileSize; ++tx)
 		{
 			for (int_t ty = 0; ty < fx->tileSize; ++ty)
@@ -941,7 +974,10 @@ void Textures::tick()
 		}
 	}
 
-	glBindTexture(GL_TEXTURE_2D, loadTexture(u"/terrain.png"));
+	if (terrainAtlasId < 0)
+		terrainAtlasId = loadTexture(u"/terrain.png");
+	if (bound != terrainAtlasId)
+		glBindTexture(GL_TEXTURE_2D, terrainAtlasId);
 }
 
 int_t Textures::smoothBlend(int_t c0, int_t c1)
@@ -981,6 +1017,10 @@ int_t Textures::crispBlend(int_t c0, int_t c1)
 
 void Textures::reloadAll()
 {
+	// Pack generation changes: force atlas ids to re-resolve.
+	terrainAtlasId = -1;
+	itemsAtlasId = -1;
+
 	// Reload buffered textures
 	for (auto &entry : loadedImages)
 	{

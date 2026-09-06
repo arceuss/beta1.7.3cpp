@@ -10,6 +10,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 class File;
 
@@ -39,6 +40,8 @@ private:
 	bool writing = false;
 	bool stopping = false;
 	std::thread worker;
+	// Worker-owned zlib output buffer, touched only from writeLoop()/writeChunk().
+	std::vector<byte_t> compressedScratch;
 
 	static long_t chunkKey(int_t x, int_t z);
 	void writeLoop();

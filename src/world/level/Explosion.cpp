@@ -131,8 +131,10 @@ void Explosion::doExplosionA()
 
 void Explosion::doExplosionB(bool particles)
 {
+	const float fa = level.random.nextFloat();
+	const float fb = level.random.nextFloat();
 	level.playSoundEffect(explosionX, explosionY, explosionZ, u"random.explode",
-		4.0f, (1.0f + (level.random.nextFloat() - level.random.nextFloat()) * 0.2f) * 0.7f);
+		4.0f, (1.0f + (fa - fb) * 0.2f) * 0.7f);
 
 	std::vector<TilePos> blocks(destroyedBlockPositions.begin(), destroyedBlockPositions.end());
 

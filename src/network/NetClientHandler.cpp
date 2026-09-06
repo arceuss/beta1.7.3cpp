@@ -507,8 +507,10 @@ void NetClientHandler::handleCollect(Packet22Collect &packet)
 		collector = std::static_pointer_cast<Entity>(minecraft.player);
 	if (collected == nullptr || collector == nullptr || multiplayerLevel == nullptr)
 		return;
+	const float popA = random.nextFloat();
+	const float popB = random.nextFloat();
 	multiplayerLevel->playSoundAtEntity(*collected, u"random.pop", 0.2f,
-		((random.nextFloat() - random.nextFloat()) * 0.7f + 1.0f) * 2.0f);
+		((popA - popB) * 0.7f + 1.0f) * 2.0f);
 	minecraft.particleEngine.add(std::make_unique<TakeAnimationParticle>(
 		*multiplayerLevel, collected, collector, -0.5f));
 	multiplayerLevel->removeEntityById(packet.collectedEntityId);

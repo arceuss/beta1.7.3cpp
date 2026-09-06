@@ -68,11 +68,15 @@ private:
 	static HumanoidMobRenderer &getSkeletonRenderer();
 	static HumanoidMobRenderer &getPigZombieRenderer();
 	static HumanoidMobRenderer &getMonsterRenderer();
+	static EntityRenderer &resolveRenderer(Entity &entity);
 	Font *font = nullptr;
 public:
 	static double xOff;
 	static double yOff;
 	static double zOff;
+
+	// Rollback flag for the type-dispatch cache: false restores per-call ordered resolution.
+	static bool useRendererCache;
 
 	Textures *textures = nullptr;
 

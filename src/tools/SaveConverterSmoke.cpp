@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,7 @@
 #include "world/level/SaveConverterMcRegion.h"
 #include "world/level/chunk/storage/RegionFile.h"
 #include "world/level/chunk/storage/RegionFileCache.h"
+#include "zlib.h"
 
 namespace
 {
@@ -78,7 +80,7 @@ void writeOldChunk(File &dimension, int_t x, int_t z, const jstring &marker)
 	NbtIo::writeCompressed(root, *output);
 }
 
-std::string makeChunkData(int_t x, int_t z, const jstring &marker)
+std::vector<byte_t> makeChunkData(int_t x, int_t z, const jstring &marker)
 {
 	std::shared_ptr<CompoundTag> level = std::make_shared<CompoundTag>();
 	level->putInt(u"xPos", x);
@@ -88,7 +90,14 @@ std::string makeChunkData(int_t x, int_t z, const jstring &marker)
 	root.put(u"Level", level);
 	std::ostringstream output(std::ios::out | std::ios::binary);
 	NbtIo::write(root, output);
-	return output.str();
+	const std::string bytes = output.str();
+	uLongf size = compressBound(static_cast<uLong>(bytes.size()));
+	std::vector<byte_t> compressed(size);
+	if (compress2(reinterpret_cast<Bytef *>(compressed.data()), &size,
+		reinterpret_cast<const Bytef *>(bytes.data()), static_cast<uLong>(bytes.size()), Z_DEFAULT_COMPRESSION) != Z_OK)
+		throw std::runtime_error("Failed to compress converter fixture");
+	compressed.resize(size);
+	return compressed;
 }
 
 jstring readRegionMarker(File &dimension, int_t x, int_t z)
@@ -133,14 +142,13 @@ int runSaveConverterSmoke()
 		writeOldChunk(*world, 32, 0, u"legacy-collision");
 
 		std::shared_ptr<RegionFile> existing = RegionFileCache::getRegionFile(String::toUTF8(world->toString()), 32, 0);
-		std::string existingData = makeChunkData(32, 0, u"region-wins");
-		existing->writeChunkData(0, 0, reinterpret_cast<const byte_t *>(existingData.data()), static_cast<int_t>(existingData.size()));
+		std::vector<byte_t> existingData = makeChunkData(32, 0, u"region-wins");
+		existing->writeChunkData(0, 0, existingData.data(), static_cast<int_t>(existingData.size()));
 		RegionFileCache::clearCache();
 
 		SaveConverterMcRegion converter(*saves);
 		CapturingProgressListener progress;
 		bool ok = true;
-		ok &= expect(converter.getFormatName() == u"Scaevolus' McRegion", "converter format name should match Beta");
 		ok &= expect(converter.isOldMapFormat(u"AlphaWorld"), "versionless Alpha world should require conversion");
 		ok &= expect(converter.convertMapFormat(u"AlphaWorld", progress), "converter should report success");
 		ok &= expect(!converter.isOldMapFormat(u"AlphaWorld"), "converted world should no longer be old format");

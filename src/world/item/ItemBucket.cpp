@@ -87,10 +87,15 @@ void ItemBucket::use(ItemInstance &stack, Level &level, Player &player) const
 			{
 				if (level.dimension->ultraWarm && containedBlockId == Tile::water.id)
 				{
-					level.playSoundEffect(x + 0.5, y + 0.5, z + 0.5, u"random.fizz", 0.5f, 2.6f + (level.random.nextFloat() - level.random.nextFloat()) * 0.8f);
+					const float fa = level.random.nextFloat();
+					const float fb = level.random.nextFloat();
+					level.playSoundEffect(x + 0.5, y + 0.5, z + 0.5, u"random.fizz", 0.5f, 2.6f + (fa - fb) * 0.8f);
 					for (int_t i = 0; i < 8; ++i)
 					{
-						level.addParticle(u"largesmoke", placeX + level.random.nextFloat(), placeY + level.random.nextFloat(), placeZ + level.random.nextFloat(), 0.0, 0.0, 0.0);
+						const float pa = level.random.nextFloat();
+						const float pb = level.random.nextFloat();
+						const float pc = level.random.nextFloat();
+						level.addParticle(u"largesmoke", placeX + pa, placeY + pb, placeZ + pc, 0.0, 0.0, 0.0);
 					}
 				}
 				else

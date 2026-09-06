@@ -48,7 +48,11 @@ void Slime::tick()
 			level.addParticle(u"slime", x + px, bb.y0, z + pz, 0.0, 0.0, 0.0);
 		}
 		if (size > 2)
-			level.playSoundAtEntity(*this, u"mob.slime", getSoundVolume(), ((random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f) / 0.8f);
+		{
+			const float pitchA = random.nextFloat();
+			const float pitchB = random.nextFloat();
+			level.playSoundAtEntity(*this, u"mob.slime", getSoundVolume(), ((pitchA - pitchB) * 0.2f + 1.0f) / 0.8f);
+		}
 		squish = -0.5f;
 	}
 	squish *= 0.6f;
@@ -58,7 +62,11 @@ void Slime::playerTouch(Player &player)
 {
 	int_t size = getSlimeSize();
 	if (size > 1 && canSee(player) && distanceTo(player) < 0.6f * size && player.hurt(this, size))
-		level.playSoundAtEntity(*this, u"mob.slimeattack", 1.0f, (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+	{
+		const float pitchA = random.nextFloat();
+		const float pitchB = random.nextFloat();
+		level.playSoundAtEntity(*this, u"mob.slimeattack", 1.0f, (pitchA - pitchB) * 0.2f + 1.0f);
+	}
 }
 
 void Slime::die(Entity *source)
@@ -101,7 +109,11 @@ void Slime::updateAi()
 			slimeJumpDelay /= 3;
 		jumping = true;
 		if (getSlimeSize() > 1)
-			level.playSoundAtEntity(*this, u"mob.slime", getSoundVolume(), ((random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f) * 0.8f);
+		{
+			const float pitchA = random.nextFloat();
+			const float pitchB = random.nextFloat();
+			level.playSoundAtEntity(*this, u"mob.slime", getSoundVolume(), ((pitchA - pitchB) * 0.2f + 1.0f) * 0.8f);
+		}
 		squish = 1.0f;
 		xxa = 1.0f - random.nextFloat() * 2.0f;
 		yya = static_cast<float>(getSlimeSize());
