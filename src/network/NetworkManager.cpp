@@ -888,8 +888,7 @@ public:
 			timeSinceLastRead = 0;
 		}
 
-		int_t packetsToProcess = 100;
-		while (packetsToProcess-- >= 0)
+		while (true)
 		{
 			std::unique_ptr<Packet> packet;
 			{

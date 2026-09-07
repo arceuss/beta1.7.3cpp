@@ -1,4 +1,5 @@
 #include "world/entity/Mob.h"
+#include "ClientTarget.h"
 
 #include "world/level/Level.h"
 #include "world/level/tile/LadderTile.h"
@@ -61,7 +62,7 @@ void Mob::baseTick()
 	{
 		const jstring &ambientSound = getAmbientSound();
 		ambientSoundTime = -getAmbientSoundInterval();
-		if (!ambientSound.empty())
+		if (!ambientSound.empty() && !ClientTarget::useServerSoundEvents(level.isOnline))
 		{
 			const float pitchA = random.nextFloat();
 			const float pitchB = random.nextFloat();
@@ -144,7 +145,7 @@ void Mob::baseTick()
 void Mob::playAmbientSound()
 {
 	const jstring &ambientSound = getAmbientSound();
-	if (!ambientSound.empty())
+	if (!ambientSound.empty() && !ClientTarget::useServerSoundEvents(level.isOnline))
 	{
 		const float pitchA = random.nextFloat();
 		const float pitchB = random.nextFloat();
@@ -332,7 +333,7 @@ bool Mob::hurt(Entity *source, int_t dmg)
 
 	if (health <= 0)
 	{
-		if (playEffects)
+		if (playEffects && !ClientTarget::useServerSoundEvents(level.isOnline))
 		{
 			jstring deathSound = getDeathSound();
 			if (!deathSound.empty())
@@ -344,7 +345,7 @@ bool Mob::hurt(Entity *source, int_t dmg)
 		}
 		die(source);
 	}
-	else if (playEffects)
+	else if (playEffects && !ClientTarget::useServerSoundEvents(level.isOnline))
 	{
 		jstring hurtSound = getHurtSound();
 		if (!hurtSound.empty())
@@ -446,7 +447,7 @@ void Mob::causeFallDamage(float distance)
 	int_t tileY = Mth::floor(y - 0.2 - heightOffset);
 	int_t tileZ = Mth::floor(z);
 	int_t tile = level.getTile(tileX, tileY, tileZ);
-	if (tile <= 0)
+	if (tile <= 0 || ClientTarget::useServerSoundEvents(level.isOnline))
 		return;
 
 	Tile *landedTile = Tile::tiles[tile];
@@ -549,7 +550,8 @@ bool Mob::onLadder()
 	int_t tx = Mth::floor(x);
 	int_t ty = Mth::floor(bb.y0);
 	int_t tz = Mth::floor(z);
-	return level.getTile(tx, ty, tz) == Tile::ladder.id;
+	return level.getTile(tx, ty, tz) == Tile::ladder.id ||
+		(ClientTarget::isAlphaPlace() && level.getTile(tx, ty + 1, tz) == Tile::ladder.id);
 }
 
 bool Mob::isShootable()
@@ -849,7 +851,7 @@ void Mob::handleEntityEvent(byte_t event)
 		hurtTime = hurtDuration = 10;
 		hurtDir = 0.0f;
 		jstring hurtSound = getHurtSound();
-		if (!hurtSound.empty())
+		if (!hurtSound.empty() && !ClientTarget::useServerSoundEvents(level.isOnline))
 		{
 			const float pitchA = random.nextFloat();
 			const float pitchB = random.nextFloat();
@@ -861,7 +863,7 @@ void Mob::handleEntityEvent(byte_t event)
 	else if (event == 3)
 	{
 		jstring deathSound = getDeathSound();
-		if (!deathSound.empty())
+		if (!deathSound.empty() && !ClientTarget::useServerSoundEvents(level.isOnline))
 		{
 			const float pitchA = random.nextFloat();
 			const float pitchB = random.nextFloat();

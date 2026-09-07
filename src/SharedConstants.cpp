@@ -22,7 +22,7 @@ static jstring readAcceptableChars()
 	return String::fromUTF8(result);
 }
 
-const int NETWORK_PROTOCOL_VERSION = 14;
+const int NETWORK_PROTOCOL_VERSION = ClientTarget::loginProtocolVersion();
 const int maxChatLength = 100;
 const jstring acceptableLetters = readAcceptableChars();
 

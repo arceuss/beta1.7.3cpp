@@ -1,4 +1,5 @@
 #include "world/level/tile/TreeTile.h"
+#include "ClientTarget.h"
 
 #include "world/level/Level.h"
 #include "world/level/tile/LeafTile.h"
@@ -44,7 +45,7 @@ void TreeTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 
 int_t TreeTile::getTexture(Facing face, int_t data)
 {
-	int_t type = data & TRUNK_TYPE_MASK;
+	int_t type = ClientTarget::isAlphaPlace() ? OAK_TRUNK : data & TRUNK_TYPE_MASK;
 	if (face == Facing::UP || face == Facing::DOWN)
 		return 21;
 	if (type == SPRUCE_TRUNK)

@@ -1,4 +1,5 @@
 #include "world/level/tile/LeafTile.h"
+#include "ClientTarget.h"
 
 #include "world/level/Level.h"
 
@@ -21,7 +22,7 @@ LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::lea
 
 int_t LeafTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)
 {
-	int_t type = level.getData(x, y, z) & LEAF_TYPE_MASK;
+	int_t type = ClientTarget::isAlphaPlace() ? OAK_LEAF : level.getData(x, y, z) & LEAF_TYPE_MASK;
 	if (type == SPRUCE_LEAF)
 		return FoliageColor::getEvergreenColor();
 	if (type == BIRCH_LEAF)
@@ -33,9 +34,12 @@ int_t LeafTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)
 	return FoliageColor::get(temperature, downfall);
 }
 
-// ItemLeaves.getColorFromDamage / BlockLeaves.getRenderColor: ordered bit tests, fixed colours.
+// Beta ItemLeaves.getColorFromDamage / BlockLeaves.getRenderColor: ordered bit tests, fixed colours.
 int_t LeafTile::getItemColor(int_t data)
 {
+	// AlphaPlace item renderers apply brightness without a foliage tint.
+	if (ClientTarget::isAlphaPlace())
+		return 0xFFFFFF;
 	if ((data & 1) == 1)
 		return FoliageColor::getEvergreenColor();
 	if ((data & 2) == 2)
@@ -170,6 +174,8 @@ bool LeafTile::isSolidRender()
 
 int_t LeafTile::getTexture(Facing face, int_t data)
 {
+	if (ClientTarget::isAlphaPlace())
+		return tex;
 	return ((data & LEAF_TYPE_MASK) == SPRUCE_LEAF) ? (tex + 80) : tex;
 }
 

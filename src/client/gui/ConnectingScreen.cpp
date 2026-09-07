@@ -11,7 +11,6 @@
 #include "client/User.h"
 #include "client/gui/ConnectFailedScreen.h"
 #include "client/locale/Language.h"
-#include "client/title/TitleScreen.h"
 #include "network/NetClientHandler.h"
 #include "network/PacketCore.h"
 
@@ -160,7 +159,7 @@ void ConnectingScreen::buttonClicked(Button &button)
 		if (clientHandler != nullptr)
 			clientHandler->disconnect();
 
-		minecraft.setScreen(Util::make_shared<TitleScreen>(minecraft));
+		minecraft.setScreen(minecraft.createTitleScreen());
 	}
 }
 

@@ -12,9 +12,12 @@
 #include <vector>
 
 #include "client/Minecraft.h"
+#include "ClientTarget.h"
+#include "SharedConstants.h"
 #include "client/gamemode/GameMode.h"
 #include "network/NetHandler.h"
 #include "network/Packet.h"
+#include "network/PacketAlphaPlace.h"
 #include "network/PacketCore.h"
 #include "network/PacketDataStream.h"
 #include "network/PacketEntity.h"
@@ -22,13 +25,17 @@
 #include "network/PacketWorld.h"
 #include "client/spc/SPCCommand.h"
 #include "world/level/Level.h"
+#include "world/level/Explosion.h"
+#include "world/entity/animal/Cow.h"
 #include "world/entity/item/EntityPainting.h"
 #include "world/entity/player/Player.h"
 #include "world/inventory/BasicInventory.h"
 #include "world/inventory/ContainerMenus.h"
 #include "world/item/Items.h"
+#include "world/item/Item.h"
 #include "world/level/tile/entity/DispenserTileEntity.h"
 #include "world/level/tile/entity/FurnaceTileEntity.h"
+#include "world/level/tile/LadderTile.h"
 #include "util/Mth.h"
 
 namespace
@@ -103,6 +110,8 @@ class InspectableHandler : public NetHandler
 {
 public:
 	Packet3Chat *chat = nullptr;
+	Packet62Sound *sound = nullptr;
+	Packet63Digging *digging = nullptr;
 
 	bool isServerHandler() const override
 	{
@@ -113,6 +122,9 @@ public:
 	{
 		chat = &packet;
 	}
+
+	void handle62Sound(Packet62Sound &packet) override { sound = &packet; }
+	void handle63Digging(Packet63Digging &packet) override { digging = &packet; }
 };
 
 class NetworkSmokeLevel : public Level
@@ -132,11 +144,12 @@ public:
 	int_t y = 0;
 	int_t z = 0;
 	int_t data = 0;
+	std::vector<jstring> sounds;
 
 	void tileChanged(int_t, int_t, int_t) override {}
 	void setTilesDirty(int_t, int_t, int_t, int_t, int_t, int_t) override {}
 	void allChanged() override {}
-	void playSound(const jstring &, double, double, double, float, float) override {}
+	void playSound(const jstring &name, double, double, double, float, float) override { sounds.push_back(name); }
 	void addParticle(const jstring &, double, double, double, double, double, double) override {}
 	void playMusic(const jstring &, double, double, double, float) override {}
 	void entityAdded(std::shared_ptr<Entity>) override {}
@@ -155,6 +168,249 @@ public:
 	}
 };
 
+class AlphaPlaceSmokeLevel : public NetworkSmokeLevel
+{
+public:
+	int_t tileId = 1;
+	int_t getTile(int_t, int_t, int_t) override { return tileId; }
+};
+
+class ClientTargetSmokeLevel : public NetworkSmokeLevel
+{
+public:
+	TilePos ladder = TilePos(-1, 64, -2);
+	std::vector<std::shared_ptr<Entity>> spawned;
+
+	int_t getTile(int_t x, int_t y, int_t z) override
+	{
+		return y >= 0 && y < Level::DEPTH && x == ladder.x && y == ladder.y && z == ladder.z
+			? Tile::ladder.id : 0;
+	}
+
+	bool addEntity(std::shared_ptr<Entity> entity) override
+	{
+		spawned.push_back(entity);
+		return true;
+	}
+};
+
+bool testClientTargetBehavior()
+{
+	bool ok = true;
+#if defined(B173_TARGET_ALPHAPLACE)
+	const bool alphaPlace = true;
+	const jstring version = u"Alpha v1.2.6";
+	const int_t protocol = 2000;
+#else
+	const bool alphaPlace = false;
+	const jstring version = u"Beta 1.7.3";
+	const int_t protocol = 14;
+#endif
+	ok &= expect(ClientTarget::isAlphaPlace() == alphaPlace, "compiled client target matches the build definition");
+	ok &= expect(SharedConstants::VERSION_STRING == version && Minecraft::VERSION_STRING == u"Minecraft " + version,
+		"shared and displayed version strings match the compiled target");
+	ok &= expect(SharedConstants::NETWORK_PROTOCOL_VERSION == protocol && ClientTarget::loginProtocolVersion() == protocol,
+		"shared protocol and login protocol agree for the compiled target");
+
+	for (bool online : {false, true})
+	{
+		std::cout << "Client-target behavior: " << (alphaPlace ? "AlphaPlace" : "Beta")
+			<< (online ? " multiplayer" : " singleplayer") << std::endl;
+		const bool localSound = !(alphaPlace && online);
+		ClientTargetSmokeLevel level;
+		level.isOnline = online;
+		LevelEventListener listener;
+		level.addListener(listener);
+		Cow ladderMob(level);
+		ladderMob.setPos(-0.25, 64.25, -1.25);
+		ok &= expect(Mth::floor(ladderMob.bb.y0) == 64, "ladder fixture uses the bounding-box feet height");
+		for (int_t offset : {0, 1, 2, -1})
+		{
+			level.ladder = TilePos(-1, 64 + offset, -2);
+			ok &= expect(ladderMob.onLadder() == (offset == 0 || (alphaPlace && offset == 1)),
+				"only AlphaPlace accepts a ladder one block above the floored feet");
+		}
+		for (const TilePos &adjacent : {TilePos(0, 64, -2), TilePos(-1, 64, -1), TilePos(0, 65, -2), TilePos(-1, 65, -1)})
+		{
+			level.ladder = adjacent;
+			ok &= expect(!ladderMob.onLadder(), "adjacent ladders do not count at negative coordinates");
+		}
+		ladderMob.setPos(-0.25, 127.25, -1.25);
+		level.ladder = TilePos(-1, 127, -2);
+		ok &= expect(ladderMob.onLadder(), "ladder at the highest valid feet block is usable");
+		level.ladder = TilePos(-1, 128, -2);
+		ok &= expect(!ladderMob.onLadder(), "ladder lookup above world height remains air");
+
+		Cow cow(level);
+		Random expectedAmbient = cow.auditRandom();
+		if (localSound)
+		{
+			expectedAmbient.nextFloat();
+			expectedAmbient.nextFloat();
+		}
+		cow.playAmbientSound();
+		ok &= expect(listener.sounds == (localSound ? std::vector<jstring>{u"mob.cow"} : std::vector<jstring>{}),
+			"ambient sound is suppressed only for AlphaPlace multiplayer");
+		ok &= expect(cow.auditRandom().rawState() == expectedAmbient.rawState(),
+			"suppressed ambient sound does not consume pitch randomness");
+		listener.sounds.clear();
+		const int_t previousHealth = cow.health;
+		cow.handleEntityEvent(2);
+		ok &= expect(listener.sounds == (localSound ? std::vector<jstring>{u"mob.cowhurt"} : std::vector<jstring>{}),
+			"hurt-status sound follows the target multiplayer guard");
+		ok &= expect(cow.hurtTime == 10 && cow.walkAnimSpeed == 1.5f && cow.health == previousHealth,
+			"hurt-status animation survives sound suppression");
+		listener.sounds.clear();
+		cow.handleEntityEvent(3);
+		ok &= expect(listener.sounds == (localSound ? std::vector<jstring>{u"mob.cowhurt"} : std::vector<jstring>{}),
+			"death-status sound follows the target multiplayer guard");
+		ok &= expect(cow.health == 0, "death-status health transition survives sound suppression");
+		listener.sounds.clear();
+		level.spawned.clear();
+
+		Explosion explosion(level, nullptr, 1.25, 64.0, -2.5, 2.0f);
+		Random expectedExplosion = level.random;
+		if (localSound)
+		{
+			expectedExplosion.nextFloat();
+			expectedExplosion.nextFloat();
+		}
+		explosion.doExplosionB(false);
+		ok &= expect(listener.sounds == (localSound ? std::vector<jstring>{u"random.explode"} : std::vector<jstring>{}),
+			"explosion sound follows the target multiplayer guard");
+		ok &= expect(level.random.rawState() == expectedExplosion.rawState(),
+			"suppressed explosion sound does not consume pitch randomness");
+		listener.sounds.clear();
+
+		Player player(level);
+		player.inventory.setItem(0, ItemInstance(Items::arrow->getShiftedIndex(), 2, 0));
+		ItemInstance bow(Items::bow->getShiftedIndex(), 1, 0);
+		Items::bow->use(bow, level, player);
+		ok &= expect(listener.sounds == (localSound ? std::vector<jstring>{u"random.bow"} : std::vector<jstring>{}),
+			"bow launch sound follows the target multiplayer guard");
+		ok &= expect(player.inventory.getItem(0) && player.inventory.getItem(0)->stackSize == 1 &&
+			level.spawned.size() == (online ? 0u : 1u), "bow consumption and offline spawning survive sound suppression");
+		listener.sounds.clear();
+		level.spawned.clear();
+		ItemInstance snowball(Items::snowball->getShiftedIndex(), 2, 0);
+		Items::snowball->use(snowball, level, player);
+		ok &= expect(listener.sounds == (localSound ? std::vector<jstring>{u"random.bow"} : std::vector<jstring>{}),
+			"snowball launch sound follows the target multiplayer guard");
+		ok &= expect(snowball.stackSize == 1 && level.spawned.size() == (online ? 0u : 1u),
+			"snowball consumption and offline spawning survive sound suppression");
+		listener.sounds.clear();
+		level.spawned.clear();
+		ItemInstance rod(Items::fishingRod->getShiftedIndex(), 1, 0);
+		Items::fishingRod->use(rod, level, player);
+		ok &= expect(listener.sounds == (localSound ? std::vector<jstring>{u"random.bow"} : std::vector<jstring>{}),
+			"fishing launch sound follows the target multiplayer guard");
+		ok &= expect(player.swinging && (player.fishEntity != nullptr) == !online &&
+			level.spawned.size() == (online ? 0u : 1u), "fishing swing and offline spawning survive sound suppression");
+		listener.sounds.clear();
+
+		level.playSoundEffect(1.0, 64.0, 2.0, u"liquid.water", 0.5f, 1.0f);
+		level.playSoundEffect(1.0, 64.0, 2.0, u"fire.fire", 0.5f, 1.0f);
+		level.playSoundAtEntity(player, u"random.fizz", 0.5f, 1.0f);
+		ok &= expect(listener.sounds == std::vector<jstring>{u"liquid.water", u"fire.fire", u"random.fizz"},
+			"direct world and entity audio remain available in AlphaPlace multiplayer");
+		level.removeListener(listener);
+	}
+	return ok;
+}
+
+bool testAlphaPlacePackets()
+{
+	bool ok = true;
+	// Original APClient decoder fixtures, kept outside the 57 standard round trips.
+	const Bytes soundWire = bytesFromHex("3E000C72616E646F6D2E636C69636B3FF4000000000000C00400000000000040500000000000003F4000003FC00000");
+	const Bytes diggingWire = bytesFromHex("3F01020304FFFFFFEF00000041053F200000");
+	auto rejected = [](const Bytes &wire, bool serverHandler)
+	{
+		try { decode(wire, serverHandler); }
+		catch (const std::runtime_error &) { return true; }
+		return false;
+	};
+	for (const Bytes *wire : {&soundWire, &diggingWire})
+	{
+		ok &= expect(rejected(*wire, true), "AlphaPlace packets are rejected serverbound in both targets");
+		if (!ClientTarget::isAlphaPlace())
+			ok &= expect(rejected(*wire, false), "normal Beta rejects AlphaPlace packets clientbound");
+	}
+
+	Packet1Login login(u"AP", ClientTarget::loginProtocolVersion());
+	const Bytes loginWire = encode(login);
+	const Bytes expectedLoginPrefix = ClientTarget::isAlphaPlace()
+		? bytesFromHex("01000007D0") : bytesFromHex("010000000E");
+	ok &= expect(loginWire.size() >= expectedLoginPrefix.size() &&
+		std::equal(expectedLoginPrefix.begin(), expectedLoginPrefix.end(), loginWire.begin()),
+		"login encodes target protocol 2000 for AlphaPlace and 14 for Beta");
+	if (!ClientTarget::isAlphaPlace())
+		return ok;
+
+	auto soundBase = decode(soundWire, false);
+	auto *sound = dynamic_cast<Packet62Sound *>(soundBase.get());
+	ok &= expect(sound && sound->sound == u"random.click" && sound->locX == 1.25 &&
+		sound->locY == -2.5 && sound->locZ == 64.0 && sound->volume == 0.75f && sound->pitch == 1.5f,
+		"Packet62Sound original Java decoder fixture");
+	ok &= expect(sound && soundWire.size() == 47 && sound->getPacketSize() == 44,
+		"Packet62Sound preserves the original reported size rather than its wire length");
+	const long_t before = System::currentTimeMillis();
+	auto diggingBase = decode(diggingWire, false);
+	const long_t after = System::currentTimeMillis();
+	auto *digging = dynamic_cast<Packet63Digging *>(diggingBase.get());
+	ok &= expect(digging && digging->x == 0x01020304 && digging->y == -17 && digging->z == 65 &&
+		digging->face == 5 && digging->progress == 0.625f && digging->getPacketSize() == 17 &&
+		digging->timestamp >= before && digging->timestamp <= after,
+		"Packet63Digging original fixture and local reception timestamp");
+	if (sound && digging)
+	{
+		InspectableHandler handler;
+		sound->processPacket(handler);
+		digging->processPacket(handler);
+		ok &= expect(handler.sound == sound && handler.digging == digging,
+			"AlphaPlace packets dispatch to their dedicated callbacks");
+		ok &= expectBytes(encode(*sound), {0x3e}, "Packet62Sound retains the empty Java writer");
+		ok &= expectBytes(encode(*digging), {0x3f}, "Packet63Digging retains the empty Java writer");
+	}
+
+	Bytes modifiedUtf = bytesFromHex("3E000941C080EDA0BDEDB880");
+	modifiedUtf.insert(modifiedUtf.end(), soundWire.begin() + 15, soundWire.end());
+	auto utfBase = decode(modifiedUtf, false);
+	auto *utf = dynamic_cast<Packet62Sound *>(utfBase.get());
+	jstring expectedText = u"A";
+	expectedText.push_back(0);
+	expectedText.push_back(0xd83d);
+	expectedText.push_back(0xde00);
+	ok &= expect(utf && utf->sound == expectedText && utf->getPacketSize() == 36 && utf->pitch == 1.5f,
+		"Packet62Sound decodes modified-UTF NUL and surrogate pairs and counts UTF-16 units");
+	Bytes invalidUtf = bytesFromHex("3E000180");
+	invalidUtf.insert(invalidUtf.end(), soundWire.begin() + 15, soundWire.end());
+	ok &= expect(rejected(invalidUtf, false), "Packet62Sound rejects malformed modified UTF");
+	Bytes signedFace = diggingWire;
+	signedFace[13] = 0xff;
+	auto signedBase = decode(signedFace, false);
+	auto *signedPacket = dynamic_cast<Packet63Digging *>(signedBase.get());
+	ok &= expect(signedPacket && signedPacket->face == -1, "Packet63Digging preserves a signed face byte");
+	for (const Bytes *wire : {&soundWire, &diggingWire})
+	{
+		Bytes truncated(wire->begin(), wire->end() - 1);
+		ok &= expect(decode(truncated, false) == nullptr, "truncated AlphaPlace payload returns stream EOF");
+	}
+
+	Bytes joined = soundWire;
+	joined.insert(joined.end(), diggingWire.begin(), diggingWire.end());
+	joined.push_back(0); // A following standard keepalive must remain correctly framed.
+	std::istringstream stream(std::string(joined.begin(), joined.end()), std::ios::binary);
+	PacketDataInput input(stream);
+	auto first = Packet::readPacket(input, false);
+	auto second = Packet::readPacket(input, false);
+	auto third = Packet::readPacket(input, false);
+	ok &= expect(first && first->getPacketId() == 62 && second && second->getPacketId() == 63 &&
+		third && third->getPacketId() == 0 && Packet::readPacket(input, false) == nullptr,
+		"AlphaPlace payloads preserve framing of consecutive AP and standard packets");
+	return ok;
+}
+
 }
 
 int runNetworkSmoke()
@@ -162,6 +418,8 @@ int runNetworkSmoke()
 	bool ok = true;
 	Tile::initTiles();
 	Items::initItems();
+	ok &= testAlphaPlacePackets();
+	ok &= testClientTargetBehavior();
 
 	struct PacketOracleCase
 	{
@@ -986,7 +1244,11 @@ int runNetworkSmoke()
 				ok &= expect(packet->getPacketId() == id, "packet factory preserves registered ID");
 			}
 		}
-		ok &= expect(registered == expectedIds.size(), "packet registry contains exactly 57 IDs");
+		ok &= expect(registered == expectedIds.size() + (ClientTarget::isAlphaPlace() ? 2 : 0),
+			"packet registry contains exactly 57 Beta IDs plus two only for AlphaPlace");
+		ok &= expect((Packet::getNewPacket(62) != nullptr) == ClientTarget::isAlphaPlace() &&
+			(Packet::getNewPacket(63) != nullptr) == ClientTarget::isAlphaPlace(),
+			"packet IDs 62 and 63 are registered only in the AlphaPlace target");
 		for (int_t id : expectedIds)
 			ok &= expect(Packet::getNewPacket(id) != nullptr, "expected packet ID is registered");
 	}
@@ -1220,6 +1482,60 @@ int runNetworkSmoke()
 		onlineWorkbench->onClosed(player);
 		ok &= expect(onlineWorkbench->craftMatrix.getStackInSlot(0) != nullptr,
 			"online workbench close preserves server-owned crafting inputs");
+	}
+
+	{
+		Minecraft minecraft(1, 1, false);
+		auto level = std::make_shared<AlphaPlaceSmokeLevel>();
+		minecraft.level = level;
+		Player player(*level);
+		GameRenderer &renderer = minecraft.gameRenderer;
+		minecraft.levelRenderer.destroyProgress = 0.35f;
+		Packet63Digging packet;
+		packet.x = 2;
+		packet.y = 64;
+		packet.z = 3;
+		packet.face = 1;
+		packet.progress = 0.25f;
+		packet.timestamp = 10000;
+		renderer.updateAlphaPlaceDigging(packet);
+		packet.face = 4;
+		packet.progress = 0.75f;
+		packet.timestamp = 11000;
+		renderer.updateAlphaPlaceDigging(packet);
+		Packet63Digging zero = packet;
+		zero.face = 2;
+		zero.progress = -0.0f;
+		zero.timestamp = 20000;
+		renderer.updateAlphaPlaceDigging(zero);
+		++zero.x;
+		renderer.updateAlphaPlaceDigging(zero);
+		ok &= expect(renderer.alphaPlaceDigging.size() == 1,
+			"remote digging replaces by coordinates and zero progress does not create an entry");
+		if (!renderer.alphaPlaceDigging.empty())
+		{
+			const auto entry = renderer.alphaPlaceDigging.front();
+			ok &= expect(entry.face == 4 && entry.progress == 0.75f && entry.timestamp == 11000,
+				"new zero-progress packet preserves the preceding packet's progress, face and timestamp");
+			player.setPos(10.0, 64.0, 3.0);
+			ok &= expect(!renderer.isAlphaPlaceDiggingExpired(entry, player, 12000),
+				"remote digging remains visible at exactly 1000ms and eight blocks");
+			ok &= expect(renderer.isAlphaPlaceDiggingExpired(entry, player, 12001),
+				"remote digging expires after 1000ms");
+			player.setPos(10.001, 64.0, 3.0);
+			ok &= expect(renderer.isAlphaPlaceDiggingExpired(entry, player, 12000),
+				"remote digging expires beyond eight blocks from integer block coordinates");
+			player.setPos(2.0, 64.0, 3.0);
+			level->tileId = 0;
+			ok &= expect(renderer.isAlphaPlaceDiggingExpired(entry, player, 11000),
+				"remote digging expires when the block becomes air");
+		}
+		++packet.x;
+		renderer.updateAlphaPlaceDigging(packet);
+		// Both fixture timestamps have expired, so this exercises removal without GL calls.
+		renderer.renderAlphaPlaceDigging(player, 0.0f);
+		ok &= expect(renderer.alphaPlaceDigging.empty() && minecraft.levelRenderer.destroyProgress == 0.35f,
+			"expiry removes adjacent entries and remote state never changes local destroy progress");
 	}
 
 	if (ok)

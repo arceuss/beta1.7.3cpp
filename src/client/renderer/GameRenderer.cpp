@@ -2,6 +2,7 @@
 #include "util/Profiler.h"
 
 #include <chrono>
+#include <algorithm>
 #include <thread>
 
 #include "client/Minecraft.h"
@@ -24,6 +25,7 @@
 #include "lwjgl/GLContext.h"
 
 #include "java/System.h"
+#include "network/PacketAlphaPlace.h"
 
 #include "OpenGL.h"
 
@@ -613,6 +615,8 @@ void GameRenderer::renderLevel(float a, long_t deadline)
 			glEnable(GL_ALPHA_TEST);
 		}
 
+		renderAlphaPlaceDigging(*player, a);
+
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		setupFog(0);
 		glEnable(GL_BLEND);
@@ -981,6 +985,63 @@ void GameRenderer::setupFog(int_t mode)
 
 	glEnable(GL_COLOR_MATERIAL);
 	glColorMaterial(GL_FRONT, GL_AMBIENT);
+}
+
+void GameRenderer::updateAlphaPlaceDigging(const Packet63Digging &packet)
+{
+	// Java removes (key, incomingPacket) by object identity. A newly received
+	// zero-progress packet leaves the previous entry and its timestamp intact.
+	if (packet.progress == 0.0f)
+		return;
+
+	auto it = std::find_if(alphaPlaceDigging.begin(), alphaPlaceDigging.end(),
+		[&packet](const AlphaPlaceDigging &entry)
+		{
+			return entry.x == packet.x && entry.y == packet.y && entry.z == packet.z;
+		});
+
+	AlphaPlaceDigging entry;
+	entry.x = packet.x;
+	entry.y = packet.y;
+	entry.z = packet.z;
+	entry.face = packet.face;
+	entry.progress = packet.progress;
+	entry.timestamp = packet.timestamp;
+	if (it != alphaPlaceDigging.end())
+		*it = entry;
+	else
+		alphaPlaceDigging.push_back(entry);
+}
+
+bool GameRenderer::isAlphaPlaceDiggingExpired(const AlphaPlaceDigging &entry, Player &player, long_t now) const
+{
+	return entry.timestamp + 1000LL < now ||
+		mc.level->getTile(entry.x, entry.y, entry.z) == 0 ||
+		player.distanceToSqr(entry.x, entry.y, entry.z) > 64.0;
+}
+
+void GameRenderer::renderAlphaPlaceDigging(Player &player, float partialTick)
+{
+	for (std::size_t i = 0; i < alphaPlaceDigging.size();)
+	{
+		const AlphaPlaceDigging &entry = alphaPlaceDigging[i];
+		if (isAlphaPlaceDiggingExpired(entry, player, System::currentTimeMillis()))
+		{
+			alphaPlaceDigging.erase(alphaPlaceDigging.begin() + i);
+			continue;
+		}
+
+		glDisable(GL_ALPHA_TEST);
+		HitResult hit;
+		hit.type = HitResult::Type::TILE;
+		hit.x = entry.x;
+		hit.y = entry.y;
+		hit.z = entry.z;
+		hit.f = static_cast<Facing>(entry.face);
+		mc.levelRenderer.renderHit(player, hit, 0, nullptr, partialTick, entry.progress);
+		glEnable(GL_ALPHA_TEST);
+		++i;
+	}
 }
 
 void GameRenderer::updateAllChunks()

@@ -1,4 +1,5 @@
 #include "world/entity/monster/Creeper.h"
+#include "ClientTarget.h"
 
 #include "world/entity/monster/Skeleton.h"
 #include "world/item/Items.h"
@@ -20,7 +21,7 @@ void Creeper::tick()
 	if (level.isOnline)
 	{
 		int_t state = getCreeperState();
-		if (state > 0 && swell == 0)
+		if (state > 0 && swell == 0 && !ClientTarget::useServerSoundEvents(level.isOnline))
 			level.playSoundAtEntity(*this, u"random.fuse", 1.0f, 0.5f);
 		swell += state;
 		if (swell < 0)

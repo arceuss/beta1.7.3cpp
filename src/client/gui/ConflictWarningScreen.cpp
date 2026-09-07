@@ -1,7 +1,6 @@
 #include "client/gui/ConflictWarningScreen.h"
 
 #include "client/Minecraft.h"
-#include "client/title/TitleScreen.h"
 
 ConflictWarningScreen::ConflictWarningScreen(Minecraft &minecraft) : Screen(minecraft)
 {
@@ -16,7 +15,7 @@ void ConflictWarningScreen::init()
 void ConflictWarningScreen::buttonClicked(Button &button)
 {
 	if (button.id == 0)
-		minecraft.setScreen(Util::make_shared<TitleScreen>(minecraft));
+		minecraft.setScreen(minecraft.createTitleScreen());
 }
 
 void ConflictWarningScreen::render(int_t xm, int_t ym, float a)

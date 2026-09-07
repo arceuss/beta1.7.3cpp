@@ -42,6 +42,8 @@ class Packet53BlockChange;
 class Packet54PlayNoteBlock;
 class Packet60Explosion;
 class Packet61DoorChange;
+class Packet62Sound;
+class Packet63Digging;
 class Packet70Bed;
 class Packet71Weather;
 class Packet100OpenWindow;
@@ -101,6 +103,8 @@ public:
 	virtual void handleNotePlay(Packet54PlayNoteBlock &packet);
 	virtual void func_12245_a(Packet60Explosion &packet);
 	virtual void func_28115_a(Packet61DoorChange &packet);
+	virtual void handle62Sound(Packet62Sound &packet);
+	virtual void handle63Digging(Packet63Digging &packet);
 	virtual void func_25118_a(Packet70Bed &packet);
 	virtual void handleWeather(Packet71Weather &packet);
 	virtual void func_20087_a(Packet100OpenWindow &packet);

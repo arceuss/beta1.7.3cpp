@@ -3,7 +3,6 @@
 #include "client/Minecraft.h"
 #include "world/level/Level.h"
 
-#include "client/title/TitleScreen.h"
 #include "client/gui/AchievementsScreen.h"
 #include "client/gui/OptionsScreen.h"
 #include "client/gui/StatisticsScreen.h"
@@ -45,7 +44,7 @@ void PauseScreen::buttonClicked(Button &button)
 			minecraft.level->disconnect();
 
 		minecraft.setLevel(nullptr);
-		minecraft.setScreen(Util::make_shared<TitleScreen>(minecraft));
+		minecraft.setScreen(minecraft.createTitleScreen());
 	}
 	if (button.id == 4)
 	{

@@ -1,4 +1,5 @@
 #include "world/level/tile/SaplingTile.h"
+#include "ClientTarget.h"
 
 #include "world/item/Item.h"
 #include "world/item/Items.h"
@@ -73,6 +74,8 @@ void SaplingTile::growTree(Level &level, int_t x, int_t y, int_t z, Random &rand
 
 int_t SaplingTile::getTexture(Facing face, int_t data)
 {
+	if (ClientTarget::isAlphaPlace())
+		return tex;
 	int_t type = data & 3;
 	if (type == 1) return 63;
 	if (type == 2) return 79;

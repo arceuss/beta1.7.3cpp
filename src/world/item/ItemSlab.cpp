@@ -52,7 +52,7 @@ jstring ItemSlab::getDescriptionId(const ItemInstance &stack) const
 {
 	// BlockStep.field_22037_a indexed by the raw damage value.
 	static const jstring names[] = {u"stone", u"sand", u"wood", u"cobble"};
-	return Tile::slabSingle.descriptionId + u"." + names[stack.itemDamage & 3];
+	return u"tile.stoneSlab." + names[stack.itemDamage & 3];
 }
 
 bool ItemSlab::useOn(ItemInstance &stack, Player &player, Level &level, int_t x, int_t y, int_t z, Facing face) const

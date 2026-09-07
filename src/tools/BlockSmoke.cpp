@@ -1,9 +1,12 @@
 #include "tools/BlockSmoke.h"
+#include "ClientTarget.h"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <thread>
 #include <unordered_map>
@@ -14,6 +17,8 @@
 #include "client/model/WolfModel.h"
 #include "client/Minecraft.h"
 #include "client/User.h"
+#include "client/gui/ContainerScreen.h"
+#include "client/skins/DefaultTexturePack.h"
 #include "client/renderer/TileRenderer.h"
 #include "client/renderer/texturefx/TextureCompassFX.h"
 #include "client/renderer/texturefx/TextureWatchFX.h"
@@ -62,8 +67,10 @@
 #include "world/level/tile/GlassTile.h"
 #include "world/level/tile/ClothTile.h"
 #include "world/level/tile/StoneTile.h"
+#include "world/level/tile/SlabTile.h"
 #include "world/level/tile/WoodTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
+#include "world/level/tile/RedStoneOreTile.h"
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/ButtonTile.h"
 #include "world/level/tile/PressurePlateTile.h"
@@ -91,6 +98,8 @@
 #include "world/level/tile/PistonExtensionTile.h"
 #include "world/level/tile/PistonMovingTile.h"
 #include "world/level/tile/LeafTile.h"
+#include "world/level/tile/TreeTile.h"
+#include "world/level/tile/SaplingTile.h"
 #include "world/level/tile/WebTile.h"
 #include "world/level/tile/TNTTile.h"
 #include "java/Random.h"
@@ -104,6 +113,11 @@
 
 namespace
 {
+	struct ContainerScreenProbe : public ContainerScreen
+	{
+		using ContainerScreen::getTooltipName;
+	};
+
 	struct StatCapturePlayer : public Player
 	{
 		std::unordered_map<const StatBase *, int_t> capturedStats;
@@ -190,6 +204,7 @@ struct InspectableNoteParticle : public NoteParticle
 	{
 		Level &level;
 		std::unordered_map<long_t, int_t> tiles;
+		int_t data = 0;
 
 		explicit TestLevelSource(Level &level) : level(level) {}
 
@@ -211,7 +226,7 @@ struct InspectableNoteParticle : public NoteParticle
 
 		std::shared_ptr<TileEntity> getTileEntity(int_t, int_t, int_t) override { return nullptr; }
 		float getBrightness(int_t, int_t, int_t) override { return 1.0f; }
-		int_t getData(int_t, int_t, int_t) override { return 0; }
+		int_t getData(int_t, int_t, int_t) override { return data; }
 		const Material &getMaterial(int_t x, int_t y, int_t z) override
 		{
 			int_t tile = getTile(x, y, z);
@@ -354,6 +369,72 @@ struct InspectableNoteParticle : public NoteParticle
 			return false;
 		}
 		return true;
+	}
+
+	bool testClientTargetTextures(Level &level)
+	{
+		bool ok = true;
+		const bool alphaPlace = ClientTarget::isAlphaPlace();
+		auto readBytes = [](std::istream *stream)
+		{
+			std::unique_ptr<std::istream> input(stream);
+			return std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
+		};
+		DefaultTexturePack pack;
+		const std::string betaTerrain = readBytes(Resource::getResource(u"/terrain.png"));
+		const std::string alphaTerrain = readBytes(Resource::getResource(u"/terrainap.png"));
+		ok &= expect(betaTerrain != alphaTerrain, "terrain fixtures must distinguish the two client targets");
+		ok &= expect(readBytes(pack.getResource(u"/terrain.png")) == (alphaPlace ? alphaTerrain : betaTerrain),
+			"the default terrain atlas must match the compiled client target");
+		ok &= expect(readBytes(pack.getResource(u"/gui/items.png")) == readBytes(Resource::getResource(u"/gui/items.png")),
+			"target terrain selection must not redirect unrelated resources");
+
+		// Beta atlas slots, with Alpha's metadata-independent slots from the AP Java reference.
+		const int_t logs[] = {20, 116, 117, 20};
+		const int_t saplings[] = {15, 63, 79, 15};
+		const int_t leaves[] = {52, 132, 52, 52};
+		const int_t wool[] = {64, 210, 194, 178, 162, 146, 130, 114, 225, 209, 193, 177, 161, 145, 129, 113};
+		const int_t leafItemColors[] = {4764952, 0x619961, 0x80A755, 0x619961};
+		TestLevelSource source(level);
+		const int_t biomeColor = Tile::leaves.getColor(source, 0, 64, 0);
+		const int_t leafWorldColors[] = {biomeColor, 0x619961, 0x80A755, biomeColor};
+		Tile *tiles[] = {&Tile::treeTrunk, &Tile::sapling, &Tile::leaves, &Tile::wool};
+		const bool wasFancy = !Tile::leaves.isSolidRender();
+		for (bool fancy : {false, true})
+		{
+			Tile::leaves.setFancy(fancy);
+			bool worldTextures = true;
+			bool itemTextures = true;
+			bool particleTextures = true;
+			bool leafColors = true;
+			for (int_t data = 0; data < 16; ++data)
+			{
+				source.data = data;
+				const int_t type = alphaPlace ? 0 : data & 3;
+				const int_t expected[] = {logs[type], saplings[type], leaves[type] + (fancy ? 0 : 1), wool[alphaPlace ? 0 : data]};
+				for (int_t block = 0; block < 4; ++block)
+				{
+					Tile &tile = *tiles[block];
+					ItemInstance item(tile.id, 1, data);
+					itemTextures &= item.getIcon() == expected[block] && item.getAuxValue() == data;
+					for (int_t face = 0; face < 6; ++face)
+					{
+						const int_t texture = block == 0 && face < 2 ? 21 : expected[block];
+						worldTextures &= tile.getTexture(source, 0, 64, 0, static_cast<Facing>(face)) == texture;
+						InspectableTerrainParticle particle(level, 0, 64, 0, 0, 0, 0, &tile, face, data);
+						particleTextures &= particle.textureIndex() == texture;
+					}
+				}
+				leafColors &= Tile::leaves.getColor(source, 0, 64, 0) == leafWorldColors[type] &&
+					Tile::leaves.getItemColor(data) == (alphaPlace ? 0xFFFFFF : leafItemColors[data & 3]);
+			}
+			ok &= expect(worldTextures, "all metadata values and faces must use the target's tree and wool textures");
+			ok &= expect(itemTextures, "inventory icons must use target textures without changing item metadata");
+			ok &= expect(particleTextures, "breaking particles must use the target's tree and wool textures");
+			ok &= expect(leafColors, "world and item leaf tint must match Alpha or Beta in both graphics modes");
+		}
+		Tile::leaves.setFancy(wasFancy);
+		return ok;
 	}
 
 	bool expectNear(double actual, double expected, double epsilon, const char *message)
@@ -520,6 +601,19 @@ int runBlockSmoke()
 			Items::diamond->getDescriptionId() == u"item.emerald" &&
 			Tile::deadBush.descriptionId == u"tile.deadbush",
 			"corrected item and tile description ids should match Beta 1.7.3");
+		const jstring slabKeys[] = {u"tile.stoneSlab.stone", u"tile.stoneSlab.sand", u"tile.stoneSlab.wood", u"tile.stoneSlab.cobble"};
+		const jstring slabNames[] = {u"Stone Slab", u"Sandstone Slab", u"Wooden Slab", u"Stone Slab"};
+		for (int_t variant = 0; variant < 4; ++variant)
+		{
+			ItemInstance slab(Tile::slabSingle.id, 1, variant);
+			Item *slabItem = slab.getItem();
+			ok &= expect(slabItem != nullptr && slabItem->getDescriptionId(slab) == slabKeys[variant],
+				"slab item keys should contain exactly one material suffix");
+			ok &= expect(ContainerScreenProbe::getTooltipName(slab) == slabNames[variant],
+				"slab inventory tooltips should resolve through the shipped language file");
+		}
+		ok &= expect(ContainerScreenProbe::getTooltipName(ItemInstance(Tile::slabDouble.id, 1, 0)) == u"Stone Slab",
+			"double slab block names should still resolve through the shipped language file");
 		ok &= expect(Tile::lightBlock[65] == 0, "ladder should stay transparent for light sampling like beta");
 		ok &= expect(Tile::lightBlock[53] == 255, "wood stairs should block light like beta");
 		ok &= expect(Tile::lightBlock[67] == 255, "stone stairs should block light like beta");
@@ -750,6 +844,8 @@ int runBlockSmoke()
 
 		std::cerr << "block-smoke: level setup" << std::endl;
 		Level level(File::open(u"build/block-smoke-workdir"), u"block-smoke-world", 12345);
+		std::cerr << "block-smoke: client-target textures" << std::endl;
+		ok &= testClientTargetTextures(level);
 		// B173 - Captured from Entity.applyEntityCollision in the Beta JAR on JDK 8.
 		const double pushCases[][5] = {
 			{0.0075, 0.0075, 0.0, 0.0, 0.0},
@@ -775,6 +871,43 @@ int runBlockSmoke()
 		Player player(level);
 		player.yRot = 0.0f;
 		int_t baseY = 80;
+		for (int_t x = 301; x <= 303; ++x)
+			for (int_t z = 41; z <= 43; ++z)
+				for (int_t y = baseY; y <= baseY + 4; ++y)
+					level.setTileNoUpdate(x, y, z, y == baseY ? Tile::rock.id : 0);
+		for (bool online : {false, true})
+		{
+			level.isOnline = online;
+			const bool suppressed = ClientTarget::isAlphaPlace() && online;
+			level.setTileNoUpdate(302, baseY, 42, Tile::redstoneOre.id);
+			Entity walker(level);
+			walker.setPos(302.5, baseY + 1.0, 42.5);
+			walker.walkDist = 1.1f;
+			listener.clear();
+			walker.move(0.05, -0.1, 0.0);
+			ok &= expect(listener.sounds == (suppressed ? std::vector<jstring>{} : std::vector<jstring>{u"step.stone"}),
+				"footstep audio should be suppressed only for AlphaPlace multiplayer");
+			ok &= expect(walker.onGround && walker.x > 302.5 && walker.walkDist > 1.1f,
+				"footstep sound suppression should preserve collision and movement");
+			ok &= expect(level.getTile(302, baseY, 42) == Tile::redstoneOreGlowing.id && !listener.particles.empty(),
+				"muted footsteps should still invoke redstone ore stepOn and its particles");
+			level.setTileNoUpdate(302, baseY, 42, Tile::redstoneOre.id);
+			listener.clear();
+			walker.move(0.05, -0.1, 0.0);
+			ok &= expect(level.getTile(302, baseY, 42) == Tile::redstoneOre.id && listener.sounds.empty(),
+				"the next footstep threshold should advance even when its sound is muted");
+
+			StatCapturePlayer landingPlayer(level);
+			landingPlayer.setPos(302.5, baseY + 1.0 + landingPlayer.heightOffset, 42.5);
+			listener.clear();
+			landingPlayer.fallForSmoke(4.0f);
+			ok &= expect(std::count(listener.sounds.begin(), listener.sounds.end(), u"step.stone") == (suppressed ? 0 : 1),
+				"landing audio should be suppressed only for AlphaPlace multiplayer");
+			ok &= expect(landingPlayer.health == (online ? 20 : 19),
+				"landing sound suppression should preserve local fall damage and server authority");
+		}
+		level.isOnline = false;
+		listener.clear();
 		User overflowUser(u"BlockSmokeOverflow", u"local");
 		std::unique_ptr<File> overflowDirectory(File::open(u"build/block-smoke-workdir"));
 		StatFileWriter overflowStats(overflowUser, *overflowDirectory);

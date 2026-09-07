@@ -7,6 +7,7 @@ project(McBetaCpp
 )
 
 set(McBetaCpp_SOURCES
+	"src/ClientTarget.h"
 	"src/client/Minecraft.cpp"
 	"src/client/Minecraft.h"
 	"src/client/ScreenShotHelper.cpp"
@@ -359,6 +360,8 @@ set(McBetaCpp_SOURCES
 	"src/client/particle/TerrainParticle.h"
 	"src/client/particle/ParticleEngine.cpp"
 	"src/client/particle/ParticleEngine.h"
+	"src/client/title/AlphaPlaceTitleScreen.cpp"
+	"src/client/title/AlphaPlaceTitleScreen.h"
 	"src/client/title/TitleScreen.cpp"
 	"src/client/title/TitleScreen.h"
 
@@ -911,6 +914,8 @@ set(McBetaCpp_SOURCES
 	"src/network/Packet.h"
 	"src/network/PacketCore.cpp"
 	"src/network/PacketCore.h"
+	"src/network/PacketAlphaPlace.cpp"
+	"src/network/PacketAlphaPlace.h"
 	"src/network/PacketDataStream.cpp"
 	"src/network/PacketDataStream.h"
 	"src/network/PacketEntity.cpp"
@@ -1034,6 +1039,11 @@ else()
 	set_source_files_properties(src/java/Random.cpp src/java/StrictMath.cpp src/util/Mth.cpp
 		src/world/entity/Entity.cpp src/world/phys/AABB.cpp src/world/phys/Vec3.cpp
 		PROPERTIES COMPILE_OPTIONS "-fno-fast-math;-ffp-contract=off")
+endif()
+
+option(B173_TARGET_ALPHAPLACE "Build the AlphaPlace client target" OFF)
+if(B173_TARGET_ALPHAPLACE)
+	target_compile_definitions(McBetaCppCore PUBLIC B173_TARGET_ALPHAPLACE=1)
 endif()
 
 option(B173_ENABLE_GL_TRACE "Compile the logical GL trace in Debug builds" OFF)

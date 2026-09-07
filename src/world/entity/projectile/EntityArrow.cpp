@@ -1,4 +1,5 @@
 #include "world/entity/projectile/EntityArrow.h"
+#include "ClientTarget.h"
 
 #include <cmath>
 
@@ -160,7 +161,8 @@ void EntityArrow::tick()
 			Entity *damageSource = ownerRef.get();
 			if (hit.entity->hurt(damageSource, 4))
 			{
-				level.playSoundAtEntity(*this, u"random.drr", 1.0f, 1.2f / (random.nextFloat() * 0.2f + 0.9f));
+				if (!ClientTarget::useServerSoundEvents(level.isOnline))
+					level.playSoundAtEntity(*this, u"random.drr", 1.0f, 1.2f / (random.nextFloat() * 0.2f + 0.9f));
 				remove();
 			}
 			else
@@ -187,7 +189,8 @@ void EntityArrow::tick()
 			x -= xd / impactDistance * 0.05f;
 			y -= yd / impactDistance * 0.05f;
 			z -= zd / impactDistance * 0.05f;
-			level.playSoundAtEntity(*this, u"random.drr", 1.0f, 1.2f / (random.nextFloat() * 0.2f + 0.9f));
+			if (!ClientTarget::useServerSoundEvents(level.isOnline))
+				level.playSoundAtEntity(*this, u"random.drr", 1.0f, 1.2f / (random.nextFloat() * 0.2f + 0.9f));
 			inGround = true;
 			arrowShake = 7;
 		}

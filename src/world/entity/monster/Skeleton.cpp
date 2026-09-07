@@ -1,4 +1,5 @@
 #include "world/entity/monster/Skeleton.h"
+#include "ClientTarget.h"
 
 #include <cmath>
 
@@ -50,7 +51,8 @@ void Skeleton::checkHurtTarget(Entity &entity, float distance)
 		arrow->y += 1.4f;
 		double dy = entity.y + entity.getHeadHeight() - 0.2f - arrow->y;
 		float flat = Mth::sqrt(dx * dx + dz * dz) * 0.2f;
-		level.playSoundAtEntity(*this, u"random.bow", 1.0f, 1.0f / (random.nextFloat() * 0.4f + 0.8f));
+		if (!ClientTarget::useServerSoundEvents(level.isOnline))
+			level.playSoundAtEntity(*this, u"random.bow", 1.0f, 1.0f / (random.nextFloat() * 0.4f + 0.8f));
 		level.addEntity(arrow);
 		arrow->setArrowHeading(dx, dy + flat, dz, 0.6f, 12.0f);
 		attackTime = 30;

@@ -1,5 +1,8 @@
 #include "network/Packet.h"
 
+#include "ClientTarget.h"
+#include "network/PacketAlphaPlace.h"
+
 #include <cstring>
 #include <iostream>
 #include <mutex>
@@ -82,6 +85,8 @@ void Packet::ensureRegistry()
 		registerEntityPackets();
 		registerWorldPackets();
 		registerWindowPackets();
+		if (ClientTarget::isAlphaPlace())
+			registerAlphaPlacePackets();
 	});
 }
 

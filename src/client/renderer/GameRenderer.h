@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "client/renderer/ItemInHandRenderer.h"
 #include "client/renderer/MouseFilter.h"
@@ -12,11 +13,28 @@
 #include "java/Random.h"
 
 class Minecraft;
+class Packet63Digging;
 
 class GameRenderer
 {
+	friend int runNetworkSmoke();
+
 private:
 	Minecraft &mc;
+
+	struct AlphaPlaceDigging
+	{
+		int_t x = 0;
+		int_t y = 0;
+		int_t z = 0;
+		int_t face = 0;
+		float progress = 0.0f;
+		long_t timestamp = 0;
+	};
+
+	std::vector<AlphaPlaceDigging> alphaPlaceDigging;
+	bool isAlphaPlaceDiggingExpired(const AlphaPlaceDigging &entry, Player &player, long_t now) const;
+	void renderAlphaPlaceDigging(Player &player, float partialTick);
 
 	float renderDistance = 0.0f;
 
@@ -51,6 +69,7 @@ public:
 	void itemPlaced();
 	void itemUsed();
 	void pick(float a);
+	void updateAlphaPlaceDigging(const Packet63Digging &packet);
 
 private:
 	float getFov(float a);

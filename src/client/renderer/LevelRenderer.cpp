@@ -1219,6 +1219,11 @@ bool LevelRenderer::updateDirtyChunks(Player &player, bool force)
 
 void LevelRenderer::renderHit(Player &player, HitResult &h, int_t mode, ItemInstance *inventoryItem, float a)
 {
+	renderHit(player, h, mode, inventoryItem, a, destroyProgress);
+}
+
+void LevelRenderer::renderHit(Player &player, HitResult &h, int_t mode, ItemInstance *inventoryItem, float a, float progress)
+{
 	Tesselator &t = Tesselator::instance;
 	glEnable(GL_BLEND);
 	glEnable(GL_ALPHA_TEST);
@@ -1227,7 +1232,7 @@ void LevelRenderer::renderHit(Player &player, HitResult &h, int_t mode, ItemInst
 
 	if (mode == 0)
 	{
-		if (destroyProgress > 0.0f)
+		if (progress > 0.0f)
 		{
 			glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR);
 			int_t id = textures.loadTexture(u"/terrain.png");
@@ -1255,7 +1260,7 @@ void LevelRenderer::renderHit(Player &player, HitResult &h, int_t mode, ItemInst
 			t.offset(-xo, -yo, -zo);
 			t.noColor();
 
-			tileRenderer->tesselateInWorld(*tile, h.x, h.y, h.z, 240 + static_cast<int_t>(destroyProgress * 10.0f));
+			tileRenderer->tesselateInWorld(*tile, h.x, h.y, h.z, 240 + static_cast<int_t>(progress * 10.0f));
 			t.end();
 			t.offset(0.0, 0.0, 0.0);
 			glDisable(GL_ALPHA_TEST);

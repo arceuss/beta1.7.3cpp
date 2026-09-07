@@ -1,6 +1,7 @@
 #include "network/NetHandler.h"
 
 #include "network/Packet.h"
+#include "network/PacketAlphaPlace.h"
 #include "network/PacketCore.h"
 #include "network/PacketEntity.h"
 #include "network/PacketWindow.h"
@@ -194,6 +195,16 @@ void NetHandler::func_12245_a(Packet60Explosion &packet)
 }
 
 void NetHandler::func_28115_a(Packet61DoorChange &packet)
+{
+	registerPacket(packet);
+}
+
+void NetHandler::handle62Sound(Packet62Sound &packet)
+{
+	registerPacket(packet);
+}
+
+void NetHandler::handle63Digging(Packet63Digging &packet)
 {
 	registerPacket(packet);
 }

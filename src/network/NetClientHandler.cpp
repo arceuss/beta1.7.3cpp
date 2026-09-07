@@ -1,5 +1,8 @@
 #include "network/NetClientHandler.h"
 
+#include "ClientTarget.h"
+#include "network/PacketAlphaPlace.h"
+
 #include <algorithm>
 #include <cstring>
 #include <iostream>
@@ -173,7 +176,7 @@ void NetClientHandler::handleHandshake(Packet2Handshake &packet)
 {
 	if (packet.username == u"-")
 	{
-		addToSendQueue(std::make_unique<Packet1Login>(minecraft.user->name, 14));
+		addToSendQueue(std::make_unique<Packet1Login>(minecraft.user->name, ClientTarget::loginProtocolVersion()));
 		return;
 	}
 
@@ -507,10 +510,13 @@ void NetClientHandler::handleCollect(Packet22Collect &packet)
 		collector = std::static_pointer_cast<Entity>(minecraft.player);
 	if (collected == nullptr || collector == nullptr || multiplayerLevel == nullptr)
 		return;
-	const float popA = random.nextFloat();
-	const float popB = random.nextFloat();
-	multiplayerLevel->playSoundAtEntity(*collected, u"random.pop", 0.2f,
-		((popA - popB) * 0.7f + 1.0f) * 2.0f);
+	if (!ClientTarget::useServerSoundEvents(multiplayerLevel->isOnline))
+	{
+		const float popA = random.nextFloat();
+		const float popB = random.nextFloat();
+		multiplayerLevel->playSoundAtEntity(*collected, u"random.pop", 0.2f,
+			((popA - popB) * 0.7f + 1.0f) * 2.0f);
+	}
 	minecraft.particleEngine.add(std::make_unique<TakeAnimationParticle>(
 		*multiplayerLevel, collected, collector, -0.5f));
 	multiplayerLevel->removeEntityById(packet.collectedEntityId);
@@ -764,6 +770,19 @@ void NetClientHandler::handleSignUpdate(Packet130UpdateSign &packet)
 	for (int_t i = 0; i < 4; ++i)
 		sign->signText.at(static_cast<size_t>(i)) = packet.signLines.at(static_cast<size_t>(i));
 	sign->setChanged();
+}
+
+void NetClientHandler::handle62Sound(Packet62Sound &packet)
+{
+	minecraft.soundEngine.play(packet.sound,
+		static_cast<float>(packet.locX), static_cast<float>(packet.locY), static_cast<float>(packet.locZ),
+		packet.volume, packet.pitch);
+}
+
+void NetClientHandler::handle63Digging(Packet63Digging &packet)
+{
+	minecraft.particleEngine.crack(packet.x, packet.y, packet.z, packet.face);
+	minecraft.gameRenderer.updateAlphaPlaceDigging(packet);
 }
 
 void NetClientHandler::func_25118_a(Packet70Bed &packet)

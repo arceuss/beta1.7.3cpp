@@ -1,4 +1,5 @@
 #include "world/entity/monster/Slime.h"
+#include "ClientTarget.h"
 
 #include "nbt/CompoundTag.h"
 #include "world/entity/player/Player.h"
@@ -47,7 +48,7 @@ void Slime::tick()
 			float pz = Mth::cos(angle) * size * 0.5f * dist;
 			level.addParticle(u"slime", x + px, bb.y0, z + pz, 0.0, 0.0, 0.0);
 		}
-		if (size > 2)
+		if (size > 2 && !ClientTarget::useServerSoundEvents(level.isOnline))
 		{
 			const float pitchA = random.nextFloat();
 			const float pitchB = random.nextFloat();
@@ -61,7 +62,8 @@ void Slime::tick()
 void Slime::playerTouch(Player &player)
 {
 	int_t size = getSlimeSize();
-	if (size > 1 && canSee(player) && distanceTo(player) < 0.6f * size && player.hurt(this, size))
+	if (size > 1 && canSee(player) && distanceTo(player) < 0.6f * size && player.hurt(this, size) &&
+		!ClientTarget::useServerSoundEvents(level.isOnline))
 	{
 		const float pitchA = random.nextFloat();
 		const float pitchB = random.nextFloat();
@@ -108,7 +110,7 @@ void Slime::updateAi()
 		if (target != nullptr)
 			slimeJumpDelay /= 3;
 		jumping = true;
-		if (getSlimeSize() > 1)
+		if (getSlimeSize() > 1 && !ClientTarget::useServerSoundEvents(level.isOnline))
 		{
 			const float pitchA = random.nextFloat();
 			const float pitchB = random.nextFloat();

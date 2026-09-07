@@ -15,6 +15,17 @@ cmake --build build --config Debug --target McBetaCpp
 
 cmake sends runtime output to `bin/`. with the debug command above, the executable ends up at `bin/Debug/McBetaCpp.exe` on the current windows build tree.
 
+### alphaplace client
+
+to build the alphaplace client variant, configure a separate build tree with `B173_TARGET_ALPHAPLACE` enabled. using a separate output suffix lets it live alongside the normal beta build:
+
+```bash
+cmake -S . -B build-alphaplace -DB173_TARGET_ALPHAPLACE=ON -DB173_OUTPUT_SUFFIX=-alphaplace
+cmake --build build-alphaplace --config Debug --target McBetaCpp
+```
+
+this produces `McBetaCpp-alphaplace` instead of replacing the normal `McBetaCpp` executable. leave `B173_TARGET_ALPHAPLACE` off for the regular beta 1.7.3 client.
+
 ### optional build settings
 
 all of these default off and keep the rendered output identical:

@@ -142,6 +142,7 @@ public:
 	bool updateDirtyChunks(Player &player, bool force);
 
 	void renderHit(Player &player, HitResult &h, int_t mode, ItemInstance *inventoryItem, float a);
+	void renderHit(Player &player, HitResult &h, int_t mode, ItemInstance *inventoryItem, float a, float progress);
 	void renderHitOutline(Player &player, HitResult &h, int_t mode, ItemInstance *inventoryItem, float a);
 
 private:

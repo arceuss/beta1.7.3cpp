@@ -1,4 +1,5 @@
 #include "world/entity/monster/PigZombie.h"
+#include "ClientTarget.h"
 
 #include "world/item/Item.h"
 #include "world/entity/player/Player.h"
@@ -25,7 +26,7 @@ PigZombie::PigZombie(Level &level) : Zombie(level)
 void PigZombie::tick()
 {
 	runSpeed = attackTarget != nullptr ? 0.95f : 0.5f;
-	if (playAngrySoundIn > 0 && --playAngrySoundIn == 0)
+	if (playAngrySoundIn > 0 && --playAngrySoundIn == 0 && !ClientTarget::useServerSoundEvents(level.isOnline))
 	{
 		const float pitchA = random.nextFloat();
 		const float pitchB = random.nextFloat();

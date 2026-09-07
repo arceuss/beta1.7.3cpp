@@ -2,7 +2,6 @@
 
 #include "client/Minecraft.h"
 #include "client/gui/Button.h"
-#include "client/title/TitleScreen.h"
 
 #include "java/String.h"
 
@@ -34,7 +33,7 @@ void DeathScreen::buttonClicked(Button &button)
 	else if (button.id == 2)
 	{
 		minecraft.setLevel(nullptr);
-		minecraft.setScreen(Util::make_shared<TitleScreen>(minecraft));
+		minecraft.setScreen(minecraft.createTitleScreen());
 	}
 }
 

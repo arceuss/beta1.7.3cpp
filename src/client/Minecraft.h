@@ -153,6 +153,7 @@ private:
 public:
 	static const std::shared_ptr<File> &getWorkingDirectory();
 
+	std::shared_ptr<Screen> createTitleScreen();
 	void setScreen(std::shared_ptr<Screen> screen);
 
 private:

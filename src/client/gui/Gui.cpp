@@ -1,4 +1,5 @@
 #include "client/gui/Gui.h"
+#include "ClientTarget.h"
 
 #include "client/spc/SPCCommand.h"
 #include "client/Lighting.h"
@@ -333,6 +334,10 @@ void Gui::render(float a, bool inScreen, int_t xm, int_t ym)
 		drawString(font, u"z: " + String::toString(minecraft.player->z), 2, 80, 0xE0E0E0);
 		int_t facing = Mth::floor(static_cast<double>(minecraft.player->yRot * 4.0f / 360.0f) + 0.5) & 3;
 		drawString(font, u"f: " + String::toString(facing), 2, 88, 0xE0E0E0);
+	}
+	else if (ClientTarget::isAlphaPlace())
+	{
+		font.drawShadow(Minecraft::VERSION_STRING, 2, 2, 0xFFFFFF);
 	}
 
 	if (nowPlayingTime > 0)

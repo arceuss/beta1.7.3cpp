@@ -1,4 +1,5 @@
 #include "world/entity/Entity.h"
+#include "ClientTarget.h"
 
 #include "world/entity/item/EntityItem.h"
 #include "world/level/Level.h"
@@ -133,9 +134,12 @@ void Entity::baseTick()
 			float splashVolume = Mth::sqrt(xd * xd * 0.2f + yd * yd + zd * zd * 0.2f) * 0.2f;
 			if (splashVolume > 1.0f)
 				splashVolume = 1.0f;
-			const float splashA = random.nextFloat();
-			const float splashB = random.nextFloat();
-			level.playSoundAtEntity(*this, u"random.splash", splashVolume, 1.0f + (splashA - splashB) * 0.4f);
+			if (!ClientTarget::useServerSoundEvents(level.isOnline))
+			{
+				const float splashA = random.nextFloat();
+				const float splashB = random.nextFloat();
+				level.playSoundAtEntity(*this, u"random.splash", splashVolume, 1.0f + (splashA - splashB) * 0.4f);
+			}
 
 			float waterY = static_cast<float>(Mth::floor(bb.y0));
 			for (int_t i = 0; i < static_cast<int_t>(1.0f + bbWidth * 20.0f); i++)
@@ -425,7 +429,7 @@ void Entity::move(double xd, double yd, double zd)
 		{
 			nextStep++;
 
-			if (Tile::tiles[stile]->soundType != nullptr)
+			if (Tile::tiles[stile]->soundType != nullptr && !ClientTarget::useServerSoundEvents(level.isOnline))
 			{
 				StepSound *ss = Tile::tiles[stile]->soundType;
 				// Check for snow on top of block (Java Entity.java:450-451)

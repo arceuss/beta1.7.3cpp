@@ -1,4 +1,5 @@
 #include "world/item/ItemFishingRod.h"
+#include "ClientTarget.h"
 
 #include <memory>
 
@@ -24,8 +25,9 @@ void ItemFishingRod::use(ItemInstance &stack, Level &level, Player &player) cons
 	}
 	else
 	{
-		level.playSoundAtEntity(player, u"random.bow", 0.5f,
-			0.4f / (itemRandom.nextFloat() * 0.4f + 0.8f));
+		if (!ClientTarget::useServerSoundEvents(level.isOnline))
+			level.playSoundAtEntity(player, u"random.bow", 0.5f,
+				0.4f / (itemRandom.nextFloat() * 0.4f + 0.8f));
 		if (!level.isOnline)
 		{
 			auto fish = std::make_shared<EntityFish>(level, player);

@@ -1,4 +1,5 @@
 #include "world/level/Explosion.h"
+#include "ClientTarget.h"
 
 #include <cmath>
 #include "world/level/Level.h"
@@ -131,10 +132,13 @@ void Explosion::doExplosionA()
 
 void Explosion::doExplosionB(bool particles)
 {
-	const float fa = level.random.nextFloat();
-	const float fb = level.random.nextFloat();
-	level.playSoundEffect(explosionX, explosionY, explosionZ, u"random.explode",
-		4.0f, (1.0f + (fa - fb) * 0.2f) * 0.7f);
+	if (!ClientTarget::useServerSoundEvents(level.isOnline))
+	{
+		const float fa = level.random.nextFloat();
+		const float fb = level.random.nextFloat();
+		level.playSoundEffect(explosionX, explosionY, explosionZ, u"random.explode",
+			4.0f, (1.0f + (fa - fb) * 0.2f) * 0.7f);
+	}
 
 	std::vector<TilePos> blocks(destroyedBlockPositions.begin(), destroyedBlockPositions.end());
 

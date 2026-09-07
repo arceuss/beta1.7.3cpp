@@ -18,6 +18,8 @@
 #include "client/gui/AchievementToast.h"
 #include "client/gui/SleepScreen.h"
 #include "client/title/TitleScreen.h"
+#include "client/title/AlphaPlaceTitleScreen.h"
+#include "ClientTarget.h"
 #include "client/player/KeyboardInput.h"
 #include "client/spc/SPCCommand.h"
 #include "client/ScreenShotHelper.h"
@@ -146,7 +148,7 @@ void Minecraft::init(std::shared_ptr<File> directory)
 	if (!unattended)
 	{
 		if (serverHost.empty())
-			setScreen(Util::make_shared<TitleScreen>(*this));
+			setScreen(createTitleScreen());
 		else
 			setScreen(Util::make_shared<ConnectingScreen>(*this, serverHost, serverPort));
 	}
@@ -227,6 +229,13 @@ const std::shared_ptr<File> &Minecraft::getWorkingDirectory()
 	return workDir;
 }
 
+std::shared_ptr<Screen> Minecraft::createTitleScreen()
+{
+	if (ClientTarget::isAlphaPlace())
+		return Util::make_shared<AlphaPlaceTitleScreen>(*this);
+	return Util::make_shared<TitleScreen>(*this);
+}
+
 void Minecraft::setScreen(std::shared_ptr<Screen> screen)
 {
 	if (this->screen != nullptr)
@@ -235,10 +244,11 @@ void Minecraft::setScreen(std::shared_ptr<Screen> screen)
 		statFileWriter->syncStats();
 
 	if (screen == nullptr && level == nullptr)
-		screen = Util::make_shared<TitleScreen>(*this);
+		screen = createTitleScreen();
 	else if (screen == nullptr && player != nullptr && player->health <= 0)
 		screen = Util::make_shared<DeathScreen>(*this);
-	if (std::dynamic_pointer_cast<TitleScreen>(screen) != nullptr)
+	if (std::dynamic_pointer_cast<TitleScreen>(screen) != nullptr ||
+		std::dynamic_pointer_cast<AlphaPlaceTitleScreen>(screen) != nullptr)
 		SPCCommand::messages.clear();
 
 	this->screen = std::move(screen);

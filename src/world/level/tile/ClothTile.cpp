@@ -1,4 +1,5 @@
 #include "world/level/tile/ClothTile.h"
+#include "ClientTarget.h"
 
 ClothTile::ClothTile(int_t id, int_t tex, const Material &material) : Tile(id, tex, material)
 {
@@ -6,7 +7,7 @@ ClothTile::ClothTile(int_t id, int_t tex, const Material &material) : Tile(id, t
 
 int_t ClothTile::getTexture(Facing face, int_t data)
 {
-	if (data == 0)
+	if (ClientTarget::isAlphaPlace() || data == 0)
 		return tex;
 
 	int_t inv = ~(data & 15);

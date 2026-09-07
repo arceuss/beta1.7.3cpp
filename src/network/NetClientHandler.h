@@ -73,6 +73,8 @@ public:
 	void handleNotePlay(Packet54PlayNoteBlock &packet) override;
 	void func_12245_a(Packet60Explosion &packet) override;
 	void func_28115_a(Packet61DoorChange &packet) override;
+	void handle62Sound(Packet62Sound &packet) override;
+	void handle63Digging(Packet63Digging &packet) override;
 	void func_25118_a(Packet70Bed &packet) override;
 	void handleWeather(Packet71Weather &packet) override;
 	void func_20087_a(Packet100OpenWindow &packet) override;
