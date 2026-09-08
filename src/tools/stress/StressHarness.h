@@ -33,12 +33,14 @@ struct Options
 	std::string logPath;
 	std::string capturePath;
 	int fancyGraphics = 1;
+	int ambientOcclusion = -1;
 	int frames = 0;
 	int tickInterval = 3;
 	int warmupFrames = 60;
 	int sampleEvery = 100;
 	int viewDistance = 0;
 	int anaglyph = 0;
+	int occlusion = 0;
 	int regionRenderer = -1;
 	int cacheClouds = -1;
 	bool frameHash = false;

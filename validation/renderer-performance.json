@@ -1,0 +1,1398 @@
+{
+  "measurement": "CPU-inclusive frame timings, not GPU timestamps",
+  "execution": "Backends executed sequentially; validation and forced GPU finish disabled",
+  "workload": {
+    "measured_frames": 1000,
+    "warmup_frames": 300,
+    "view_distance": 1,
+    "fancy": true,
+    "ambient_occlusion": true,
+    "anaglyph": false,
+    "seed": 1234567,
+    "mobs_count": 100
+  },
+  "hardware": "NVIDIA GeForce RTX 5070, Windows 10, MSVC Release",
+  "before": [
+    {
+      "scene": "idle",
+      "backend": "compat",
+      "exit_code": 0,
+      "min_ms": 0.8872,
+      "median_ms": 2.29855,
+      "p95_ms": 6.3578,
+      "mean_ms": 2.9846996,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.29855,
+          "total_ms": 2984.6996
+        },
+        "tick": {
+          "median_ms": 1.3256,
+          "total_ms": 560.0741
+        },
+        "entity_tick": {
+          "median_ms": 0.04305,
+          "total_ms": 39.9715
+        },
+        "lighting": {
+          "median_ms": 0.12935,
+          "total_ms": 306.5775
+        },
+        "chunk_generation": {
+          "median_ms": 1.3756,
+          "total_ms": 17.7286
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 0.9731
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7261,
+          "total_ms": 979.4066
+        },
+        "chunk_publication": {
+          "median_ms": 0.0237,
+          "total_ms": 27.0393
+        },
+        "terrain_render": {
+          "median_ms": 0.23325,
+          "total_ms": 171.4703
+        },
+        "entity_render": {
+          "median_ms": 0.0006,
+          "total_ms": 1.8173
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.1896
+        },
+        "gui": {
+          "median_ms": 0.0288,
+          "total_ms": 23.3464
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.0883
+        },
+        "io": {
+          "median_ms": 0.00985,
+          "total_ms": 13.3915
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "gl33",
+      "exit_code": 0,
+      "min_ms": 2.4185,
+      "median_ms": 3.9448,
+      "p95_ms": 8.5582,
+      "mean_ms": 4.7760007,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 3.9448,
+          "total_ms": 4776.0007
+        },
+        "tick": {
+          "median_ms": 1.35465,
+          "total_ms": 583.593
+        },
+        "entity_tick": {
+          "median_ms": 0.04905,
+          "total_ms": 45.1969
+        },
+        "lighting": {
+          "median_ms": 0.12925,
+          "total_ms": 310.144
+        },
+        "chunk_generation": {
+          "median_ms": 1.3579,
+          "total_ms": 17.6417
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.001,
+          "total_ms": 1.1446
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7562,
+          "total_ms": 1013.9422
+        },
+        "chunk_publication": {
+          "median_ms": 0.0361,
+          "total_ms": 46.1215
+        },
+        "terrain_render": {
+          "median_ms": 0.90625,
+          "total_ms": 980.9791
+        },
+        "entity_render": {
+          "median_ms": 0.0008,
+          "total_ms": 3.3494
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.2282
+        },
+        "gui": {
+          "median_ms": 0.1199,
+          "total_ms": 122.783
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1157
+        },
+        "io": {
+          "median_ms": 0.01035,
+          "total_ms": 14.0592
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "gles2",
+      "exit_code": 0,
+      "min_ms": 2.2446,
+      "median_ms": 4.60615,
+      "p95_ms": 10.994,
+      "mean_ms": 5.6143528,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 4.60615,
+          "total_ms": 5614.3528
+        },
+        "tick": {
+          "median_ms": 1.38115,
+          "total_ms": 590.1861
+        },
+        "entity_tick": {
+          "median_ms": 0.04915,
+          "total_ms": 46.5637
+        },
+        "lighting": {
+          "median_ms": 0.1333,
+          "total_ms": 311.0366
+        },
+        "chunk_generation": {
+          "median_ms": 1.3867,
+          "total_ms": 18.1466
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0011,
+          "total_ms": 1.2696
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.75345,
+          "total_ms": 998.3251
+        },
+        "chunk_publication": {
+          "median_ms": 0.0381,
+          "total_ms": 48.5131
+        },
+        "terrain_render": {
+          "median_ms": 1.57505,
+          "total_ms": 1815.8718
+        },
+        "entity_render": {
+          "median_ms": 0.001,
+          "total_ms": 3.8488
+        },
+        "particles": {
+          "median_ms": 0.0003,
+          "total_ms": 0.2957
+        },
+        "gui": {
+          "median_ms": 0.1172,
+          "total_ms": 120.8044
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.133
+        },
+        "io": {
+          "median_ms": 0.0103,
+          "total_ms": 12.6012
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "vulkan",
+      "exit_code": 0,
+      "min_ms": 10.6983,
+      "median_ms": 16.601,
+      "p95_ms": 19.5326,
+      "mean_ms": 16.6583803,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 16.601,
+          "total_ms": 16658.3803
+        },
+        "tick": {
+          "median_ms": 1.3548,
+          "total_ms": 583.6031
+        },
+        "entity_tick": {
+          "median_ms": 0.0492,
+          "total_ms": 46.5497
+        },
+        "lighting": {
+          "median_ms": 0.1369,
+          "total_ms": 306.1735
+        },
+        "chunk_generation": {
+          "median_ms": 1.3413,
+          "total_ms": 17.4567
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0014,
+          "total_ms": 1.6044
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.79845,
+          "total_ms": 1003.2894
+        },
+        "chunk_publication": {
+          "median_ms": 0.0254,
+          "total_ms": 30.4246
+        },
+        "terrain_render": {
+          "median_ms": 0.6299,
+          "total_ms": 695.925
+        },
+        "entity_render": {
+          "median_ms": 0.0014,
+          "total_ms": 3.7182
+        },
+        "particles": {
+          "median_ms": 0.0003,
+          "total_ms": 0.3385
+        },
+        "gui": {
+          "median_ms": 0.0671,
+          "total_ms": 68.6832
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.133
+        },
+        "io": {
+          "median_ms": 0.0104,
+          "total_ms": 12.5507
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "d3d12",
+      "exit_code": 0,
+      "min_ms": 1.1676,
+      "median_ms": 2.63165,
+      "p95_ms": 7.3243,
+      "mean_ms": 3.4921747,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.63165,
+          "total_ms": 3492.1747
+        },
+        "tick": {
+          "median_ms": 1.3348,
+          "total_ms": 575.0135
+        },
+        "entity_tick": {
+          "median_ms": 0.04525,
+          "total_ms": 42.8868
+        },
+        "lighting": {
+          "median_ms": 0.1269,
+          "total_ms": 302.9481
+        },
+        "chunk_generation": {
+          "median_ms": 1.3633,
+          "total_ms": 17.5469
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 1.0604
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.72305,
+          "total_ms": 962.902
+        },
+        "chunk_publication": {
+          "median_ms": 0.0232,
+          "total_ms": 29.0105
+        },
+        "terrain_render": {
+          "median_ms": 0.66255,
+          "total_ms": 737.0584
+        },
+        "entity_render": {
+          "median_ms": 0.0007,
+          "total_ms": 2.6891
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.2352
+        },
+        "gui": {
+          "median_ms": 0.08505,
+          "total_ms": 87.6468
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1026
+        },
+        "io": {
+          "median_ms": 0.00945,
+          "total_ms": 12.9051
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "compat",
+      "exit_code": 0,
+      "min_ms": 1.034,
+      "median_ms": 2.11785,
+      "p95_ms": 5.2611,
+      "mean_ms": 2.7383721999999997,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.11785,
+          "total_ms": 2738.3722
+        },
+        "tick": {
+          "median_ms": 1.6195,
+          "total_ms": 625.9674
+        },
+        "entity_tick": {
+          "median_ms": 0.4376,
+          "total_ms": 163.8041
+        },
+        "lighting": {
+          "median_ms": 0.0381,
+          "total_ms": 180.9718
+        },
+        "chunk_generation": {
+          "median_ms": 1.451,
+          "total_ms": 2.902
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 0.8814
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7281,
+          "total_ms": 750.9013
+        },
+        "chunk_publication": {
+          "median_ms": 0.0246,
+          "total_ms": 25.2177
+        },
+        "terrain_render": {
+          "median_ms": 0.2333,
+          "total_ms": 222.4526
+        },
+        "entity_render": {
+          "median_ms": 0.1307,
+          "total_ms": 134.8183
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.1793
+        },
+        "gui": {
+          "median_ms": 0.0291,
+          "total_ms": 28.438
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.094
+        },
+        "io": {
+          "median_ms": 1.4777,
+          "total_ms": 12.3631
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "gl33",
+      "exit_code": 0,
+      "min_ms": 3.771,
+      "median_ms": 5.34555,
+      "p95_ms": 8.7181,
+      "mean_ms": 5.9280546,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 5.34555,
+          "total_ms": 5928.0546
+        },
+        "tick": {
+          "median_ms": 1.75665,
+          "total_ms": 671.8534
+        },
+        "entity_tick": {
+          "median_ms": 0.49005,
+          "total_ms": 181.9526
+        },
+        "lighting": {
+          "median_ms": 0.0397,
+          "total_ms": 184.5661
+        },
+        "chunk_generation": {
+          "median_ms": 1.54525,
+          "total_ms": 3.0905
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0009,
+          "total_ms": 1.0124
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7489,
+          "total_ms": 760.3288
+        },
+        "chunk_publication": {
+          "median_ms": 0.0359,
+          "total_ms": 37.9527
+        },
+        "terrain_render": {
+          "median_ms": 0.8905,
+          "total_ms": 905.4997
+        },
+        "entity_render": {
+          "median_ms": 1.548,
+          "total_ms": 1562.442
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.2196
+        },
+        "gui": {
+          "median_ms": 0.1209,
+          "total_ms": 124.8656
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1293
+        },
+        "io": {
+          "median_ms": 1.6734,
+          "total_ms": 13.8412
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "gles2",
+      "exit_code": 0,
+      "min_ms": 3.8414,
+      "median_ms": 6.0169,
+      "p95_ms": 9.7605,
+      "mean_ms": 6.5622124,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 6.0169,
+          "total_ms": 6562.2124
+        },
+        "tick": {
+          "median_ms": 1.7825,
+          "total_ms": 675.6213
+        },
+        "entity_tick": {
+          "median_ms": 0.4996,
+          "total_ms": 186.6288
+        },
+        "lighting": {
+          "median_ms": 0.0412,
+          "total_ms": 182.0703
+        },
+        "chunk_generation": {
+          "median_ms": 1.4321,
+          "total_ms": 2.8642
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.001,
+          "total_ms": 1.0726
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.73515,
+          "total_ms": 751.7021
+        },
+        "chunk_publication": {
+          "median_ms": 0.0368,
+          "total_ms": 39.2769
+        },
+        "terrain_render": {
+          "median_ms": 1.53285,
+          "total_ms": 1593.1616
+        },
+        "entity_render": {
+          "median_ms": 1.5098,
+          "total_ms": 1522.2205
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.2806
+        },
+        "gui": {
+          "median_ms": 0.1184,
+          "total_ms": 121.8354
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1445
+        },
+        "io": {
+          "median_ms": 1.48355,
+          "total_ms": 12.353
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "vulkan",
+      "exit_code": 0,
+      "min_ms": 14.6385,
+      "median_ms": 16.66445,
+      "p95_ms": 17.8156,
+      "mean_ms": 16.6590248,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 16.66445,
+          "total_ms": 16659.0248
+        },
+        "tick": {
+          "median_ms": 1.73405,
+          "total_ms": 663.3943
+        },
+        "entity_tick": {
+          "median_ms": 0.50495,
+          "total_ms": 187.8115
+        },
+        "lighting": {
+          "median_ms": 0.0392,
+          "total_ms": 182.8592
+        },
+        "chunk_generation": {
+          "median_ms": 1.45765,
+          "total_ms": 2.9153
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0014,
+          "total_ms": 1.5106
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7829,
+          "total_ms": 783.7979
+        },
+        "chunk_publication": {
+          "median_ms": 0.0232,
+          "total_ms": 24.6498
+        },
+        "terrain_render": {
+          "median_ms": 0.636,
+          "total_ms": 643.3445
+        },
+        "entity_render": {
+          "median_ms": 0.7449,
+          "total_ms": 750.7213
+        },
+        "particles": {
+          "median_ms": 0.0003,
+          "total_ms": 0.2879
+        },
+        "gui": {
+          "median_ms": 0.06635,
+          "total_ms": 67.5862
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1551
+        },
+        "io": {
+          "median_ms": 1.4907,
+          "total_ms": 12.5404
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "d3d12",
+      "exit_code": 0,
+      "min_ms": 1.8412,
+      "median_ms": 3.35195,
+      "p95_ms": 6.5736,
+      "mean_ms": 3.9146974,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 3.35195,
+          "total_ms": 3914.6974
+        },
+        "tick": {
+          "median_ms": 1.6986,
+          "total_ms": 648.0465
+        },
+        "entity_tick": {
+          "median_ms": 0.4873,
+          "total_ms": 178.005
+        },
+        "lighting": {
+          "median_ms": 0.03985,
+          "total_ms": 179.3048
+        },
+        "chunk_generation": {
+          "median_ms": 1.43265,
+          "total_ms": 2.8653
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 0.878
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7163,
+          "total_ms": 726.7633
+        },
+        "chunk_publication": {
+          "median_ms": 0.021,
+          "total_ms": 22.5276
+        },
+        "terrain_render": {
+          "median_ms": 0.63575,
+          "total_ms": 655.3718
+        },
+        "entity_render": {
+          "median_ms": 0.77835,
+          "total_ms": 783.8629
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.2438
+        },
+        "gui": {
+          "median_ms": 0.0848,
+          "total_ms": 87.8162
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.0924
+        },
+        "io": {
+          "median_ms": 1.4913,
+          "total_ms": 12.2432
+        }
+      }
+    }
+  ],
+  "after": [
+    {
+      "scene": "idle",
+      "backend": "compat",
+      "exit_code": 0,
+      "min_ms": 0.902,
+      "median_ms": 2.29885,
+      "p95_ms": 6.2819,
+      "mean_ms": 2.9894616000000003,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.29885,
+          "total_ms": 2989.4616
+        },
+        "tick": {
+          "median_ms": 1.299,
+          "total_ms": 562.5951
+        },
+        "entity_tick": {
+          "median_ms": 0.042,
+          "total_ms": 41.4492
+        },
+        "lighting": {
+          "median_ms": 0.1298,
+          "total_ms": 306.9527
+        },
+        "chunk_generation": {
+          "median_ms": 1.3752,
+          "total_ms": 17.7705
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 1.0293
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7313,
+          "total_ms": 980.8623
+        },
+        "chunk_publication": {
+          "median_ms": 0.0244,
+          "total_ms": 27.8472
+        },
+        "terrain_render": {
+          "median_ms": 0.244,
+          "total_ms": 182.277
+        },
+        "entity_render": {
+          "median_ms": 0.0006,
+          "total_ms": 2.2734
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.196
+        },
+        "gui": {
+          "median_ms": 0.0289,
+          "total_ms": 24.0108
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.0821
+        },
+        "io": {
+          "median_ms": 0.0109,
+          "total_ms": 13.6589
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "gl33",
+      "exit_code": 0,
+      "min_ms": 1.4955,
+      "median_ms": 3.0071,
+      "p95_ms": 8.1779,
+      "mean_ms": 3.9515661,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 3.0071,
+          "total_ms": 3951.5661
+        },
+        "tick": {
+          "median_ms": 1.4309,
+          "total_ms": 611.4553
+        },
+        "entity_tick": {
+          "median_ms": 0.0496,
+          "total_ms": 47.3536
+        },
+        "lighting": {
+          "median_ms": 0.13365,
+          "total_ms": 311.7369
+        },
+        "chunk_generation": {
+          "median_ms": 1.365,
+          "total_ms": 17.5938
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0009,
+          "total_ms": 1.1512
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7324,
+          "total_ms": 992.5973
+        },
+        "chunk_publication": {
+          "median_ms": 0.0264,
+          "total_ms": 33.6591
+        },
+        "terrain_render": {
+          "median_ms": 0.5322,
+          "total_ms": 633.9899
+        },
+        "entity_render": {
+          "median_ms": 0.0009,
+          "total_ms": 3.4455
+        },
+        "particles": {
+          "median_ms": 0.0003,
+          "total_ms": 0.2809
+        },
+        "gui": {
+          "median_ms": 0.082,
+          "total_ms": 82.3018
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1347
+        },
+        "io": {
+          "median_ms": 0.01035,
+          "total_ms": 14.0483
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "gles2",
+      "exit_code": 0,
+      "min_ms": 1.1973,
+      "median_ms": 2.69915,
+      "p95_ms": 7.8614,
+      "mean_ms": 3.648848,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.69915,
+          "total_ms": 3648.848
+        },
+        "tick": {
+          "median_ms": 1.40775,
+          "total_ms": 601.063
+        },
+        "entity_tick": {
+          "median_ms": 0.04805,
+          "total_ms": 45.3068
+        },
+        "lighting": {
+          "median_ms": 0.12975,
+          "total_ms": 309.7206
+        },
+        "chunk_generation": {
+          "median_ms": 1.3716,
+          "total_ms": 17.6507
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 1.0594
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.72685,
+          "total_ms": 984.8606
+        },
+        "chunk_publication": {
+          "median_ms": 0.0263,
+          "total_ms": 33.2596
+        },
+        "terrain_render": {
+          "median_ms": 0.51965,
+          "total_ms": 622.5766
+        },
+        "entity_render": {
+          "median_ms": 0.0008,
+          "total_ms": 2.8221
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.256
+        },
+        "gui": {
+          "median_ms": 0.071,
+          "total_ms": 70.6538
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1199
+        },
+        "io": {
+          "median_ms": 0.01105,
+          "total_ms": 13.6755
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "vulkan",
+      "exit_code": 0,
+      "min_ms": 1.1929,
+      "median_ms": 2.68745,
+      "p95_ms": 7.082,
+      "mean_ms": 3.5202993,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.68745,
+          "total_ms": 3520.2993
+        },
+        "tick": {
+          "median_ms": 1.30465,
+          "total_ms": 567.3578
+        },
+        "entity_tick": {
+          "median_ms": 0.0464,
+          "total_ms": 43.1024
+        },
+        "lighting": {
+          "median_ms": 0.1323,
+          "total_ms": 308.343
+        },
+        "chunk_generation": {
+          "median_ms": 1.3625,
+          "total_ms": 17.6305
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0009,
+          "total_ms": 1.0755
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.73815,
+          "total_ms": 985.7228
+        },
+        "chunk_publication": {
+          "median_ms": 0.0232,
+          "total_ms": 28.8469
+        },
+        "terrain_render": {
+          "median_ms": 0.53955,
+          "total_ms": 602.8456
+        },
+        "entity_render": {
+          "median_ms": 0.0007,
+          "total_ms": 2.5858
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.1819
+        },
+        "gui": {
+          "median_ms": 0.0522,
+          "total_ms": 54.5066
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1041
+        },
+        "io": {
+          "median_ms": 0.01085,
+          "total_ms": 13.3542
+        }
+      }
+    },
+    {
+      "scene": "idle",
+      "backend": "d3d12",
+      "exit_code": 0,
+      "min_ms": 0.8669,
+      "median_ms": 2.27125,
+      "p95_ms": 6.9041,
+      "mean_ms": 3.1383649,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.27125,
+          "total_ms": 3138.3649
+        },
+        "tick": {
+          "median_ms": 1.31455,
+          "total_ms": 573.7165
+        },
+        "entity_tick": {
+          "median_ms": 0.04305,
+          "total_ms": 41.5899
+        },
+        "lighting": {
+          "median_ms": 0.1303,
+          "total_ms": 303.2737
+        },
+        "chunk_generation": {
+          "median_ms": 1.3595,
+          "total_ms": 17.5703
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 1.0621
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7211,
+          "total_ms": 956.9051
+        },
+        "chunk_publication": {
+          "median_ms": 0.0229,
+          "total_ms": 28.8062
+        },
+        "terrain_render": {
+          "median_ms": 0.5562,
+          "total_ms": 620.0253
+        },
+        "entity_render": {
+          "median_ms": 0.0007,
+          "total_ms": 2.312
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.2101
+        },
+        "gui": {
+          "median_ms": 0.0607,
+          "total_ms": 62.8756
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.0796
+        },
+        "io": {
+          "median_ms": 0.00965,
+          "total_ms": 13.2204
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "compat",
+      "exit_code": 0,
+      "min_ms": 1.0547,
+      "median_ms": 2.1319,
+      "p95_ms": 5.2517,
+      "mean_ms": 2.7134838,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.1319,
+          "total_ms": 2713.4838
+        },
+        "tick": {
+          "median_ms": 1.6165,
+          "total_ms": 616.9093
+        },
+        "entity_tick": {
+          "median_ms": 0.43505,
+          "total_ms": 163.8806
+        },
+        "lighting": {
+          "median_ms": 0.03805,
+          "total_ms": 180.7881
+        },
+        "chunk_generation": {
+          "median_ms": 1.4437,
+          "total_ms": 2.8874
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 0.8438
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7386,
+          "total_ms": 762.1017
+        },
+        "chunk_publication": {
+          "median_ms": 0.0245,
+          "total_ms": 24.8369
+        },
+        "terrain_render": {
+          "median_ms": 0.2309,
+          "total_ms": 217.9429
+        },
+        "entity_render": {
+          "median_ms": 0.128,
+          "total_ms": 124.9879
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.1784
+        },
+        "gui": {
+          "median_ms": 0.0289,
+          "total_ms": 28.1864
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.0916
+        },
+        "io": {
+          "median_ms": 1.49725,
+          "total_ms": 12.6072
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "gl33",
+      "exit_code": 0,
+      "min_ms": 1.5593,
+      "median_ms": 3.0853,
+      "p95_ms": 6.5414,
+      "mean_ms": 3.695351,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 3.0853,
+          "total_ms": 3695.351
+        },
+        "tick": {
+          "median_ms": 1.7987,
+          "total_ms": 677.2678
+        },
+        "entity_tick": {
+          "median_ms": 0.5024,
+          "total_ms": 184.1323
+        },
+        "lighting": {
+          "median_ms": 0.0395,
+          "total_ms": 185.743
+        },
+        "chunk_generation": {
+          "median_ms": 1.4545,
+          "total_ms": 2.909
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 0.8874
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.72415,
+          "total_ms": 740.4067
+        },
+        "chunk_publication": {
+          "median_ms": 0.0242,
+          "total_ms": 25.9291
+        },
+        "terrain_render": {
+          "median_ms": 0.49555,
+          "total_ms": 524.7184
+        },
+        "entity_render": {
+          "median_ms": 0.12805,
+          "total_ms": 137.8471
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.2024
+        },
+        "gui": {
+          "median_ms": 0.0818,
+          "total_ms": 82.0915
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1165
+        },
+        "io": {
+          "median_ms": 1.65645,
+          "total_ms": 13.8656
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "gles2",
+      "exit_code": 0,
+      "min_ms": 1.2218,
+      "median_ms": 2.72595,
+      "p95_ms": 6.1069,
+      "mean_ms": 3.3817471,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.72595,
+          "total_ms": 3381.7471
+        },
+        "tick": {
+          "median_ms": 1.75955,
+          "total_ms": 670.2984
+        },
+        "entity_tick": {
+          "median_ms": 0.4862,
+          "total_ms": 182.6901
+        },
+        "lighting": {
+          "median_ms": 0.0404,
+          "total_ms": 182.9252
+        },
+        "chunk_generation": {
+          "median_ms": 1.4509,
+          "total_ms": 2.9018
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0007,
+          "total_ms": 0.8199
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7219,
+          "total_ms": 737.8141
+        },
+        "chunk_publication": {
+          "median_ms": 0.024,
+          "total_ms": 25.5042
+        },
+        "terrain_render": {
+          "median_ms": 0.4929,
+          "total_ms": 520.9152
+        },
+        "entity_render": {
+          "median_ms": 0.1305,
+          "total_ms": 139.9493
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.1836
+        },
+        "gui": {
+          "median_ms": 0.07085,
+          "total_ms": 70.9696
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1128
+        },
+        "io": {
+          "median_ms": 1.65325,
+          "total_ms": 14.0113
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "vulkan",
+      "exit_code": 0,
+      "min_ms": 1.3873,
+      "median_ms": 2.7223,
+      "p95_ms": 5.848,
+      "mean_ms": 3.3101667000000004,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.7223,
+          "total_ms": 3310.1667
+        },
+        "tick": {
+          "median_ms": 1.6565,
+          "total_ms": 633.6703
+        },
+        "entity_tick": {
+          "median_ms": 0.456,
+          "total_ms": 173.4294
+        },
+        "lighting": {
+          "median_ms": 0.03935,
+          "total_ms": 181.1766
+        },
+        "chunk_generation": {
+          "median_ms": 1.45815,
+          "total_ms": 2.9163
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0008,
+          "total_ms": 1.036
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.72985,
+          "total_ms": 752.2485
+        },
+        "chunk_publication": {
+          "median_ms": 0.0206,
+          "total_ms": 22.4175
+        },
+        "terrain_render": {
+          "median_ms": 0.51875,
+          "total_ms": 533.6941
+        },
+        "entity_render": {
+          "median_ms": 0.18115,
+          "total_ms": 189.8415
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.1793
+        },
+        "gui": {
+          "median_ms": 0.0512,
+          "total_ms": 53.5352
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.1083
+        },
+        "io": {
+          "median_ms": 1.5375,
+          "total_ms": 12.9385
+        }
+      }
+    },
+    {
+      "scene": "mobs",
+      "backend": "d3d12",
+      "exit_code": 0,
+      "min_ms": 1.0155,
+      "median_ms": 2.3623,
+      "p95_ms": 5.7261,
+      "mean_ms": 2.9561242,
+      "frames": 1000,
+      "sections": {
+        "frame": {
+          "median_ms": 2.3623,
+          "total_ms": 2956.1242
+        },
+        "tick": {
+          "median_ms": 1.64455,
+          "total_ms": 635.8161
+        },
+        "entity_tick": {
+          "median_ms": 0.45595,
+          "total_ms": 168.3479
+        },
+        "lighting": {
+          "median_ms": 0.0394,
+          "total_ms": 179.1893
+        },
+        "chunk_generation": {
+          "median_ms": 1.44925,
+          "total_ms": 2.8985
+        },
+        "chunk_rebuild_capture": {
+          "median_ms": 0.0007,
+          "total_ms": 0.8392
+        },
+        "chunk_tessellation": {
+          "median_ms": 0.7164,
+          "total_ms": 723.7409
+        },
+        "chunk_publication": {
+          "median_ms": 0.0205,
+          "total_ms": 22.4706
+        },
+        "terrain_render": {
+          "median_ms": 0.53315,
+          "total_ms": 551.2812
+        },
+        "entity_render": {
+          "median_ms": 0.17965,
+          "total_ms": 185.4135
+        },
+        "particles": {
+          "median_ms": 0.0002,
+          "total_ms": 0.1873
+        },
+        "gui": {
+          "median_ms": 0.0601,
+          "total_ms": 62.3801
+        },
+        "sound": {
+          "median_ms": 0.0001,
+          "total_ms": 0.0835
+        },
+        "io": {
+          "median_ms": 1.486,
+          "total_ms": 12.2806
+        }
+      }
+    }
+  ],
+  "pipeline_key_microbenchmark": {
+    "iterations": 1000000,
+    "before": [
+      "iterations 1000000 allocations 1000000 elapsed_ns 96236000 checksum 0\n",
+      "iterations 1000000 allocations 1000000 elapsed_ns 97274100 checksum 0\n",
+      "iterations 1000000 allocations 1000000 elapsed_ns 94349800 checksum 0\n"
+    ],
+    "after": [
+      "iterations 1000000 allocations 0 elapsed_ns 10217700 checksum 17179935004000000\n",
+      "iterations 1000000 allocations 0 elapsed_ns 10398700 checksum 17179935004000000\n",
+      "iterations 1000000 allocations 0 elapsed_ns 10577200 checksum 17179935004000000\n"
+    ]
+  },
+  "csv_directories": [
+    "bin/performance-before",
+    "bin/performance-after",
+    "bin/performance-final-fastpath",
+    "bin/performance-final-gl-cache"
+  ]
+}

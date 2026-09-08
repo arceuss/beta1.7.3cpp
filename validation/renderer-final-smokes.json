@@ -1,0 +1,27 @@
+{
+  "compat": {
+    "exit_code": 0,
+    "stdout": "renderer pixel regressions passed: OpenGL compatibility\n",
+    "stderr": ""
+  },
+  "gl33": {
+    "exit_code": 0,
+    "stdout": "B173 renderer context: 3.3.0 NVIDIA 610.88, R8 G8 B8 A0 depth24\nrenderer pixel regressions passed: 3.3.0 NVIDIA 610.88 / NVIDIA GeForce RTX 5070/PCIe/SSE2\n",
+    "stderr": ""
+  },
+  "gles2": {
+    "exit_code": 0,
+    "stdout": "B173 renderer context: OpenGL ES 3.2 NVIDIA 610.88, R8 G8 B8 A0 depth24\nrenderer pixel regressions passed: OpenGL ES 3.2 NVIDIA 610.88 / NVIDIA GeForce RTX 5070/PCIe/SSE2\n",
+    "stderr": ""
+  },
+  "vulkan": {
+    "exit_code": 0,
+    "stdout": "renderer pixel regressions passed: Vulkan 1.4.341 - NVIDIA GeForce RTX 5070 (discrete GPU, driver 0x98960000) [immediate] [validation]\n",
+    "stderr": ""
+  },
+  "d3d12": {
+    "exit_code": 0,
+    "stdout": "renderer pixel regressions passed: Direct3D 12 feature level 12_1 on NVIDIA GeForce RTX 5070; R8G8B8A8_UNORM flip-discard swapchain, 3 buffers, D24_UNORM_S8_UINT depth; HLSL shader model 5.0 compiled at run time by D3DCompile; debug layer with GPU-based and synchronized-queue validation\n",
+    "stderr": "B173 D3D12 validation (severity 4, id 1016): Device Debug Layer Startup Options: GPU-Based Validation is enabled (disabled by default). This results in new validation not possible during API calls on the CPU, by creating patched shaders that have validation added directly to the shader. However, it can slow things down a lot, especially for applications with numerous PSOs. Time to see the first render frame may take several minutes.\n"
+  }
+}

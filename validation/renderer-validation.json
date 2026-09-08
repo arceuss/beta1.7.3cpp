@@ -1,0 +1,96 @@
+{
+  "status": "implemented_and_runtime_tested_on_recorded_hardware",
+  "hardware": {
+    "os": "Windows 10 10.0.19044",
+    "gpu": "NVIDIA GeForce RTX 5070",
+    "gl_driver": "610.88",
+    "core_context": "OpenGL 3.3 Core",
+    "gles_context": "OpenGL ES 3.2 with ES 2.0 API/GLSL ES 1.00 path",
+    "vulkan_device_api": "1.4.341",
+    "d3d12_feature_level": "12_1"
+  },
+  "matrix": {
+    "scenarios": 36,
+    "graphics_combinations": 8,
+    "settings": [
+      "fast/fancy",
+      "ambient occlusion off/on",
+      "anaglyph off/on"
+    ],
+    "cases_per_backend": 288,
+    "backends": [
+      "compat",
+      "gl33",
+      "gles2",
+      "vulkan",
+      "d3d12"
+    ],
+    "executions": 1440,
+    "all_exit_codes_zero": true,
+    "framebuffer": [
+      854,
+      480
+    ],
+    "measured_frames_per_case": 3,
+    "warmup_frames": 60,
+    "breaking_outline_warmup_frames": 240
+  },
+  "image_metrics": "renderer-image-metrics.json",
+  "difference_images": "bin/graphics-matrix-<backend>/<settings>/<scenario>/difference-*-x8.png",
+  "difference_image_amplification": 8,
+  "classification_notes": {
+    "exact_match": "No RGB channel differs.",
+    "documented_numeric_rasterization_variance": "Differences remain relative to the driver fixed-function oracle. Targeted probes establish matrix and signed-normal numeric differences; inspected worst native differences lie on one-pixel primitive edges. No blanket tolerance is applied to the stored measurements. Evidence IDs describe applicable mechanisms, not a per-pixel causal proof.",
+    "compatibility_matrix_and_normal_precision": "CPU transforms and explicit normal conversion do not duplicate every numeric approximation of the NVIDIA fixed-function implementation. The shared shader uses the explicit current signed-normal conversion rather than encoding an unverified driver-specific implementation.",
+    "primitive_edge_coverage": "OpenGL and explicit APIs may choose different coverage at primitive edges; worst native-versus-Core cases were isolated horizontal pixel rows.",
+    "clip_depth_rounding": "Vulkan and D3D12 require a clip-depth range conversion absent from the GL path.",
+    "expanded_line_coverage": "Native APIs without wide lines use shared pixel-width geometry. End/join coverage is not claimed bit-identical to every native line rasterizer."
+  },
+  "numeric_evidence": {
+    "matrix_probe": "double rotation index=6 driver=0.3420201242 cpu=0.342020154 driver_bits=3eaf1d43 cpu_bits=3eaf1d44\ndouble rotation index=9 driver=-0.3420201242 cpu=-0.342020154 driver_bits=beaf1d43 cpu_bits=beaf1d44\ndouble rotation changed=2\nfloat rotation changed=0\ndouble rotation changed=0\nfloat rotation changed=0\ndouble rotation index=5 driver=-0.9999999404 cpu=-1 driver_bits=bf7fffff cpu_bits=bf800000\ndouble rotation index=6 driver=-8.742277657e-08 cpu=1.224646853e-16 driver_bits=b3bbbd2e cpu_bits=250d3132\ndouble rotation index=9 driver=8.742277657e-08 cpu=-1.224646853e-16 driver_bits=33bbbd2e cpu_bits=a50d3132\ndouble rotation index=10 driver=-0.9999999404 cpu=-1 driver_bits=bf7fffff cpu_bits=bf800000\ndouble rotation changed=4\nfloat rotation index=5 driver=-0.9999999404 cpu=-1 driver_bits=bf7fffff cpu_bits=bf800000\nfloat rotation index=10 driver=-0.9999999404 cpu=-1 driver_bits=bf7fffff cpu_bits=bf800000\nfloat rotation changed=2\ndouble rotation index=5 driver=-0.5446389318 cpu=-0.544639051 driver_bits=bf0b6d75 cpu_bits=bf0b6d77\ndouble rotation index=10 driver=-0.5446389318 cpu=-0.544639051 driver_bits=bf0b6d75 cpu_bits=bf0b6d77\ndouble rotation changed=2\nfloat rotation index=5 driver=-0.5446389318 cpu=-0.544639051 driver_bits=bf0b6d75 cpu_bits=bf0b6d77\nfloat rotation index=10 driver=-0.5446389318 cpu=-0.544639051 driver_bits=bf0b6d75 cpu_bits=bf0b6d77\nfloat rotation changed=2\nidle camera index=0 driver=-0.9999999404 cpu=-1 driver_bits=bf7fffff cpu_bits=bf800000\nidle camera index=1 driver=-2.990034886e-08 cpu=4.188539212e-17 driver_bits=b3006bc8 cpu_bits=2441298b\nidle camera index=2 driver=8.215053526e-08 cpu=-1.150791668e-16 driver_bits=33b06abc cpu_bits=a504ad60\nidle camera index=6 driver=0.3420201242 cpu=0.342020154 driver_bits=3eaf1d43 cpu_bits=3eaf1d44\nidle camera index=8 driver=-8.742277657e-08 cpu=1.224646853e-16 driver_bits=b3bbbd2e cpu_bits=250d3132\nidle camera index=9 driver=0.3420200944 cpu=0.342020154 driver_bits=3eaf1d42 cpu_bits=3eaf1d44\nidle camera index=10 driver=-0.9396925569 cpu=-0.9396926165 driver_bits=bf708fb1 cpu_bits=bf708fb2\nidle camera changed=7\n",
+    "normal_probe_float_target": "code -128 float diffuse 0.9961241484 0.9961241484 0.9961241484 error 0\ncode -64 float diffuse 0.494155705 0.494155705 0.494155705 error 0\ncode -1 float diffuse 3.051850945e-05 3.051850945e-05 3.051850945e-05 error 0\ncode 0 float diffuse 0 0 0 error 0\ncode 1 float diffuse 0.007843256928 0.007843256928 0.007843256928 error 0\ncode 64 float diffuse 0.5019684434 0.5019684434 0.5019684434 error 0\ncode 127 float diffuse 0.9960936308 0.9960936308 0.9960936308 error 0\n",
+    "specifications": [
+      "https://registry.khronos.org/OpenGL/specs/gl/glspec46.compatibility.pdf",
+      "https://registry.khronos.org/OpenGL/specs/gl/glspec21.pdf",
+      "https://docs.vulkan.org/spec/latest/chapters/primsrast.html",
+      "https://learn.microsoft.com/windows/win32/direct3d11/d3d10-graphics-programming-guide-rasterizer-stage-rules"
+    ]
+  },
+  "additional_verification": [
+    "CPU matrix/topology/alpha/depth and signed-normal regressions",
+    "16-bit partitioning beyond 65536 vertices",
+    "actual pixel regressions on compat, Core, GLES, Vulkan and D3D12",
+    "GPU resource deletion, query reuse and asynchronous completion",
+    "window minimize/restore, deferred texture updates and repeated resize",
+    "Vulkan core and synchronization validation",
+    "D3D12 GPU-based and synchronized-queue validation",
+    "pooled terrain, cached clouds and real-game occlusion query paths",
+    "GCC -std=c++14 -pedantic-errors compile and execution of shared semantic tests",
+    "Fresh Ninja Multi-Config Debug build with Vulkan and D3D12 disabled, including runtime resource staging",
+    "Backend CLI validation, duplicate/missing values, environment precedence and real GPU selection"
+  ],
+  "limits": [
+    "Not a universal cross-driver pixel-parity certification.",
+    "ES 2.0-only hardware and fragment-mediump-only hardware were not available for execution.",
+    "No usable Linux/WSL runtime was available.",
+    "Non-opaque-only Vulkan surface composition was source-reviewed and compile-tested, not exercised on this surface."
+  ],
+  "performance": "renderer-performance.json",
+  "source_inventory": "legacy-gl-inventory.json",
+  "backend_selection": {
+    "argument": "--backend NAME or --backend=NAME",
+    "values": [
+      "compat",
+      "gl33",
+      "gles2",
+      "vulkan",
+      "d3d12"
+    ],
+    "precedence": [
+      "command line",
+      "B173_RENDERER",
+      "compat default"
+    ],
+    "verification": "renderer-cli-tests.json"
+  }
+}

@@ -221,3 +221,7 @@ B173_TRACE_GL(void, glViewport, (GLint x, GLint y, GLsizei width, GLsizei height
 #define glVertexPointer GLTrace::glVertexPointer
 #define glViewport GLTrace::glViewport
 #endif
+
+#if !defined(B173_NATIVE_GL)
+#include "BetaGLRedirect.h"
+#endif

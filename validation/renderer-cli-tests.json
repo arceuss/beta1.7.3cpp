@@ -1,0 +1,202 @@
+[
+  {
+    "case": "game missing value",
+    "args": [
+      "--backend"
+    ],
+    "expected_exit": 2,
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "McBetaCpp: Missing value for --backend\n"
+  },
+  {
+    "case": "game invalid value",
+    "args": [
+      "--backend",
+      "unknown"
+    ],
+    "expected_exit": 2,
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "McBetaCpp: Unknown backend 'unknown'; choose compat, gl33, gles2, vulkan or d3d12\n"
+  },
+  {
+    "case": "game invalid inline value",
+    "args": [
+      "--backend=unknown"
+    ],
+    "expected_exit": 2,
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "McBetaCpp: Unknown backend 'unknown'; choose compat, gl33, gles2, vulkan or d3d12\n"
+  },
+  {
+    "case": "game duplicate selector",
+    "args": [
+      "--backend",
+      "gl33",
+      "--backend",
+      "vulkan",
+      "--help"
+    ],
+    "expected_exit": 2,
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "McBetaCpp: --backend may only be specified once\n"
+  },
+  {
+    "case": "game help",
+    "args": [
+      "--backend=vulkan",
+      "--help"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "stdout": "Usage: McBetaCpp [--backend compat|gl33|gles2|vulkan|d3d12] [username [session [server:port]]]\n--backend overrides B173_RENDERER; the default is compat.\n",
+    "stderr": ""
+  },
+  {
+    "case": "stress missing value",
+    "args": [
+      "--backend"
+    ],
+    "expected_exit": 2,
+    "exit_code": 2,
+    "stdout": "Usage: McBetaCppStress [options] <scenario|all> [--parameter value]...\n  --backend NAME      compat, gl33, gles2, vulkan or d3d12; overrides B173_RENDERER\n  --frames N          Measured frames, 0 uses scenario default\n  --warmup N          Warm-up frames, default 60\n  --tick-interval N   Frames per fixed game tick, default 3\n  --sample-every N    State sample interval in frames, default 100\n  --view-distance N   0=far, 1=normal, 2=short, 3=tiny, default 0\n  --fancy 0|1         Fancy graphics and ambient occlusion, default 1\n  --ambient-occlusion 0|1  Override AO independently of fast/fancy graphics\n  --no-finish         Do not glFinish each measured/warm-up frame\n  --anaglyph 0|1      Anaglyph 3D render path, default 0\n  --occlusion 0|1     Exercise supported asynchronous occlusion queries\n  --region-renderer 0|1  Per-chunk VBOs or pooled region storage\n  --cache-clouds 0|1  Reuse fancy-cloud geometry between its two passes\n  --frame-hash        Per-frame RGBA SHA-256 to <scenario>-frames.csv (parity only)\n  --state-hash        Per-tick canonical SHA-256 state+light digests to <scenario>-state.csv\n                      (parity runs only; invalidates frame timings)\n  --chunk-log         Ordered chunk rebuild/publish log with canonical mesh\n                      SHA-256 per publish to <scenario>-chunks.csv (parity runs only)\n  --output directory Fresh isolated output/game directory, default stress-results\n  --log filename     Report basename inside output directory\n  --capture filename Final framebuffer PNG basename inside output directory\n  --seed N           Signed 64-bit world seed, default 1234567\nScenarios and parameters:\n  idle, spin [--rate degrees-per-tick], daycycle [--step world-ticks]\n  walk [--radius blocks], travel [--speed blocks-per-tick --distance blocks]\n  farlands [--axis x|z --sign +|- --shift blocks --speed blocks-per-tick --distance blocks]\n  building [--size blocks --floors N --torch_spacing blocks]\n  lighting [--count N --period ticks --width blocks --depth blocks]\n  fluids [--size blocks --spacing blocks], tnt [--count N --period ticks]\n  mobs [--count N], entities [--count N], cave [--width blocks --depth blocks]\n  crops (all eight growth stages, four rows, ordinary world rendering)\n  clouds (interpolated cloud-boundary crossings and changing daylight)\nRenderer-parity scenes (fixed world, time, weather and camera; one scene each):\n  parity_terrain_above, parity_terrain_below (terrain and cube faces above/below)\n  parity_transparent (leaves, glass, ice, water, lava, fire)\n  parity_texturefx (water/lava still and flowing, fire, portal, compass, clock)\n  parity_clouds_below, parity_clouds_above\n  parity_sky_day, parity_sky_night, parity_sky_dawn (sun, moon, stars, sunrise fan;\n                      need --view-distance 0 or 1, the sky pass does not run above)\n  parity_particles (every particle kind, block-break and dispenser events)\n  parity_gui_hud, parity_gui_inventory (HUD, chat font, screen, 3D slot items)\n  parity_sign (standing and wall signs, font in world space)\n  parity_held_item [--item block|tool|flat|hand]\n  parity_break_outline [--target progress 0.05-0.95] (crack overlay plus outline)\n  parity_rain, parity_snow [--thunder 0|1 --search blocks] (biome-matched site)\n  parity_fog_underwater, parity_fog_lava (submerged exponential fog and overlay)\n  parity_fog_distance (linear fog with distance pillars; reports eye-radial mode)\n  parity_fog_nether (run built on the Hell dimension provider)\nMobs, dropped items and other entities are covered by the mobs and entities\nscenarios; --fancy and --anaglyph select fast/fancy, ambient occlusion and anaglyph\nfor every scene. Parity scenes drain the chunk queue before measuring.\nall runs each offline renderer scenario once with normal lighting and a fresh level.\nOnly --seed is accepted as a scenario parameter for all. Options may be mixed.\n--backend or B173_RENDERER selects the renderer before\ndevice creation. Native backends must be enabled in the build. No null sink,\nfullbright, server, authentication, saved-world loading or audio-only scenarios.\nExisting output directories are rejected. Exit: 0 complete, 1 runtime failure, 2 usage error.\n",
+    "stderr": "stress: Missing value for --backend\n"
+  },
+  {
+    "case": "stress invalid value",
+    "args": [
+      "--backend",
+      "unknown",
+      "idle"
+    ],
+    "expected_exit": 2,
+    "exit_code": 2,
+    "stdout": "Usage: McBetaCppStress [options] <scenario|all> [--parameter value]...\n  --backend NAME      compat, gl33, gles2, vulkan or d3d12; overrides B173_RENDERER\n  --frames N          Measured frames, 0 uses scenario default\n  --warmup N          Warm-up frames, default 60\n  --tick-interval N   Frames per fixed game tick, default 3\n  --sample-every N    State sample interval in frames, default 100\n  --view-distance N   0=far, 1=normal, 2=short, 3=tiny, default 0\n  --fancy 0|1         Fancy graphics and ambient occlusion, default 1\n  --ambient-occlusion 0|1  Override AO independently of fast/fancy graphics\n  --no-finish         Do not glFinish each measured/warm-up frame\n  --anaglyph 0|1      Anaglyph 3D render path, default 0\n  --occlusion 0|1     Exercise supported asynchronous occlusion queries\n  --region-renderer 0|1  Per-chunk VBOs or pooled region storage\n  --cache-clouds 0|1  Reuse fancy-cloud geometry between its two passes\n  --frame-hash        Per-frame RGBA SHA-256 to <scenario>-frames.csv (parity only)\n  --state-hash        Per-tick canonical SHA-256 state+light digests to <scenario>-state.csv\n                      (parity runs only; invalidates frame timings)\n  --chunk-log         Ordered chunk rebuild/publish log with canonical mesh\n                      SHA-256 per publish to <scenario>-chunks.csv (parity runs only)\n  --output directory Fresh isolated output/game directory, default stress-results\n  --log filename     Report basename inside output directory\n  --capture filename Final framebuffer PNG basename inside output directory\n  --seed N           Signed 64-bit world seed, default 1234567\nScenarios and parameters:\n  idle, spin [--rate degrees-per-tick], daycycle [--step world-ticks]\n  walk [--radius blocks], travel [--speed blocks-per-tick --distance blocks]\n  farlands [--axis x|z --sign +|- --shift blocks --speed blocks-per-tick --distance blocks]\n  building [--size blocks --floors N --torch_spacing blocks]\n  lighting [--count N --period ticks --width blocks --depth blocks]\n  fluids [--size blocks --spacing blocks], tnt [--count N --period ticks]\n  mobs [--count N], entities [--count N], cave [--width blocks --depth blocks]\n  crops (all eight growth stages, four rows, ordinary world rendering)\n  clouds (interpolated cloud-boundary crossings and changing daylight)\nRenderer-parity scenes (fixed world, time, weather and camera; one scene each):\n  parity_terrain_above, parity_terrain_below (terrain and cube faces above/below)\n  parity_transparent (leaves, glass, ice, water, lava, fire)\n  parity_texturefx (water/lava still and flowing, fire, portal, compass, clock)\n  parity_clouds_below, parity_clouds_above\n  parity_sky_day, parity_sky_night, parity_sky_dawn (sun, moon, stars, sunrise fan;\n                      need --view-distance 0 or 1, the sky pass does not run above)\n  parity_particles (every particle kind, block-break and dispenser events)\n  parity_gui_hud, parity_gui_inventory (HUD, chat font, screen, 3D slot items)\n  parity_sign (standing and wall signs, font in world space)\n  parity_held_item [--item block|tool|flat|hand]\n  parity_break_outline [--target progress 0.05-0.95] (crack overlay plus outline)\n  parity_rain, parity_snow [--thunder 0|1 --search blocks] (biome-matched site)\n  parity_fog_underwater, parity_fog_lava (submerged exponential fog and overlay)\n  parity_fog_distance (linear fog with distance pillars; reports eye-radial mode)\n  parity_fog_nether (run built on the Hell dimension provider)\nMobs, dropped items and other entities are covered by the mobs and entities\nscenarios; --fancy and --anaglyph select fast/fancy, ambient occlusion and anaglyph\nfor every scene. Parity scenes drain the chunk queue before measuring.\nall runs each offline renderer scenario once with normal lighting and a fresh level.\nOnly --seed is accepted as a scenario parameter for all. Options may be mixed.\n--backend or B173_RENDERER selects the renderer before\ndevice creation. Native backends must be enabled in the build. No null sink,\nfullbright, server, authentication, saved-world loading or audio-only scenarios.\nExisting output directories are rejected. Exit: 0 complete, 1 runtime failure, 2 usage error.\n",
+    "stderr": "stress: Unknown backend 'unknown'; choose compat, gl33, gles2, vulkan or d3d12\n"
+  },
+  {
+    "case": "stress duplicate selector",
+    "args": [
+      "--backend=gl33",
+      "--backend=vulkan",
+      "idle"
+    ],
+    "expected_exit": 2,
+    "exit_code": 2,
+    "stdout": "Usage: McBetaCppStress [options] <scenario|all> [--parameter value]...\n  --backend NAME      compat, gl33, gles2, vulkan or d3d12; overrides B173_RENDERER\n  --frames N          Measured frames, 0 uses scenario default\n  --warmup N          Warm-up frames, default 60\n  --tick-interval N   Frames per fixed game tick, default 3\n  --sample-every N    State sample interval in frames, default 100\n  --view-distance N   0=far, 1=normal, 2=short, 3=tiny, default 0\n  --fancy 0|1         Fancy graphics and ambient occlusion, default 1\n  --ambient-occlusion 0|1  Override AO independently of fast/fancy graphics\n  --no-finish         Do not glFinish each measured/warm-up frame\n  --anaglyph 0|1      Anaglyph 3D render path, default 0\n  --occlusion 0|1     Exercise supported asynchronous occlusion queries\n  --region-renderer 0|1  Per-chunk VBOs or pooled region storage\n  --cache-clouds 0|1  Reuse fancy-cloud geometry between its two passes\n  --frame-hash        Per-frame RGBA SHA-256 to <scenario>-frames.csv (parity only)\n  --state-hash        Per-tick canonical SHA-256 state+light digests to <scenario>-state.csv\n                      (parity runs only; invalidates frame timings)\n  --chunk-log         Ordered chunk rebuild/publish log with canonical mesh\n                      SHA-256 per publish to <scenario>-chunks.csv (parity runs only)\n  --output directory Fresh isolated output/game directory, default stress-results\n  --log filename     Report basename inside output directory\n  --capture filename Final framebuffer PNG basename inside output directory\n  --seed N           Signed 64-bit world seed, default 1234567\nScenarios and parameters:\n  idle, spin [--rate degrees-per-tick], daycycle [--step world-ticks]\n  walk [--radius blocks], travel [--speed blocks-per-tick --distance blocks]\n  farlands [--axis x|z --sign +|- --shift blocks --speed blocks-per-tick --distance blocks]\n  building [--size blocks --floors N --torch_spacing blocks]\n  lighting [--count N --period ticks --width blocks --depth blocks]\n  fluids [--size blocks --spacing blocks], tnt [--count N --period ticks]\n  mobs [--count N], entities [--count N], cave [--width blocks --depth blocks]\n  crops (all eight growth stages, four rows, ordinary world rendering)\n  clouds (interpolated cloud-boundary crossings and changing daylight)\nRenderer-parity scenes (fixed world, time, weather and camera; one scene each):\n  parity_terrain_above, parity_terrain_below (terrain and cube faces above/below)\n  parity_transparent (leaves, glass, ice, water, lava, fire)\n  parity_texturefx (water/lava still and flowing, fire, portal, compass, clock)\n  parity_clouds_below, parity_clouds_above\n  parity_sky_day, parity_sky_night, parity_sky_dawn (sun, moon, stars, sunrise fan;\n                      need --view-distance 0 or 1, the sky pass does not run above)\n  parity_particles (every particle kind, block-break and dispenser events)\n  parity_gui_hud, parity_gui_inventory (HUD, chat font, screen, 3D slot items)\n  parity_sign (standing and wall signs, font in world space)\n  parity_held_item [--item block|tool|flat|hand]\n  parity_break_outline [--target progress 0.05-0.95] (crack overlay plus outline)\n  parity_rain, parity_snow [--thunder 0|1 --search blocks] (biome-matched site)\n  parity_fog_underwater, parity_fog_lava (submerged exponential fog and overlay)\n  parity_fog_distance (linear fog with distance pillars; reports eye-radial mode)\n  parity_fog_nether (run built on the Hell dimension provider)\nMobs, dropped items and other entities are covered by the mobs and entities\nscenarios; --fancy and --anaglyph select fast/fancy, ambient occlusion and anaglyph\nfor every scene. Parity scenes drain the chunk queue before measuring.\nall runs each offline renderer scenario once with normal lighting and a fresh level.\nOnly --seed is accepted as a scenario parameter for all. Options may be mixed.\n--backend or B173_RENDERER selects the renderer before\ndevice creation. Native backends must be enabled in the build. No null sink,\nfullbright, server, authentication, saved-world loading or audio-only scenarios.\nExisting output directories are rejected. Exit: 0 complete, 1 runtime failure, 2 usage error.\n",
+    "stderr": "stress: --backend may only be specified once\n"
+  },
+  {
+    "case": "CLI renderer compat",
+    "args": [
+      "--backend",
+      "compat"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "stdout": "renderer pixel regressions passed: OpenGL compatibility\n",
+    "stderr": ""
+  },
+  {
+    "case": "CLI renderer gl33",
+    "args": [
+      "--backend",
+      "gl33"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "stdout": "B173 renderer context: 3.3.0 NVIDIA 610.88, R8 G8 B8 A0 depth24\nrenderer pixel regressions passed: 3.3.0 NVIDIA 610.88 / NVIDIA GeForce RTX 5070/PCIe/SSE2\n",
+    "stderr": ""
+  },
+  {
+    "case": "CLI renderer gles2",
+    "args": [
+      "--backend=gles2"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "stdout": "B173 renderer context: OpenGL ES 3.2 NVIDIA 610.88, R8 G8 B8 A0 depth24\nrenderer pixel regressions passed: OpenGL ES 3.2 NVIDIA 610.88 / NVIDIA GeForce RTX 5070/PCIe/SSE2\n",
+    "stderr": ""
+  },
+  {
+    "case": "CLI renderer vulkan",
+    "args": [
+      "--backend",
+      "vulkan"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "stdout": "renderer pixel regressions passed: Vulkan 1.4.341 - NVIDIA GeForce RTX 5070 (discrete GPU, driver 0x98960000) [immediate] [validation]\n",
+    "stderr": ""
+  },
+  {
+    "case": "CLI renderer d3d12",
+    "args": [
+      "--backend=d3d12"
+    ],
+    "expected_exit": 0,
+    "exit_code": 0,
+    "stdout": "renderer pixel regressions passed: Direct3D 12 feature level 12_1 on NVIDIA GeForce RTX 5070; R8G8B8A8_UNORM flip-discard swapchain, 3 buffers, D24_UNORM_S8_UINT depth; HLSL shader model 5.0 compiled at run time by D3DCompile; debug layer with GPU-based and synchronized-queue validation\n",
+    "stderr": "B173 D3D12 validation (severity 4, id 1016): Device Debug Layer Startup Options: GPU-Based Validation is enabled (disabled by default). This results in new validation not possible during API calls on the CPU, by creating patched shaders that have validation added directly to the shader. However, it can slow things down a lot, especially for applications with numerous PSOs. Time to see the first render frame may take several minutes.\n"
+  },
+  {
+    "case": "game leading Vulkan option preserves smoke dispatch",
+    "args": [
+      "--backend",
+      "vulkan",
+      "--terrain-storage-smoke"
+    ],
+    "exit_code": 0
+  },
+  {
+    "case": "game trailing GLES option preserves smoke dispatch",
+    "args": [
+      "--terrain-storage-smoke",
+      "--backend=gles2"
+    ],
+    "exit_code": 0
+  },
+  {
+    "case": "stress CLI overrides invalid environment in full game",
+    "args": [
+      "idle",
+      "--backend",
+      "d3d12"
+    ],
+    "exit_code": 0,
+    "evidence": "bin/cli-game-d3d12/idle-run.log"
+  },
+  {
+    "case": "stress option value may equal backend flag",
+    "args": [
+      "idle",
+      "--log",
+      "--backend"
+    ],
+    "exit_code": 0,
+    "evidence": "bin/cli-option-value/--backend"
+  },
+  {
+    "case": "disabled Vulkan backend fails explicitly",
+    "args": [
+      "--backend",
+      "vulkan",
+      "idle"
+    ],
+    "expected_exit": 1,
+    "exit_code": 1
+  },
+  {
+    "case": "disabled Direct3D backend fails explicitly",
+    "args": [
+      "--backend",
+      "d3d12",
+      "idle"
+    ],
+    "expected_exit": 1,
+    "exit_code": 1
+  }
+]

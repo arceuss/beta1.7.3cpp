@@ -2,6 +2,9 @@
 #include "SDL.h"
 
 #include <cstring>
+#include <iostream>
+#include <stdexcept>
+#include "BetaGL.h"
 
 #include "client/Minecraft.h"
 #include "java/System.h"
@@ -22,7 +25,38 @@
 #include "lwjgl/GLContext.h"
 
 int main(int argc, char *argv[])
+try
 {
+	try
+	{
+		int remaining = 1;
+		for (int i = 1; i < argc; ++i)
+		{
+			// The embedded stress tool owns the options and their values after
+			// this subcommand, including its own --backend option.
+			if (std::strcmp(argv[i], "--stress") == 0)
+			{
+				while (i < argc) argv[remaining++] = argv[i++];
+				break;
+			}
+			if (!BetaGL::consumeBackendArgument(i, argc, argv))
+				argv[remaining++] = argv[i];
+		}
+		argc = remaining;
+		argv[argc] = nullptr;
+	}
+	catch (const std::invalid_argument &error)
+	{
+		std::cerr << "McBetaCpp: " << error.what() << '\n';
+		return 2;
+	}
+	if (argc >= 2 && (std::strcmp(argv[1], "--help") == 0 || std::strcmp(argv[1], "-h") == 0))
+	{
+		std::cout << "Usage: McBetaCpp [--backend compat|gl33|gles2|vulkan|d3d12] "
+			"[username [session [server:port]]]\n"
+			"--backend overrides B173_RENDERER; the default is compat.\n";
+		return 0;
+	}
 #ifdef B173_PGO_STRESS_EMBED
 	if (argc >= 2 && std::strcmp(argv[1], "--stress") == 0)
 		return stress::runCommandLine(argc - 1, argv + 1);
@@ -66,4 +100,9 @@ int main(int argc, char *argv[])
 	}
 
 	return 0;
+}
+catch (const std::exception &error)
+{
+	std::cerr << "McBetaCpp: " << error.what() << '\n';
+	return 1;
 }

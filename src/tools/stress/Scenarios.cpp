@@ -5,6 +5,7 @@
 #endif
 
 #include "tools/stress/StressHarness.h"
+#include "tools/stress/ParityScenarios.h"
 
 #include <algorithm>
 #include <cmath>
@@ -861,13 +862,17 @@ std::unique_ptr<Scenario> makeScenario(const std::string &name)
 	if (name == "cave") return std::make_unique<CaveScenario>();
 	if (name == "crops") return std::make_unique<CropsScenario>();
 	if (name == "clouds") return std::make_unique<CloudsScenario>();
-	return nullptr;
+	// Deterministic single-scene parity coverage lives in ParityScenarios.cpp.
+	return parity::make(name);
 }
 
 std::vector<std::string> scenarioNames()
 {
-	return { "idle", "spin", "walk", "daycycle", "travel", "farlands", "building",
+	std::vector<std::string> names = { "idle", "spin", "walk", "daycycle", "travel", "farlands", "building",
 		"lighting", "fluids", "tnt", "mobs", "entities", "cave", "crops", "clouds" };
+	const std::vector<std::string> &parityNames = parity::names();
+	names.insert(names.end(), parityNames.begin(), parityNames.end());
+	return names;
 }
 
 }

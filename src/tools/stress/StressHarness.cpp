@@ -4,6 +4,7 @@
 #endif
 
 #include "tools/stress/StressHarness.h"
+#include "tools/stress/ParityScenarios.h"
 #include "tools/stress/StateDigest.h"
 #include "tools/stress/Sha256.h"
 
@@ -102,7 +103,8 @@ void validateOptions(const Options &options)
 		options.sampleEvery < 1 || options.sampleEvery > 1000000 ||
 		options.viewDistance < 0 || options.viewDistance > 3 || options.fancyGraphics < 0 || options.fancyGraphics > 1 ||
 		options.anaglyph < 0 || options.anaglyph > 1 || options.regionRenderer < -1 || options.regionRenderer > 1 ||
-		options.cacheClouds < -1 || options.cacheClouds > 1)
+		options.cacheClouds < -1 || options.cacheClouds > 1 || options.occlusion < 0 || options.occlusion > 1 ||
+		options.ambientOcclusion < -1 || options.ambientOcclusion > 1)
 		throw std::invalid_argument("Out-of-range runner option");
 	const std::map<std::string, std::vector<std::string>> keys = {
 		{ "idle", {} }, { "spin", { "rate" } }, { "walk", { "radius" } },
@@ -114,7 +116,19 @@ void validateOptions(const Options &options)
 		{ "mobs", { "count" } }, { "entities", { "count" } },
 		{ "cave", { "width", "depth" } }, { "crops", {} }, { "clouds", {} }, { "all", {} }
 	};
-	const auto &allowed = keys.at(options.scenario);
+	const auto builtinKeys = keys.find(options.scenario);
+	const std::vector<std::string> *parityKeys =
+		builtinKeys == keys.end() ? parity::params(options.scenario) : nullptr;
+	if (builtinKeys == keys.end() && parityKeys == nullptr)
+		throw std::invalid_argument("Unknown renderer scenario: " + options.scenario);
+	const std::vector<std::string> &allowed =
+		builtinKeys == keys.end() ? *parityKeys : builtinKeys->second;
+	// Scenes that exist for a pass the renderer only runs at short view distances
+	// must not be asked for at a distance that skips it.
+	if (options.viewDistance > parity::maxViewDistance(options.scenario))
+		throw std::invalid_argument("Scenario " + options.scenario + " requires --view-distance at most " +
+			std::to_string(parity::maxViewDistance(options.scenario)) +
+			"; LevelRenderer::renderSky only runs below 2");
 	for (const auto &entry : options.params.values)
 	{
 		const std::string &key = entry.first;
@@ -125,18 +139,30 @@ void validateOptions(const Options &options)
 		}
 		if (std::find(allowed.begin(), allowed.end(), key) == allowed.end())
 			throw std::invalid_argument("Unknown parameter for " + options.scenario + ": --" + key);
-		if (key == "axis" || key == "sign")
+		if (key == "axis" || key == "sign" || key == "item")
 		{
 			if ((key == "axis" && entry.second != "x" && entry.second != "z") ||
-				(key == "sign" && entry.second != "+" && entry.second != "-"))
+				(key == "sign" && entry.second != "+" && entry.second != "-") ||
+				(key == "item" && entry.second != "block" && entry.second != "tool" &&
+					entry.second != "flat" && entry.second != "hand"))
 				throw std::invalid_argument("Invalid value: --" + key);
 		}
-		else if (key == "rate" || key == "speed" || key == "distance" || key == "radius" || key == "shift")
+		else if (key == "rate" || key == "speed" || key == "distance" || key == "radius" ||
+			key == "shift" || key == "target")
 		{
 			const double value = options.params.doubleOr(key, 0);
-			const double lower = key == "rate" ? -360.0 : key == "shift" ? -4096.0 : 0.01;
+			const double lower = key == "rate" ? -360.0 : key == "shift" ? -4096.0 :
+				key == "target" ? 0.05 : 0.01;
 			const double upper = key == "rate" ? 360.0 : key == "speed" ? 1024.0 :
-				key == "radius" || key == "shift" ? 4096.0 : 1000000.0;
+				key == "radius" || key == "shift" ? 4096.0 : key == "target" ? 0.95 : 1000000.0;
+			if (value < lower || value > upper)
+				throw std::invalid_argument("Out of range: --" + key);
+		}
+		else if (key == "thunder" || key == "search")
+		{
+			const int value = options.params.intOr(key, 0);
+			const int lower = key == "thunder" ? 0 : 64;
+			const int upper = key == "thunder" ? 1 : 8192;
 			if (value < lower || value > upper)
 				throw std::invalid_argument("Out of range: --" + key);
 		}
@@ -216,7 +242,7 @@ static void readFramePixels(std::vector<unsigned char> &pixels, int width, int h
 static void captureFrame(File &directory, const std::string &name)
 {
 	int width = 0, height = 0;
-	SDL_GL_GetDrawableSize(lwjgl::GLContext::detail::getWindow(), &width, &height);
+	BetaGL::drawableSize(&width, &height);
 	if (width <= 0 || height <= 0)
 		throw std::runtime_error("Empty drawable for framebuffer capture");
 	std::unique_ptr<File> file(File::open(directory, String::fromUTF8(name)));
@@ -300,6 +326,25 @@ public:
 	~SimulationClock() { System::setSimulationTimeMillis(-1); }
 };
 
+// Deterministic terrain settle. updateAllChunks forces the whole visible dirty
+// queue in one call, so repeating it to a fixed point leaves no chunk waiting on
+// the per-frame rebuild budget; nothing here consults the clock.
+static int settleChunks(Minecraft &minecraft, Level &level)
+{
+	static const int MAX_SETTLE_PASSES = 64;
+	int passes = 0;
+	while (passes < MAX_SETTLE_PASSES)
+	{
+		while (level.updateLights()) {}
+		const int before = Chunk::updates;
+		minecraft.gameRenderer.updateAllChunks();
+		++passes;
+		if (Chunk::updates == before && level.lightUpdates.empty())
+			break;
+	}
+	return passes;
+}
+
 int run(const Options &options)
 try
 {
@@ -313,8 +358,8 @@ try
 	SimulationClock clock;
 	long_t clockFrame = 0;
 	lwjgl::GLContext::instantiate();
-	if (!GLAD_GL_VERSION_2_1)
-		throw std::runtime_error("OpenGL 2.1 required; no null rendering fallback exists");
+	if (!BetaGL::modern() && !GLAD_GL_VERSION_2_1)
+		throw std::runtime_error("OpenGL 2.1 required for the compatibility oracle");
 	// Repeatability: every default-constructed Random (per-entity RNG, sound
 	// selection, Math.random) draws from a deterministic sequence in this tool.
 	Random::enableDeterministicDefaultSeeds(options.params.longOr("seed", 1234567));
@@ -328,12 +373,13 @@ try
 	minecraft.user = std::make_unique<User>(u"StressPlayer", u"0");
 	minecraft.options.viewDistance = options.viewDistance;
 	minecraft.options.fancyGraphics = options.fancyGraphics != 0;
-	minecraft.options.ambientOcclusion = options.fancyGraphics != 0;
+	minecraft.options.ambientOcclusion = options.ambientOcclusion < 0 ? options.fancyGraphics != 0 : options.ambientOcclusion != 0;
 	minecraft.options.limitFramerate = 0;
 	minecraft.options.difficulty = 2;
 	minecraft.options.showDebugInfo = false;
 	minecraft.options.hideGui = false;
 	minecraft.options.anaglyph3d = options.anaglyph != 0;
+	minecraft.options.advancedOpengl = options.occlusion != 0;
 	// Renderer-only tool: fully silent so probes never open an audio backend path.
 	minecraft.options.sound = 0.0f;
 	minecraft.options.music = 0.0f;
@@ -357,15 +403,20 @@ try
 		auto emit = [&](const std::string &line) { std::cout << line << '\n'; *log << line << '\n'; };
 		emit("status RUNNING");
 		emit("scenario " + name);
-		emit("renderer real-hidden-opengl21");
-		emit("gl_vendor " + std::string(glString(GL_VENDOR)));
-		emit("gl_renderer " + std::string(glString(GL_RENDERER)));
-		emit("gl_version " + std::string(glString(GL_VERSION)));
+		emit("renderer " + std::string(BetaGL::description()));
+		if (!BetaGL::modern())
+		{
+			emit("gl_vendor " + std::string(glString(GL_VENDOR)));
+			emit("gl_renderer " + std::string(glString(GL_RENDERER)));
+			emit("gl_version " + std::string(glString(GL_VERSION)));
+		}
 		emit("width " + std::to_string(minecraft.width));
 		emit("height " + std::to_string(minecraft.height));
 		emit("view_distance " + std::to_string(options.viewDistance));
 		emit("anaglyph " + std::to_string(options.anaglyph));
+		emit("occlusion_requested " + std::to_string(options.occlusion));
 		emit("fancy_graphics " + std::to_string(options.fancyGraphics));
+		emit("ambient_occlusion " + std::to_string(minecraft.options.ambientOcclusion));
 		emit("region_renderer " + std::to_string(Chunk::useRegionBuffers));
 		emit("cache_clouds " + std::to_string(LevelRenderer::cacheCloudGeometry));
 		emit("tick_interval_frames " + std::to_string(options.tickInterval));
@@ -379,11 +430,22 @@ try
 		emit("seed " + std::to_string(seed));
 		const auto levelStart = Clock::now();
 		minecraft.gameMode = std::make_shared<SurvivalMode>(minecraft);
-		auto level = Level::createSimulationLevel(File::open(*gameDirectory, u"saves"),
+		std::shared_ptr<Level> baseLevel = Level::createSimulationLevel(File::open(*gameDirectory, u"saves"),
 			String::fromUTF8("stress-" + name), seed);
+		std::shared_ptr<Level> level = baseLevel;
+		const int_t dimensionId = parity::dimension(name);
+		if (dimensionId != Dimension::Id_Normal)
+		{
+			// The construction Minecraft::toggleDimension performs: a level sharing
+			// this run's session and save directory that builds the requested
+			// dimension's provider, chunk source and brightness ramp.
+			level = Util::make_shared<Level>(*baseLevel, dimensionId);
+			level->setSimulationSeed(seed);
+		}
 		level->xSpawn = level->zSpawn = 0;
 		level->ySpawn = 96;
 		level->time = 6000;
+		emit("dimension " + std::to_string(dimensionId));
 		minecraft.setLevel(level, u"Stress");
 		minecraft.setScreen(nullptr);
 		minecraft.pause = false;
@@ -398,12 +460,20 @@ try
 		if (scenario->settleBeforeMeasure())
 		{
 			const auto settleStart = Clock::now();
-			while (level->updateLights()) {}
-			minecraft.gameRenderer.updateAllChunks();
+			const int passes = settleChunks(minecraft, *level);
 			emit("settle_ms " + std::to_string(elapsedMs(settleStart)));
+			emit("settle_passes " + std::to_string(passes));
 		}
 		const int measuredFrames = options.frames ? options.frames : scenario->defaultFrames();
 		emit("requested_measured_frames " + std::to_string(measuredFrames));
+		// Parity scenes are compared frame for frame, so their terrain must be
+		// complete before measurement starts. The in-frame rebuild loop is bounded
+		// per frame and, with limitFramerate 0, is handed a zero deadline, so it
+		// never depends on wall-clock time either way.
+		const bool settleAtWarmupBoundary = scenario->settleBeforeMeasure() &&
+			parity::needsFullSettle(name);
+		emit("settle_at_warmup_boundary " + std::to_string(settleAtWarmupBoundary));
+		emit("frame_budget wall_clock_independent; limitFramerate 0 gives renderLevel a zero deadline");
 		emit("timing CPU inclusive per-frame section totals from Profiler; Frame includes swap and optional glFinish");
 		emit("timing_exclusions initialization,setup,settling,warmup,CSV,capture; no GPU timer queries");
 		emit("unavailable_metrics process_memory,heap_histogram,live_chunk_count,scheduled_tick_count,backend_residency,legacygl_retention,backend_phase_profiles");
@@ -449,6 +519,13 @@ try
 			AABB::resetPool();
 			chunkLogFrame = frame - options.warmupFrames;
 			Vec3::resetPool();
+			if (settleAtWarmupBoundary && frame == options.warmupFrames && frame != 0)
+			{
+				// Warm-up frames re-centre and cull the chunk grid; drain what they
+				// exposed so the first measured frame is not missing chunks.
+				const int boundaryPasses = settleChunks(minecraft, *level);
+				emit("settle_warmup_passes " + std::to_string(boundaryPasses));
+			}
 			lwjgl::Display::processMessages();
 			if (lwjgl::Display::isCloseRequested())
 				throw std::runtime_error("Window closed before finite run completed");
@@ -495,7 +572,7 @@ try
 			if (frameCsv)
 			{
 				int width = 0, height = 0;
-				SDL_GL_GetDrawableSize(lwjgl::GLContext::detail::getWindow(), &width, &height);
+				BetaGL::drawableSize(&width, &height);
 				readFramePixels(framePixels, width, height, GL_RGBA);
 				Sha256 hash;
 				hash.update(framePixels.data(), framePixels.size());

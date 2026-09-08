@@ -81,6 +81,7 @@ private:
 	// State
 	bool tesselating = false;
 	bool vboMode = false;
+	bool graphicsInitialized = false;
 
 	// VBO state
 	std::unique_ptr<GLuint[]> vboIds;

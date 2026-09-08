@@ -9,6 +9,7 @@
 #include "lwjgl/Keyboard.h"
 
 #include "external/SDLException.h"
+#include "BetaGL.h"
 #include "GLTrace.h"
 
 #include "SDL.h"
@@ -127,10 +128,15 @@ void processMessages()
 
 void swapBuffers()
 {
-	SDL_GL_SwapWindow(GLContext::detail::getWindow());
+	if (BetaGL::modern()) BetaGL::present();
+	else SDL_GL_SwapWindow(GLContext::detail::getWindow());
 #if defined(B173_GL_TRACE)
 	GLTrace::nextFrame();
 #endif
+	// The presented frame is done with, so the modern renderer can recycle the
+	// streams it fed the GPU from.
+	if (BetaGL::modern())
+		BetaGL::beginFrame();
 }
 
 void update(bool doProcessMessages)

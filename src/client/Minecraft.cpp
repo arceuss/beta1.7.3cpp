@@ -530,7 +530,7 @@ void Minecraft::run()
 			if (!lwjgl::Keyboard::isKeyDown(lwjgl::Keyboard::KEY_F7))
 				lwjgl::Display::update();
 
-			if (!noRender)
+			if (!noRender && BetaGL::hasDrawableTarget())
 			{
 				if (gameMode != nullptr)
 					gameMode->render(timer.a);
@@ -545,7 +545,7 @@ void Minecraft::run()
 					toggleFullscreen();
 				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			}
-			if (options.showDebugInfo)
+			if (options.showDebugInfo && BetaGL::hasDrawableTarget())
 			{
 				renderFpsMeter(tickNanos);
 			}

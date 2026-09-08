@@ -12,8 +12,6 @@ Tesselator Tesselator::instance(MAX_FLOATS);
 
 Tesselator::Tesselator(int_t size)
 {
-	lwjgl::GLContext::instantiate();
-
 	// Initialize buffer
 	this->size = size;
 
@@ -21,13 +19,6 @@ Tesselator::Tesselator(int_t size)
 	buffer_p = buffer.get();
 	buffer_e = buffer.get() + (size * 4);
 
-	// Setup VBO
-	vboMode = USE_VBO && lwjgl::GLContext::getCapabilities()["GL_ARB_vertex_buffer_object"];
-	if (vboMode)
-	{
-		vboIds = std::make_unique<GLuint[]>(vboCounts);
-		glGenBuffers(vboCounts, vboIds.get());
-	}
 }
 
 Tesselator Tesselator::getUniqueInstance(int_t size)
@@ -70,6 +61,17 @@ void Tesselator::end()
 	}
 	else if (vertices > 0)
 	{
+		// Global tessellators own CPU storage only. Startup selects the API first.
+		if (!graphicsInitialized)
+		{
+			vboMode = USE_VBO && lwjgl::GLContext::getCapabilities()["GL_ARB_vertex_buffer_object"];
+			if (vboMode)
+			{
+				vboIds = std::make_unique<GLuint[]>(vboCounts);
+				glGenBuffers(vboCounts, vboIds.get());
+			}
+			graphicsInitialized = true;
+		}
 		// Bind VBO
 		if (vboMode)
 		{

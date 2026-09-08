@@ -982,6 +982,7 @@ add_executable(McBetaCppStress EXCLUDE_FROM_ALL
 	"src/tools/stress/StressMain.cpp"
 	"src/tools/stress/StressHarness.cpp"
 	"src/tools/stress/Scenarios.cpp"
+	"src/tools/stress/ParityScenarios.cpp"
 	"src/tools/stress/Sha256.cpp"
 	"src/tools/stress/Sha256.h"
 	"src/tools/stress/StateDigest.cpp"
@@ -995,6 +996,85 @@ target_link_libraries(McBetaCppStress PRIVATE McBetaCppCore)
 target_include_directories(McBetaCppCore PUBLIC "src/pc")
 
 target_include_directories(McBetaCppCore PUBLIC "src")
+
+target_sources(McBetaCppCore PRIVATE
+	"src/pc/BetaGL.cpp"
+	"src/client/renderer/portable/Device.cpp"
+	"src/client/renderer/portable/RenderTypes.cpp"
+	"src/client/renderer/portable/LegacyState.cpp"
+	"src/client/renderer/portable/Topology.cpp"
+	"src/client/renderer/portable/LineGeometry.cpp"
+	"src/client/renderer/portable/ShaderSource.cpp"
+	"src/client/renderer/backend/gl/GLDevice.cpp"
+	"src/client/renderer/backend/gl/GLHost.cpp"
+)
+
+add_executable(McBetaCppRendererSemantics EXCLUDE_FROM_ALL "src/tools/RendererSemantics.cpp")
+target_link_libraries(McBetaCppRendererSemantics PRIVATE McBetaCppCore)
+add_executable(McBetaCppRendererSmoke EXCLUDE_FROM_ALL "src/tools/RendererSmoke.cpp")
+target_link_libraries(McBetaCppRendererSmoke PRIVATE McBetaCppCore)
+add_executable(McBetaCppLineGeometrySemantics EXCLUDE_FROM_ALL "src/tools/LineGeometrySemantics.cpp")
+target_link_libraries(McBetaCppLineGeometrySemantics PRIVATE McBetaCppCore)
+add_executable(McBetaCppFrameCompare EXCLUDE_FROM_ALL "src/tools/FrameCompare.cpp")
+target_link_libraries(McBetaCppFrameCompare PRIVATE McBetaCppCore)
+set_target_properties(McBetaCppRendererSemantics McBetaCppRendererSmoke McBetaCppLineGeometrySemantics McBetaCppFrameCompare PROPERTIES
+	CXX_STANDARD 14
+	CXX_STANDARD_REQUIRED YES
+	CXX_EXTENSIONS NO
+	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+)
+
+option(B173_RENDER_VULKAN "Build the Vulkan renderer" OFF)
+option(B173_RENDER_D3D12 "Build the Direct3D 12 renderer" OFF)
+if(B173_RENDER_VULKAN)
+	find_package(Vulkan REQUIRED)
+	find_program(B173_GLSLANG_VALIDATOR glslangValidator HINTS "$ENV{VULKAN_SDK}/Bin" "$ENV{VULKAN_SDK}/bin")
+	if(NOT B173_GLSLANG_VALIDATOR)
+		message(FATAL_ERROR "The Vulkan renderer requires glslangValidator to compile its shaders")
+	endif()
+	add_executable(McBetaCppRendererShaders EXCLUDE_FROM_ALL
+		"src/tools/RendererShaders.cpp"
+		"src/client/renderer/portable/ShaderSource.cpp"
+	)
+	target_include_directories(McBetaCppRendererShaders PRIVATE "src")
+	set_target_properties(McBetaCppRendererShaders PROPERTIES CXX_STANDARD 14 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO)
+	set(B173_SHADER_OUTPUT "${CMAKE_BINARY_DIR}/renderer-shaders")
+	add_custom_command(
+		OUTPUT "${B173_SHADER_OUTPUT}/legacy.vert.spv" "${B173_SHADER_OUTPUT}/legacy.frag.spv"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${B173_SHADER_OUTPUT}"
+		COMMAND McBetaCppRendererShaders "${B173_SHADER_OUTPUT}/legacy.vert" "${B173_SHADER_OUTPUT}/legacy.frag"
+		COMMAND "${B173_GLSLANG_VALIDATOR}" -V "${B173_SHADER_OUTPUT}/legacy.vert" -o "${B173_SHADER_OUTPUT}/legacy.vert.spv"
+		COMMAND "${B173_GLSLANG_VALIDATOR}" -V "${B173_SHADER_OUTPUT}/legacy.frag" -o "${B173_SHADER_OUTPUT}/legacy.frag.spv"
+		DEPENDS McBetaCppRendererShaders "src/client/renderer/portable/ShaderSource.cpp"
+		VERBATIM
+	)
+	add_custom_target(McBetaCppVulkanShaders DEPENDS
+		"${B173_SHADER_OUTPUT}/legacy.vert.spv" "${B173_SHADER_OUTPUT}/legacy.frag.spv")
+	add_dependencies(McBetaCppCore McBetaCppVulkanShaders)
+	target_sources(McBetaCppCore PRIVATE
+		"src/client/renderer/backend/vulkan/VulkanDevice.cpp"
+		"src/client/renderer/backend/vulkan/VulkanHost.cpp")
+	target_compile_definitions(McBetaCppCore PRIVATE B173_RENDER_VULKAN B173_VULKAN_SHADER_DIR="resource/shaders")
+	target_link_libraries(McBetaCppCore PUBLIC Vulkan::Vulkan)
+	foreach(executable McBetaCpp McBetaCppStress McBetaCppRendererSmoke McBetaCppRendererSemantics McBetaCppLineGeometrySemantics)
+		add_custom_command(TARGET ${executable} POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${executable}>/resource/shaders"
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${B173_SHADER_OUTPUT}/legacy.vert.spv" "${B173_SHADER_OUTPUT}/legacy.frag.spv"
+				"$<TARGET_FILE_DIR:${executable}>/resource/shaders"
+			VERBATIM)
+	endforeach()
+endif()
+if(B173_RENDER_D3D12)
+	if(NOT WIN32)
+		message(FATAL_ERROR "The Direct3D 12 renderer is only available on Windows")
+	endif()
+	target_sources(McBetaCppCore PRIVATE
+		"src/client/renderer/backend/d3d12/D3D12Device.cpp"
+		"src/client/renderer/backend/d3d12/D3D12Host.cpp")
+	target_compile_definitions(McBetaCppCore PRIVATE B173_RENDER_D3D12)
+	target_link_libraries(McBetaCppCore PUBLIC d3d12 dxgi d3dcompiler)
+endif()
 
 # Compile platform specific code
 if(WIN32)
@@ -1113,6 +1193,7 @@ if(NOT B173_PGO STREQUAL "OFF")
 		"src/tools/stress/StressMain.cpp"
 		"src/tools/stress/StressHarness.cpp"
 		"src/tools/stress/Scenarios.cpp"
+		"src/tools/stress/ParityScenarios.cpp"
 		"src/tools/stress/Sha256.cpp"
 		"src/tools/stress/StateDigest.cpp"
 	)
@@ -1273,37 +1354,54 @@ set_target_properties(McBetaCpp McBetaCppStress McBetaCppLightCacheSmoke PROPERT
 set_target_properties(McBetaCppStress PROPERTIES OUTPUT_NAME "McBetaCppStress${B173_OUTPUT_SUFFIX}")
 set_target_properties(McBetaCppLightCacheSmoke PROPERTIES OUTPUT_NAME "McBetaCppLightCacheSmoke${B173_OUTPUT_SUFFIX}")
 
-# Shared runtime files. The resource tree is staged into bin/resource only when
-# a resource file changes (stamp-driven). cmake/StageResources.cmake copies per
-# file with copy_if_different and prunes only files a previous staging run
-# created (tracked in a manifest); unrelated runtime files in bin/ are never
-# touched. CONFIGURE_DEPENDS reruns the glob when files are added or removed.
+# Runtime assets follow the executable directory, including multi-config builds.
+# Each configuration has its own stamp and manifest; unrelated files are retained.
 file(GLOB_RECURSE B173_RESOURCE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/resource/*")
 file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/McBetaCppResources.inputs" CONTENT "${B173_RESOURCE_FILES}\n")
-set(B173_RESOURCE_STAMP "${CMAKE_BINARY_DIR}/McBetaCppResources.stamp")
-add_custom_command(
-	OUTPUT "${B173_RESOURCE_STAMP}"
-	COMMAND ${CMAKE_COMMAND}
-		-DSOURCE_DIR=${CMAKE_SOURCE_DIR}/resource
-		-DDEST_DIR=${CMAKE_SOURCE_DIR}/bin/resource
-		-DMANIFEST=${CMAKE_BINARY_DIR}/McBetaCppResources.manifest
-		-P "${CMAKE_SOURCE_DIR}/cmake/StageResources.cmake"
-	COMMAND ${CMAKE_COMMAND} -E touch "${B173_RESOURCE_STAMP}"
-	DEPENDS ${B173_RESOURCE_FILES} "${CMAKE_BINARY_DIR}/McBetaCppResources.inputs"
-		"${CMAKE_SOURCE_DIR}/cmake/StageResources.cmake"
-	COMMENT "Staging resource/ into bin/resource"
-	VERBATIM
-)
+function(b173_stage_resources stamp destination manifest)
+	add_custom_command(
+		OUTPUT "${stamp}"
+		COMMAND ${CMAKE_COMMAND}
+			"-DSOURCE_DIR=${CMAKE_SOURCE_DIR}/resource"
+			"-DDEST_DIR=${destination}"
+			"-DMANIFEST=${manifest}"
+			-P "${CMAKE_SOURCE_DIR}/cmake/StageResources.cmake"
+		COMMAND ${CMAKE_COMMAND} -E touch "${stamp}"
+		DEPENDS ${B173_RESOURCE_FILES} "${CMAKE_BINARY_DIR}/McBetaCppResources.inputs"
+			"${CMAKE_SOURCE_DIR}/cmake/StageResources.cmake"
+		COMMENT "Staging runtime resources"
+		VERBATIM
+	)
+endfunction()
+if(CMAKE_CONFIGURATION_TYPES)
+	set(B173_RUNTIME_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/$<CONFIG>")
+	set(B173_RESOURCE_STAMPS "")
+	foreach(configuration IN LISTS CMAKE_CONFIGURATION_TYPES)
+		set(stamp "${CMAKE_BINARY_DIR}/McBetaCppResources-${configuration}.stamp")
+		b173_stage_resources("${stamp}" "${CMAKE_SOURCE_DIR}/bin/${configuration}/resource"
+			"${CMAKE_BINARY_DIR}/McBetaCppResources-${configuration}.manifest")
+		list(APPEND B173_RESOURCE_STAMPS "$<$<CONFIG:${configuration}>:${stamp}>")
+	endforeach()
+else()
+	set(B173_RUNTIME_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+	set(B173_RESOURCE_STAMPS "${CMAKE_BINARY_DIR}/McBetaCppResources.stamp")
+	b173_stage_resources("${B173_RESOURCE_STAMPS}" "${B173_RUNTIME_DIRECTORY}/resource"
+		"${CMAKE_BINARY_DIR}/McBetaCppResources.manifest")
+endif()
 if(WIN32)
 	add_custom_target(McBetaCppResources
-		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/bin"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${B173_RUNTIME_DIRECTORY}"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"$<TARGET_FILE:OpenAL32>" "${CMAKE_SOURCE_DIR}/bin"
-		DEPENDS OpenAL32 "${B173_RESOURCE_STAMP}"
+			"$<TARGET_FILE:OpenAL32>" "${B173_RUNTIME_DIRECTORY}"
+		DEPENDS OpenAL32 ${B173_RESOURCE_STAMPS}
 	)
 else()
-	add_custom_target(McBetaCppResources DEPENDS "${B173_RESOURCE_STAMP}")
+	add_custom_target(McBetaCppResources DEPENDS ${B173_RESOURCE_STAMPS})
 endif()
 add_dependencies(McBetaCpp McBetaCppResources)
 add_dependencies(McBetaCppStress McBetaCppResources)
 add_dependencies(McBetaCppLightCacheSmoke McBetaCppResources)
+add_dependencies(McBetaCppRendererSmoke McBetaCppResources)
+add_dependencies(McBetaCppRendererSemantics McBetaCppResources)
+add_dependencies(McBetaCppLineGeometrySemantics McBetaCppResources)
+add_dependencies(McBetaCppFrameCompare McBetaCppResources)
