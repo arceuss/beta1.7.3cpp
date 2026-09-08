@@ -1,58 +1,38 @@
-name: CMake on multiple platforms
+name: Portable CMake builds
 
 on:
   push:
-    branches: ["main"]
+    branches: ["portable"]
   pull_request:
-    branches: ["main"]
+    branches: ["portable"]
 
 jobs:
   build:
-    name: ${{ matrix.name }} (${{ matrix.build_type }})
+    name: ${{ matrix.client.name }} - ${{ matrix.os }} (${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
 
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Linux (x64)
-          - name: ubuntu-22.04
-            os: ubuntu-22.04
-            build_type: Release
-          - name: ubuntu-22.04
-            os: ubuntu-22.04
-            build_type: Debug
-
-          # Windows (MSVC)
-          - name: windows-latest
-            os: windows-latest
-            build_type: Release
-          - name: windows-latest
-            os: windows-latest
-            build_type: Debug
-
-          # macOS (Apple Silicon, arm64)
-          - name: macos-latest
-            os: macos-latest
-            build_type: Release
-          - name: macos-latest
-            os: macos-latest
-            build_type: Debug
-
-          # macOS (Intel, x86_64)
-          - name: macos-15-intel
-            os: macos-15-intel
-            build_type: Release
-          - name: macos-15-intel
-            os: macos-15-intel
-            build_type: Debug
+        os:
+          - ubuntu-22.04
+          - windows-latest
+          - macos-latest
+          - macos-15-intel
+        build_type: [Release, Debug]
+        client:
+          - name: beta
+            alphaplace: "OFF"
+            suffix: ""
+          - name: alphaplace
+            alphaplace: "ON"
+            suffix: "-alphaplace"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
           submodules: recursive
 
       - name: Setup Ninja
@@ -62,6 +42,14 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Setup Vulkan SDK (Windows)
+        if: runner.os == 'Windows'
+        uses: humbletim/setup-vulkan-sdk@v1.2.1
+        with:
+          vulkan-query-version: 1.4.304.1
+          vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang
+          vulkan-use-cache: true
+
       - name: Set reusable strings
         id: strings
         shell: bash
@@ -69,13 +57,13 @@ jobs:
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
           if [ "$RUNNER_OS" = "Windows" ]; then
             echo "bin-dir=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
-            echo "exe-name=McBetaCpp.exe" >> "$GITHUB_OUTPUT"
+            echo "exe-name=McBetaCpp${{ matrix.client.suffix }}.exe" >> "$GITHUB_OUTPUT"
           else
             echo "bin-dir=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
-            echo "exe-name=McBetaCpp" >> "$GITHUB_OUTPUT"
+            echo "exe-name=McBetaCpp${{ matrix.client.suffix }}" >> "$GITHUB_OUTPUT"
           fi
 
-      # SDL3 recommends these build deps on Linux when building with "all features enabled"
+      # Build dependencies for the vendored SDL2 and OpenAL libraries.
       - name: Install Linux dependencies (SDL2)
         if: runner.os == 'Linux'
         shell: bash
@@ -110,6 +98,7 @@ jobs:
             libegl1-mesa-dev \
             libgles2-mesa-dev \
             libvulkan-dev \
+            glslang-tools \
             libudev-dev \
             libdbus-1-dev \
             libibus-1.0-dev \
@@ -138,50 +127,47 @@ jobs:
             libglvnd-dev \
             libthai-dev
 
-      - name: Configure (Unix)
-        if: runner.os != 'Windows'
+      - name: Configure
         shell: bash
         run: |
+          # Unix artifacts must not depend on OpenAL in the build tree.
           cmake -S "${{ github.workspace }}" -B "${{ steps.strings.outputs.build-output-dir }}" \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_VERBOSE_MAKEFILE=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DB173_TARGET_ALPHAPLACE=${{ matrix.client.alphaplace }} \
+            -DB173_OUTPUT_SUFFIX="${{ matrix.client.suffix }}" \
+            -DB173_RENDER_VULKAN=${{ runner.os != 'macOS' && 'ON' || 'OFF' }} \
+            -DB173_RENDER_D3D12=${{ runner.os == 'Windows' && 'ON' || 'OFF' }} \
+            -DLIBTYPE=${{ runner.os == 'Windows' && 'SHARED' || 'STATIC' }}
 
-      - name: Configure (Windows)
-        if: runner.os == 'Windows'
+      - name: Build game and renderer tools
         shell: bash
         run: |
-          cmake -S "${{ github.workspace }}" -B "${{ steps.strings.outputs.build-output-dir }}" \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_VERBOSE_MAKEFILE=ON
+          cmake --build "${{ steps.strings.outputs.build-output-dir }}" --parallel --verbose \
+            --target McBetaCpp McBetaCppStress McBetaCppRendererSmoke McBetaCppFrameCompare \
+              McBetaCppRendererSemantics McBetaCppLineGeometrySemantics
 
-      - name: Build (macOS)
-        if: runner.os == 'macOS'
+      # CPU tests need neither a display nor a GPU on hosted runners.
+      - name: Test renderer semantics
         shell: bash
+        working-directory: ${{ steps.strings.outputs.bin-dir }}
         run: |
-          cmake --build "${{ steps.strings.outputs.build-output-dir }}" --parallel --verbose
-
-      - name: Build (Linux/Windows)
-        if: runner.os != 'macOS'
-        shell: bash
-        run: |
-          cmake --build "${{ steps.strings.outputs.build-output-dir }}" --parallel --verbose
-
-      - name: Test
-        shell: bash
-        run: |
-          ctest --test-dir "${{ steps.strings.outputs.build-output-dir }}" --output-on-failure --timeout 300 || true
+          ./McBetaCppRendererSemantics
+          ./McBetaCppLineGeometrySemantics
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.build_type }}
+          name: portable-${{ matrix.client.name }}-${{ matrix.os }}-${{ runner.arch }}-${{ matrix.build_type }}
           path: |
             ${{ steps.strings.outputs.bin-dir }}/${{ steps.strings.outputs.exe-name }}
+            ${{ steps.strings.outputs.bin-dir }}/McBetaCppStress*
+            ${{ steps.strings.outputs.bin-dir }}/McBetaCppRendererSmoke*
+            ${{ steps.strings.outputs.bin-dir }}/McBetaCppFrameCompare*
             ${{ steps.strings.outputs.bin-dir }}/resource/
             ${{ steps.strings.outputs.bin-dir }}/*.dll
             ${{ steps.strings.outputs.bin-dir }}/*.so
             ${{ steps.strings.outputs.bin-dir }}/*.dylib
+          if-no-files-found: error
           retention-days: 30
