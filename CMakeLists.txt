@@ -1056,14 +1056,6 @@ if(B173_RENDER_VULKAN)
 		"src/client/renderer/backend/vulkan/VulkanHost.cpp")
 	target_compile_definitions(McBetaCppCore PRIVATE B173_RENDER_VULKAN B173_VULKAN_SHADER_DIR="resource/shaders")
 	target_link_libraries(McBetaCppCore PUBLIC Vulkan::Vulkan)
-	foreach(executable McBetaCpp McBetaCppStress McBetaCppRendererSmoke McBetaCppRendererSemantics McBetaCppLineGeometrySemantics)
-		add_custom_command(TARGET ${executable} POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${executable}>/resource/shaders"
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"${B173_SHADER_OUTPUT}/legacy.vert.spv" "${B173_SHADER_OUTPUT}/legacy.frag.spv"
-				"$<TARGET_FILE_DIR:${executable}>/resource/shaders"
-			VERBATIM)
-	endforeach()
 endif()
 if(B173_RENDER_D3D12)
 	if(NOT WIN32)
@@ -1397,6 +1389,18 @@ if(WIN32)
 	)
 else()
 	add_custom_target(McBetaCppResources DEPENDS ${B173_RESOURCE_STAMPS})
+endif()
+if(B173_RENDER_VULKAN)
+	# All executables share this directory. Stage shaders once, not per linker.
+	add_custom_target(McBetaCppVulkanShaderResources
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${B173_RUNTIME_DIRECTORY}/resource/shaders"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"${B173_SHADER_OUTPUT}/legacy.vert.spv" "${B173_SHADER_OUTPUT}/legacy.frag.spv"
+			"${B173_RUNTIME_DIRECTORY}/resource/shaders"
+		DEPENDS McBetaCppVulkanShaders
+		VERBATIM
+	)
+	add_dependencies(McBetaCppResources McBetaCppVulkanShaderResources)
 endif()
 add_dependencies(McBetaCpp McBetaCppResources)
 add_dependencies(McBetaCppStress McBetaCppResources)
