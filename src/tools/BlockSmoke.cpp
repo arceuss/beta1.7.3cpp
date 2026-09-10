@@ -70,7 +70,7 @@
 #include "world/level/tile/SlabTile.h"
 #include "world/level/tile/WoodTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
-#include "world/level/tile/RedStoneOreTile.h"
+#include "world/level/tile/RedstoneOreTile.h"
 #include "world/level/tile/LeverTile.h"
 #include "world/level/tile/ButtonTile.h"
 #include "world/level/tile/PressurePlateTile.h"
