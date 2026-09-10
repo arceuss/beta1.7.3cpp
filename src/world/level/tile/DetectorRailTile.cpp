@@ -58,17 +58,21 @@ void DetectorRailTile::updateMinecartState(Level &level, int_t x, int_t y, int_t
 		}
 	}
 
+	// BlockDetectorRail.setStateIfMinecartInteractsWithRail: notified metadata,
+	// then the rail cell and the block below, then the render dirty mark
 	if (hasMinecart && !powered)
 	{
-		setRailData(level, x, y, z, data | 8);
+		level.setData(x, y, z, data | 8);
 		level.notifyBlocksOfNeighborChange(x, y, z, id);
 		level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
+		level.setTilesDirty(x, y, z, x, y, z);
 	}
-	else if (!hasMinecart && powered)
+	if (!hasMinecart && powered)
 	{
-		setRailData(level, x, y, z, data & 7);
+		level.setData(x, y, z, data & 7);
 		level.notifyBlocksOfNeighborChange(x, y, z, id);
 		level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
+		level.setTilesDirty(x, y, z, x, y, z);
 	}
 
 	if (hasMinecart)

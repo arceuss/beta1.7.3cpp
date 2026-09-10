@@ -8,16 +8,12 @@
 ItemSoup::ItemSoup(int_t baseId, int_t healAmount)
 	: ItemFood(baseId, healAmount, false)
 {
-	setMaxStackSize(1);
 }
 
 void ItemSoup::use(ItemInstance &stack, Level &level, Player &player) const
 {
-	(void)level;
-	if (stack.isEmpty())
-		return;
-	stack.stackSize--;
-	player.heal(getHealAmount());
-	if (stack.isEmpty())
-		stack = ItemInstance(Items::bowlEmpty->getShiftedIndex(), 1, 0);
+	// ItemSoup.use eats through ItemFood and then replaces the whole stack with a
+	// single bowl, whatever count was left.
+	ItemFood::use(stack, level, player);
+	stack = ItemInstance(Items::bowlEmpty->getShiftedIndex(), 1, 0);
 }

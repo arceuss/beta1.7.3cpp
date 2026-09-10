@@ -11,6 +11,7 @@
 #include "world/phys/HitResult.h"
 #include "world/phys/Vec3.h"
 #include "util/Mth.h"
+#include "java/Math.h"
 
 ItemBucket::ItemBucket(int_t baseId, int_t containedBlockId)
 	: Item(baseId), containedBlockId(containedBlockId)
@@ -87,14 +88,16 @@ void ItemBucket::use(ItemInstance &stack, Level &level, Player &player) const
 			{
 				if (level.dimension->ultraWarm && containedBlockId == Tile::water.id)
 				{
+					// BucketItem: the fizz sits at the ray origin and the smoke
+					// draws from Math.random, leaving the level RNG untouched.
 					const float fa = level.random.nextFloat();
 					const float fb = level.random.nextFloat();
-					level.playSoundEffect(x + 0.5, y + 0.5, z + 0.5, u"random.fizz", 0.5f, 2.6f + (fa - fb) * 0.8f);
+					level.playSoundEffect(px + 0.5, py + 0.5, pz + 0.5, u"random.fizz", 0.5f, 2.6f + (fa - fb) * 0.8f);
 					for (int_t i = 0; i < 8; ++i)
 					{
-						const float pa = level.random.nextFloat();
-						const float pb = level.random.nextFloat();
-						const float pc = level.random.nextFloat();
+						const double pa = Math::random();
+						const double pb = Math::random();
+						const double pc = Math::random();
 						level.addParticle(u"largesmoke", placeX + pa, placeY + pb, placeZ + pc, 0.0, 0.0, 0.0);
 					}
 				}

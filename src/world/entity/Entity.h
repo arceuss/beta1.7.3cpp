@@ -146,7 +146,8 @@ protected:
 	virtual void resetPos();
 
 public:
-	void remove();
+	// Entity.setEntityDead is virtual in Java; EntityMinecart overrides it to scatter cargo.
+	virtual void remove();
 
 protected:
 	virtual void setSize(float width, float height);
@@ -177,7 +178,10 @@ public:
 	virtual AABB *getCollideBox();
 
 protected:
-	void burn(int_t a0);
+	// Entity.dealFireDamage is virtual in Java; EntityItem overrides it.
+	virtual void burn(int_t dmg);
+	// Entity.pushOutOfBlocks
+	bool pushOutOfBlocks(double x, double y, double z);
 
 	virtual void causeFallDamage(float distance);
 
@@ -205,7 +209,8 @@ public:
 
 	virtual void playerTouch(Player &player);
 
-	void push(Entity &entity);
+	// Entity.applyEntityCollision is virtual in Java; EntityMinecart overrides it.
+	virtual void push(Entity &entity);
 	virtual void push(double x, double y, double z);
 
 protected:

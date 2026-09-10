@@ -122,11 +122,7 @@ namespace
 			}
 
 			if (isTnt)
-			{
-				Tile *tile = Tile::tiles[Tile::tnt.id];
-				if (tile != nullptr)
-					tile->playerDestroy(level, x, y, z, 1);
-			}
+				Tile::tnt.destroy(level, x, y, z, 1);
 		}
 	}
 
@@ -208,14 +204,6 @@ void FireTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 	if (!mayPlace(level, x, y, z))
 		level.setTile(x, y, z, 0);
 
-	int_t fireAge = level.getData(x, y, z);
-	if (fireAge < 15)
-	{
-		fireAge += random.nextInt(3) / 2;
-		level.setData(x, y, z, fireAge);
-	}
-
-	level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
 	if (!onNetherrack
 		&& level.isRaining()
 		&& (level.canBlockBeRainedOn(x, y, z)
@@ -227,6 +215,14 @@ void FireTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 		level.setTile(x, y, z, 0);
 		return;
 	}
+
+	// The captured age drives every decision below. Aging writes new metadata without
+	// notifying neighbors and never updates this local.
+	int_t fireAge = level.getData(x, y, z);
+	if (fireAge < 15)
+		level.setDataNoUpdate(x, y, z, fireAge + random.nextInt(3) / 2);
+
+	level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
 
 	if (!onNetherrack && !hasFlammableNeighbor(level, x, y, z))
 	{
@@ -269,12 +265,14 @@ void FireTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 				if (spreadChance <= 0 || random.nextInt(chance) > spreadChance)
 					continue;
 
-				if (level.isRaining()
-					&& (level.canBlockBeRainedOn(xx, yy, zz)
-						|| level.canBlockBeRainedOn(xx - 1, yy, zz)
-						|| level.canBlockBeRainedOn(xx + 1, yy, zz)
-						|| level.canBlockBeRainedOn(xx, yy, zz - 1)
-						|| level.canBlockBeRainedOn(xx, yy, zz + 1)))
+				// Only the candidate cell's rain test is guarded by isRaining, and the
+				// west test reads the origin z instead of the candidate z. Both are
+				// reference behavior, not typos to clean up.
+				if ((level.isRaining() && level.canBlockBeRainedOn(xx, yy, zz))
+					|| level.canBlockBeRainedOn(xx - 1, yy, z)
+					|| level.canBlockBeRainedOn(xx + 1, yy, zz)
+					|| level.canBlockBeRainedOn(xx, yy, zz - 1)
+					|| level.canBlockBeRainedOn(xx, yy, zz + 1))
 					continue;
 
 				int_t newAge = fireAge + random.nextInt(5) / 4;

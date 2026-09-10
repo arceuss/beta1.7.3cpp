@@ -34,6 +34,7 @@ public:
 	void lerpMotion(double xd, double yd, double zd) override { setVelocity(xd, yd, zd); }
 	void tick() override;
 	void playerTouch(Player &player) override;
+	float getShadowHeightOffs() override { return 0.0f; }
 
 protected:
 	void addAdditionalSaveData(CompoundTag &tag) override;

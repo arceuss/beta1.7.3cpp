@@ -5,11 +5,8 @@
 #include "world/level/Level.h"
 #include "world/level/material/LiquidMaterial.h"
 
-namespace
-{
-	constexpr int_t FIRE_TILE_ID = 51;
-	constexpr int_t FALLING_TILE_CHUNK_RANGE = 32;
-}
+static constexpr int_t FIRE_TILE_ID = 51;
+static constexpr int_t FALLING_TILE_CHUNK_RANGE = 32;
 
 bool SandTile::fallInstantly = false;
 
@@ -44,7 +41,9 @@ void SandTile::checkSlide(Level &level, int_t x, int_t y, int_t z)
 
 	if (!fallInstantly && level.hasChunksAt(x - FALLING_TILE_CHUNK_RANGE, y - FALLING_TILE_CHUNK_RANGE, z - FALLING_TILE_CHUNK_RANGE, x + FALLING_TILE_CHUNK_RANGE, y + FALLING_TILE_CHUNK_RANGE, z + FALLING_TILE_CHUNK_RANGE))
 	{
-		level.addEntity(Util::make_shared<FallingTile>(level, static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, id));
+		// Beta builds the spawn position in float, so the widened value carries float rounding.
+		level.addEntity(Util::make_shared<FallingTile>(level,
+			static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f, id));
 		return;
 	}
 

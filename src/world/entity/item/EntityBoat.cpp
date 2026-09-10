@@ -27,6 +27,33 @@ namespace
 		return nullptr;
 	}
 }
+static bool boatSliceInWater(Level &level, AABB &box)
+{
+	int_t x0 = Mth::floor(box.x0);
+	int_t x1 = Mth::floor(box.x1 + 1.0);
+	int_t y0 = Mth::floor(box.y0);
+	int_t y1 = Mth::floor(box.y1 + 1.0);
+	int_t z0 = Mth::floor(box.z0);
+	int_t z1 = Mth::floor(box.z1 + 1.0);
+	for (int_t x = x0; x < x1; ++x)
+		for (int_t y = y0; y < y1; ++y)
+			for (int_t z = z0; z < z1; ++z)
+			{
+				int_t tileId = level.getTile(x, y, z);
+				if (tileId <= 0 || tileId >= 256)
+					continue;
+				Tile *tile = Tile::tiles[tileId];
+				if (tile == nullptr || &tile->material != &Material::water)
+					continue;
+				int_t data = level.getData(x, y, z);
+				double surface = static_cast<double>(y + 1);
+				if (data < 8)
+					surface = static_cast<double>(y + 1) - static_cast<double>(data) / 8.0;
+				if (surface >= box.y0)
+					return true;
+			}
+	return false;
+}
 
 EntityBoat::EntityBoat(Level &level) : Entity(level)
 {
@@ -46,7 +73,9 @@ EntityBoat::EntityBoat(Level &level, double x, double y, double z) : EntityBoat(
 
 AABB *EntityBoat::getCollideAgainstBox(Entity &entity)
 {
-	return entity.getCollideBox();
+	// Boat.getCollideAgainstBox returns the other entity's live bounding box. The
+	// native collision list borrows raw pointers, so hand back a pooled copy.
+	return entity.bb.copy();
 }
 
 AABB *EntityBoat::getCollideBox()
@@ -56,7 +85,7 @@ AABB *EntityBoat::getCollideBox()
 
 double EntityBoat::getRideHeight()
 {
-	return bbHeight * 0.0 - 0.3;
+	return static_cast<double>(bbHeight) * 0.0 - static_cast<double>(0.3f);
 }
 
 bool EntityBoat::hurt(Entity *source, int_t dmg)
@@ -67,8 +96,8 @@ bool EntityBoat::hurt(Entity *source, int_t dmg)
 
 	boatRockDirection = -boatRockDirection;
 	boatTimeSinceHit = 10;
-	markHurt();
 	boatCurrentDamage += dmg * 10;
+	markHurt();
 
 	if (boatCurrentDamage > 40)
 	{
@@ -148,14 +177,16 @@ void EntityBoat::tick()
 				yd *= 0.5;
 				zd *= 0.5;
 			}
-			xd *= 0.99;
-			yd *= 0.95;
-			zd *= 0.99;
+			xd *= static_cast<double>(0.99f);
+			yd *= static_cast<double>(0.95f);
+			zd *= static_cast<double>(0.99f);
 		}
 		return;
 	}
 
-	// Buoyancy: sample 5 vertical slices for water coverage
+	// Buoyancy: sample 5 vertical slices for water coverage. Each slice uses the
+	// reference height-aware water test, so falling water with a low surface
+	// does not count the way a plain material check would.
 	byte_t slices = 5;
 	double waterCoverage = 0.0;
 	for (int_t i = 0; i < slices; i++)
@@ -163,20 +194,20 @@ void EntityBoat::tick()
 		double y0 = bb.y0 + (bb.y1 - bb.y0) * i / slices - 0.125;
 		double y1 = bb.y0 + (bb.y1 - bb.y0) * (i + 1) / slices - 0.125;
 		AABB *sample = AABB::newTemp(bb.x0, y0, bb.z0, bb.x1, y1, bb.z1);
-		if (level.isMaterialInBB(*sample, Material::water))
+		if (boatSliceInWater(level, *sample))
 			waterCoverage += 1.0 / slices;
 	}
 
 	if (waterCoverage < 1.0)
 	{
 		double buoyancy = waterCoverage * 2.0 - 1.0;
-		yd += 0.04 * buoyancy;
+		yd += static_cast<double>(0.04f) * buoyancy;
 	}
 	else
 	{
 		if (yd < 0.0)
 			yd /= 2.0;
-		yd += 0.007;
+		yd += static_cast<double>(0.007f);
 	}
 
 	if (rider != nullptr)
@@ -203,11 +234,13 @@ void EntityBoat::tick()
 	double speed = std::sqrt(xd * xd + zd * zd);
 	if (speed > 0.15)
 	{
-		double cy = std::cos(yRot * Mth::PI / 180.0);
-		double sy = std::sin(yRot * Mth::PI / 180.0);
+		// Boat.tick uses Math.PI/Math.cos/Math.sin, not the float Mth trig tables.
+		double cy = std::cos(static_cast<double>(yRot) * 3.141592653589793 / 180.0);
+		double sy = std::sin(static_cast<double>(yRot) * 3.141592653589793 / 180.0);
 
-		int_t particles = static_cast<int_t>(1.0 + speed * 60.0);
-		for (int_t i = 0; i < particles; i++)
+		// Java compares the int loop counter against the double bound instead of
+		// truncating it, so a fractional bound emits one more particle.
+		for (int_t i = 0; static_cast<double>(i) < 1.0 + speed * 60.0; i++)
 		{
 			double r1 = random.nextFloat() * 2.0f - 1.0f;
 			double r2 = (random.nextInt(2) * 2 - 1) * 0.7;
@@ -228,9 +261,9 @@ void EntityBoat::tick()
 
 	if (!horizontalCollision || speed <= 0.15)
 	{
-		xd *= 0.99;
-		yd *= 0.95;
-		zd *= 0.99;
+		xd *= static_cast<double>(0.99f);
+		yd *= static_cast<double>(0.95f);
+		zd *= static_cast<double>(0.99f);
 	}
 	else if (!level.isOnline)
 	{
@@ -246,7 +279,7 @@ void EntityBoat::tick()
 	double dx = xo - x;
 	double dz = zo - z;
 	if (dx * dx + dz * dz > 0.001)
-		targetYaw = static_cast<float>(std::atan2(dz, dx) * 180.0 / Mth::PI);
+		targetYaw = static_cast<float>(std::atan2(dz, dx) * 180.0 / 3.141592653589793);
 
 	double yawDelta = targetYaw - yRot;
 	while (yawDelta >= 180.0)
@@ -261,7 +294,7 @@ void EntityBoat::tick()
 	yRot = static_cast<float>(yRot + yawDelta);
 	setRot(yRot, xRot);
 
-	auto nearby = level.getEntities(this, *bb.grow(0.2, 0.0, 0.2));
+	auto nearby = level.getEntities(this, *bb.grow(static_cast<double>(0.2f), 0.0, static_cast<double>(0.2f)));
 	for (const auto &other : nearby)
 	{
 		if (other.get() != rider.get() && other->isPushable())
@@ -290,8 +323,8 @@ void EntityBoat::positionRider()
 {
 	if (rider != nullptr)
 	{
-		double ox = std::cos(yRot * Mth::PI / 180.0) * 0.4;
-		double oz = std::sin(yRot * Mth::PI / 180.0) * 0.4;
+		double ox = std::cos(static_cast<double>(yRot) * 3.141592653589793 / 180.0) * 0.4;
+		double oz = std::sin(static_cast<double>(yRot) * 3.141592653589793 / 180.0) * 0.4;
 		rider->setPos(x + ox, y + getRideHeight() + rider->getRidingHeight(), z + oz);
 	}
 }

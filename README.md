@@ -39,6 +39,16 @@ all of these default off and keep the rendered output identical:
 
 `McBetaCppStress` accepts `--region-renderer 0|1`, `--cache-clouds 0|1`, `--state-hash`, `--chunk-log`, and `--frame-hash` for parity comparisons. `bin/resource` is refreshed from `resource/` only when files change; other files placed in `bin/resource` are left alone.
 
+### verification
+
+`McBetaCpp --findings-smoke` runs the block/item audit regressions and glass geometry/GPU checks. It requires a working OpenGL context. The existing `--block-smoke`, `--network-smoke`, and `--terrain-storage-smoke` commands cover the broader block, protocol, and terrain-storage behavior.
+
+The `glass` stress scenario renders isolated, paired, and grouped glass, then adds and removes a neighbor. `--origin` shifts the fixture across chunk boundaries; `--ao` controls ambient occlusion independently of `--fancy`. Supply a fresh output directory:
+
+```bash
+McBetaCppStress glass --view-distance 3 --warmup 60 --frames 6 --origin 15 --fancy 1 --ao 0 --region-renderer 1 --output glass-check --capture glass.png
+```
+
 ## resources
 
 assets live under `resource/` so you can be lazy

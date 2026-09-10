@@ -35,20 +35,28 @@ bool FlowerTile::isSolidRender()
 
 void FlowerTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 {
-	if (!canStay(level, x, y, z))
-		level.setTile(x, y, z, 0);
+	(void)random;
+	checkAlive(level, x, y, z);
 }
 
 void FlowerTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
-	if (!canStay(level, x, y, z))
-		level.setTile(x, y, z, 0);
+	Tile::neighborChanged(level, x, y, z, tile);
+	checkAlive(level, x, y, z);
 }
 
-void FlowerTile::onPlace(Level &level, int_t x, int_t y, int_t z)
+bool FlowerTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (!canStay(level, x, y, z))
-		level.setTile(x, y, z, 0);
+	return Tile::mayPlace(level, x, y, z) && canSurviveOn(level.getTile(x, y - 1, z));
+}
+
+void FlowerTile::checkAlive(Level &level, int_t x, int_t y, int_t z)
+{
+	if (canStay(level, x, y, z))
+		return;
+
+	spawnResources(level, x, y, z, level.getData(x, y, z));
+	level.setTile(x, y, z, 0);
 }
 
 void FlowerTile::updateDefaultShape()
@@ -64,5 +72,5 @@ bool FlowerTile::canSurviveOn(int_t belowTile) const
 
 bool FlowerTile::canStay(Level &level, int_t x, int_t y, int_t z)
 {
-	return (level.getRawBrightness(x, y, z) >= 8 || level.canSeeSky(x, y, z)) && canSurviveOn(level.getTile(x, y - 1, z));
+	return (level.getFullBrightness(x, y, z) >= 8 || level.canSeeSky(x, y, z)) && canSurviveOn(level.getTile(x, y - 1, z));
 }

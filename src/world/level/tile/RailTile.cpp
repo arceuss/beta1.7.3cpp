@@ -145,8 +145,11 @@ AABB *RailTile::getTileAABB(Level &level, int_t x, int_t y, int_t z)
 
 void RailTile::updateShape(LevelSource &level, int_t x, int_t y, int_t z)
 {
-	int_t shape = getRailShape(level.getData(x, y, z), poweredRail);
-	float height = (shape >= 2 && shape <= 5) ? static_cast<float>(RAIL_ASCEND_HEIGHT_TEXELS) / 16.0f : static_cast<float>(RAIL_FLAT_HEIGHT_TEXELS) / 16.0f;
+	// Beta tests the raw metadata here, so a powered rail on a slope (raw 10..13)
+	// keeps the flat selection box. The power bit is only masked off for the
+	// connectivity and signal paths, never for these bounds.
+	int_t data = level.getData(x, y, z);
+	float height = (data >= 2 && data <= 5) ? static_cast<float>(RAIL_ASCEND_HEIGHT_TEXELS) / 16.0f : static_cast<float>(RAIL_FLAT_HEIGHT_TEXELS) / 16.0f;
 	setShape(0.0f, 0.0f, 0.0f, 1.0f, height, 1.0f);
 }
 
@@ -181,6 +184,10 @@ void RailTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 
 void RailTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
+	// RailTile.neighborChanged is server authority only
+	if (level.isOnline)
+		return;
+
 	int_t data = level.getData(x, y, z);
 	int_t shape = getRailShape(data, poweredRail);
 	if (!isSupported(level, x, y, z, shape))
@@ -222,12 +229,12 @@ bool RailTile::updatePoweredState(Level &level, int_t x, int_t y, int_t z, int_t
 	bool changed = false;
 	if (powered && (data & RAIL_POWERED_BIT) == 0)
 	{
-		setRailData(level, x, y, z, shape | RAIL_POWERED_BIT);
+		level.setData(x, y, z, shape | RAIL_POWERED_BIT);
 		changed = true;
 	}
 	else if (!powered && (data & RAIL_POWERED_BIT) != 0)
 	{
-		setRailData(level, x, y, z, shape);
+		level.setData(x, y, z, shape);
 		changed = true;
 	}
 
@@ -254,10 +261,4 @@ bool RailTile::isSupported(Level &level, int_t x, int_t y, int_t z, int_t shapeD
 	if (shapeData == 5)
 		return level.isBlockNormalCube(x, y, z + 1);
 	return true;
-}
-
-void RailTile::setRailData(Level &level, int_t x, int_t y, int_t z, int_t data) const
-{
-	if (level.setDataNoUpdate(x, y, z, data))
-		level.setTilesDirty(x, y, z, x, y, z);
 }

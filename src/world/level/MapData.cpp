@@ -1,8 +1,13 @@
 #include "world/level/MapData.h"
 
+#include <algorithm>
+
+#include "java/Number.h"
+
 #include "nbt/CompoundTag.h"
 #include "world/entity/player/Player.h"
 #include "world/item/ItemInstance.h"
+#include "world/level/Level.h"
 
 MapData::MapData(const jstring &id) : MapDataBase(id)
 {
@@ -69,32 +74,46 @@ void MapData::updatePlayer(Player &player, ItemInstance &item)
 
 	mapCoords.clear();
 
-	for (const auto &info : mapInfos)
+	for (auto entry = mapInfos.begin(); entry != mapInfos.end();)
 	{
-		if (!info->player.removed /* && info->player.inventory.contains(item) */)
+		MapInfo &info = **entry;
+		// Disconnected players may already be destroyed. Check membership before dereferencing.
+		bool present = info.player == &player || std::any_of(player.level.players.begin(), player.level.players.end(),
+			[&info](const std::shared_ptr<Player> &candidate) { return candidate.get() == info.player; });
+		bool carriesMap = false;
+		if (present && !info.player->removed)
 		{
-			float dx = static_cast<float>(info->player.x - xCenter) / static_cast<float>(1 << scale);
-			float dz = static_cast<float>(info->player.z - zCenter) / static_cast<float>(1 << scale);
-			if (dx >= -64.0f && dz >= -64.0f && dx <= 64.0f && dz <= 64.0f)
+			auto matches = [&item](const ItemInstance &stack) {
+				return !stack.isEmpty() && stack.sameItem(item) && stack.stackSize == item.stackSize;
+			};
+			carriesMap = std::any_of(info.player->inventory.armorInventory.begin(), info.player->inventory.armorInventory.end(), matches) ||
+				std::any_of(info.player->inventory.mainInventory.begin(), info.player->inventory.mainInventory.end(), matches);
+		}
+		if (!carriesMap)
+		{
+			playerMapInfos.erase(info.player);
+			entry = mapInfos.erase(entry);
+			continue;
+		}
+
+		float dx = static_cast<float>(info.player->x - xCenter) / static_cast<float>(1 << scale);
+		float dz = static_cast<float>(info.player->z - zCenter) / static_cast<float>(1 << scale);
+		if (dx >= -64.0f && dz >= -64.0f && dx <= 64.0f && dz <= 64.0f)
+		{
+			byte_t icon = 0;
+			byte_t mx = static_cast<byte_t>(static_cast<int_t>(static_cast<double>(dx * 2.0f) + 0.5));
+			byte_t mz = static_cast<byte_t>(static_cast<int_t>(static_cast<double>(dz * 2.0f) + 0.5));
+			// Beta uses the updating player's yaw for every marker.
+			byte_t rot = static_cast<byte_t>(Java::numberToInt(static_cast<double>(player.yRot * 16.0f / 360.0f) + 0.5));
+			if (dimension < 0)
 			{
-				byte_t icon = 0;
-				byte_t mx = static_cast<byte_t>(dx * 2.0f + 0.5f);
-				byte_t mz = static_cast<byte_t>(dz * 2.0f + 0.5f);
-				byte_t rot = static_cast<byte_t>(info->player.yRot * 16.0f / 360.0f + 0.5f);
-				if (dimension < 0)
-				{
-					int_t t = tick / 10;
-					rot = static_cast<byte_t>((t * t * 34187121 + t * 121) >> 15 & 15);
-				}
-				if (info->player.dimension == dimension)
-					mapCoords.push_back(std::make_unique<MapCoord>(*this, icon, mx, mz, rot));
+				uint_t t = static_cast<uint_t>(tick / 10);
+				rot = static_cast<byte_t>((t * t * 34187121u + t * 121u) >> 15 & 15u);
 			}
+			if (info.player->dimension == dimension)
+				mapCoords.push_back(std::make_unique<MapCoord>(*this, icon, mx, mz, rot));
 		}
-		else
-		{
-			playerMapInfos.erase(&info->player);
-			// Note: can't remove from vector while iterating, but this is a simplification
-		}
+		++entry;
 	}
 }
 

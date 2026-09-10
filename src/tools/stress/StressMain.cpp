@@ -40,6 +40,7 @@ static void stressUsage()
 		"  fluids [--size blocks --spacing blocks], tnt [--count N --period ticks]\n"
 		"  mobs [--count N], entities [--count N], cave [--width blocks --depth blocks]\n"
 		"  crops (all eight growth stages, four rows, ordinary world rendering)\n"
+		"  glass [--origin -1024..1024 --ao 0|1] (isolated, paired, grouped glass and neighbor updates)\n"
 		"  clouds (interpolated cloud-boundary crossings and changing daylight)\n"
 		"all runs each offline renderer scenario once with normal lighting and a fresh level.\n"
 		"Only --seed is accepted as a scenario parameter for all. Options may be mixed.\n"

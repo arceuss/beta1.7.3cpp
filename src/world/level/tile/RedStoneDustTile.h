@@ -2,7 +2,6 @@
 
 #include "world/level/tile/Tile.h"
 #include "world/level/TilePos.h"
-#include <unordered_set>
 #include <vector>
 
 class RedStoneDustTile : public Tile
@@ -34,9 +33,12 @@ public:
 
 private:
 	bool wiresProvidePower = true;
-	// vanilla uses an ArrayList: insertion order and duplicates are part of
-	// redstone update-order behavior
-	std::vector<TilePos> deferredNotifications;
+	// vanilla field_21031_b is a HashSet<ChunkPosition>: notifications are
+	// deduplicated and dispatched in Java HashMap bucket order, never in
+	// insertion order. JavaTilePosSet reproduces the Java 6/7 HashMap layout
+	// this port is baselined on (see tests/redstone-probe: a jdk8 HashSet
+	// orders the same coordinates differently).
+	JavaTilePosSet deferredNotifications;
 	static int_t WIRE_ID;
 
 	void updateAndPropagateCurrentStrength(Level &level, int_t x, int_t y, int_t z);

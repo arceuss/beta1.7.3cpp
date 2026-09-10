@@ -3,6 +3,7 @@
 #include "world/item/ItemInstance.h"
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/SnowTile.h"
 #include "world/level/tile/RedStoneDustTile.h"
 
 ItemRedStone::ItemRedStone(int_t baseId) : Item(baseId)
@@ -13,21 +14,26 @@ bool ItemRedStone::useOn(ItemInstance &stack, Player &player, Level &level, int_
 {
 	(void)player;
 
-	if (face == Facing::DOWN)
-		y--;
-	if (face == Facing::UP)
-		y++;
-	if (face == Facing::NORTH)
-		z--;
-	if (face == Facing::SOUTH)
-		z++;
-	if (face == Facing::WEST)
-		x--;
-	if (face == Facing::EAST)
-		x++;
+	// RedStoneItem keeps a clicked snow layer as the target and only offsets for
+	// every other block, where the destination has to be empty.
+	if (level.getTile(x, y, z) != Tile::snow.id)
+	{
+		if (face == Facing::DOWN)
+			y--;
+		if (face == Facing::UP)
+			y++;
+		if (face == Facing::NORTH)
+			z--;
+		if (face == Facing::SOUTH)
+			z++;
+		if (face == Facing::WEST)
+			x--;
+		if (face == Facing::EAST)
+			x++;
 
-	if (!level.isEmptyTile(x, y, z))
-		return false;
+		if (!level.isEmptyTile(x, y, z))
+			return false;
+	}
 
 	if (Tile::redstoneWire.mayPlace(level, x, y, z))
 	{

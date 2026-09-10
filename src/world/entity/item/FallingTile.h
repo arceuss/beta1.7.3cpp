@@ -17,10 +17,6 @@ public:
 	FallingTile(Level &level);
 	FallingTile(Level &level, double x, double y, double z, int_t tile);
 
-protected:
-	virtual void defineSynchedData();
-
-public:
 	bool isPickable() override;
 	void tick() override;
 

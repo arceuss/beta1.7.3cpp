@@ -5,6 +5,7 @@
 #include "nbt/CompoundTag.h"
 #include "util/Mth.h"
 #include "world/entity/item/EntityItem.h"
+#include "world/entity/Mob.h"
 #include "client/player/LocalPlayer.h"
 #include "world/entity/player/Player.h"
 #include "world/item/ItemInstance.h"
@@ -54,42 +55,51 @@ namespace
 		level.addEntity(entity);
 	}
 
-void dropCargo(Level &level, double x, double y, double z, std::array<ItemInstance, 27> &items)
-{
-	for (ItemInstance &stack : items)
+	// Minecart.setEntityDead scatters cargo with the cart's own Random: one offset
+	// triple per occupied slot, 10-30 items per split and Gaussian float velocities.
+	// It leaves the emptied ItemStack objects in place, so a later pass over the same
+	// array still sees them as non-null and redraws the three offsets.
+	void scatterCargo(Level &level, Random &random, double x, double y, double z,
+		std::array<ItemInstance, 27> &items)
 	{
-		while (!stack.isEmpty())
+		for (ItemInstance &stack : items)
 		{
-			int_t amount = level.random.nextInt(21) + 10;
-			if (amount > stack.stackSize)
-				amount = stack.stackSize;
-			float xo = level.random.nextFloat() * 0.8f + 0.1f;
-			float yo = level.random.nextFloat() * 0.8f + 0.1f;
-			float zo = level.random.nextFloat() * 0.8f + 0.1f;
-			ItemInstance dropped = stack.remove(amount);
-			auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, dropped);
-			float spread = 0.05f;
-			entity->xd = (level.random.nextFloat() * 2.0f - 1.0f) * spread;
-			entity->yd = (level.random.nextFloat() * 2.0f - 1.0f) * spread + 0.2f;
-			entity->zd = (level.random.nextFloat() * 2.0f - 1.0f) * spread;
-			level.addEntity(entity);
+			if (stack.itemID == 0)
+				continue;
+			float xo = random.nextFloat() * 0.8f + 0.1f;
+			float yo = random.nextFloat() * 0.8f + 0.1f;
+			float zo = random.nextFloat() * 0.8f + 0.1f;
+			while (stack.stackSize > 0)
+			{
+				int_t amount = random.nextInt(21) + 10;
+				if (amount > stack.stackSize)
+					amount = stack.stackSize;
+				stack.stackSize -= amount;
+				auto entity = std::make_shared<EntityItem>(level,
+					x + static_cast<double>(xo), y + static_cast<double>(yo), z + static_cast<double>(zo),
+					ItemInstance(stack.itemID, amount, stack.getAuxValue()));
+				float spread = 0.05f;
+				entity->xd = static_cast<float>(random.nextGaussian()) * spread;
+				entity->yd = static_cast<float>(random.nextGaussian()) * spread + 0.2f;
+				entity->zd = static_cast<float>(random.nextGaussian()) * spread;
+				level.addEntity(entity);
+			}
 		}
-		stack = ItemInstance();
 	}
-}
 
-	double clampHorizontalSpeed(double speed)
+	double clampHorizontalSpeed(double speed, double maxSpeed)
 	{
-		if (speed < -0.4)
-			return -0.4;
-		if (speed > 0.4)
-			return 0.4;
+		if (speed < -maxSpeed)
+			return -maxSpeed;
+		if (speed > maxSpeed)
+			return maxSpeed;
 		return speed;
 	}
 }
 
 EntityMinecart::EntityMinecart(Level &level) : Entity(level)
 {
+	blocksBuilding = true;
 	setSize(0.98f, 0.7f);
 	heightOffset = bbHeight / 2.0f;
 	makeStepSound = false;
@@ -100,7 +110,7 @@ EntityMinecart::EntityMinecart(Level &level, double x, double y, double z, int_t
 {
 	setPos(x, y + heightOffset, z);
 	xOld = xo = x;
-	yOld = yo = y + heightOffset;
+	yOld = yo = y;
 	zOld = zo = z;
 	this->minecartType = minecartType;
 }
@@ -112,7 +122,7 @@ AABB *EntityMinecart::getCollideAgainstBox(Entity &entity)
 
 double EntityMinecart::getRideHeight()
 {
-	return -0.3;
+	return static_cast<double>(bbHeight) * 0.0 - static_cast<double>(0.3f);
 }
 
 bool EntityMinecart::hurt(Entity *source, int_t dmg)
@@ -136,10 +146,14 @@ bool EntityMinecart::hurt(Entity *source, int_t dmg)
 	if (rider != nullptr)
 		rider->ride(nullptr);
 
+	// Minecart.attackEntityFrom removes the cart first; the override scatters cargo.
+	remove();
 	spawnDrop(level, x, y, z, ItemInstance(Items::minecart->getShiftedIndex(), 1, 0));
 	if (minecartType == TYPE_CHEST)
 	{
-		dropCargo(level, x, y, z, cargoItems);
+		// Java repeats the scatter loop here. remove() already emptied every stack,
+		// so this second pass only redraws three offsets per occupied slot.
+		scatterCargo(level, random, x, y, z, cargoItems);
 		spawnDrop(level, x, y, z, ItemInstance(Tile::chest.id, 1, 0));
 	}
 	else if (minecartType == TYPE_FURNACE)
@@ -147,7 +161,6 @@ bool EntityMinecart::hurt(Entity *source, int_t dmg)
 		spawnDrop(level, x, y, z, ItemInstance(Tile::furnace.id, 1, 0));
 	}
 
-	remove();
 	return true;
 }
 
@@ -156,6 +169,14 @@ void EntityMinecart::animateHurt()
 	minecartRockDirection = -minecartRockDirection;
 	minecartTimeSinceHit = 10;
 	minecartCurrentDamage += minecartCurrentDamage * 10;
+}
+
+void EntityMinecart::remove()
+{
+	// Minecart.setEntityDead scatters the whole container before the base removal,
+	// so every removal path (damage, Level::removeEntity, ...) drops the cargo once.
+	scatterCargo(level, random, x, y, z, cargoItems);
+	Entity::remove();
 }
 
 bool EntityMinecart::interact(Player &player)
@@ -210,8 +231,8 @@ bool EntityMinecart::interact(Player &player)
 
 void EntityMinecart::tick()
 {
-	Entity::tick();
-
+	// Minecart.tick does not call super.tick(): the cart never runs the base
+	// water/fire/void handling and never draws from its Random there.
 	if (minecartTimeSinceHit > 0)
 		minecartTimeSinceHit--;
 	if (minecartCurrentDamage > 0)
@@ -219,17 +240,26 @@ void EntityMinecart::tick()
 
 	if (level.isOnline && lerpSteps > 0)
 	{
-		setPos(x + (lerpX - x) / lerpSteps, y + (lerpY - y) / lerpSteps, z + (lerpZ - z) / lerpSteps);
-		setRot(yRot + (lerpYaw - yRot) / lerpSteps, xRot + (lerpPitch - xRot) / lerpSteps);
+		double nx = x + (lerpX - x) / lerpSteps;
+		double ny = y + (lerpY - y) / lerpSteps;
+		double nz = z + (lerpZ - z) / lerpSteps;
+		double dyaw = static_cast<double>(lerpYaw) - static_cast<double>(yRot);
+		while (dyaw < -180.0)
+			dyaw += 360.0;
+		while (dyaw >= 180.0)
+			dyaw -= 360.0;
+		yRot = static_cast<float>(static_cast<double>(yRot) + dyaw / lerpSteps);
+		xRot = static_cast<float>(static_cast<double>(xRot) + (static_cast<double>(lerpPitch) - static_cast<double>(xRot)) / lerpSteps);
 		lerpSteps--;
+		setPos(nx, ny, nz);
+		setRot(yRot, xRot);
 		return;
 	}
 
 	xo = x;
 	yo = y;
 	zo = z;
-	if (riding == nullptr)
-		yd -= 0.04;
+	yd -= static_cast<double>(0.04f);
 
 	int_t tileX = Mth::floor(x);
 	int_t tileY = Mth::floor(y);
@@ -333,8 +363,8 @@ void EntityMinecart::tick()
 			moveX *= 0.75;
 			moveZ *= 0.75;
 		}
-		moveX = clampHorizontalSpeed(moveX);
-		moveZ = clampHorizontalSpeed(moveZ);
+		moveX = clampHorizontalSpeed(moveX, maxSpeed);
+		moveZ = clampHorizontalSpeed(moveZ, maxSpeed);
 		move(moveX, 0.0, moveZ);
 		if (track[0][1] != 0 && Mth::floor(x) - tileX == track[0][0] && Mth::floor(z) - tileZ == track[0][2])
 			setPos(x, y + track[0][1], z);
@@ -343,37 +373,38 @@ void EntityMinecart::tick()
 
 		if (rider != nullptr)
 		{
-			xd *= 0.997;
+			xd *= static_cast<double>(0.997f);
 			yd = 0.0;
-			zd *= 0.997;
+			zd *= static_cast<double>(0.997f);
 		}
 		else
 		{
 			if (minecartType == TYPE_FURNACE)
 			{
-				double pushLen = std::sqrt(pushX * pushX + pushZ * pushZ);
+				// Java uses MathHelper.sqrt_double here, which narrows through float.
+				double pushLen = static_cast<double>(Mth::sqrt(pushX * pushX + pushZ * pushZ));
 				if (pushLen > 0.01)
 				{
 					emittingSmoke = true;
 					pushX /= pushLen;
 					pushZ /= pushLen;
 					double accel = 0.04;
-					xd *= 0.8;
+					xd *= static_cast<double>(0.8f);
 					yd = 0.0;
-					zd *= 0.8;
+					zd *= static_cast<double>(0.8f);
 					xd += pushX * accel;
 					zd += pushZ * accel;
 				}
 				else
 				{
-					xd *= 0.9;
+					xd *= static_cast<double>(0.9f);
 					yd = 0.0;
-					zd *= 0.9;
+					zd *= static_cast<double>(0.9f);
 				}
 			}
-			xd *= 0.96;
+			xd *= static_cast<double>(0.96f);
 			yd = 0.0;
-			zd *= 0.96;
+			zd *= static_cast<double>(0.96f);
 		}
 
 		Vec3 *newRailPos = getPosOnTrack(x, y, z);
@@ -400,7 +431,7 @@ void EntityMinecart::tick()
 
 		if (minecartType == TYPE_FURNACE)
 		{
-			double pushLen = std::sqrt(pushX * pushX + pushZ * pushZ);
+			double pushLen = static_cast<double>(Mth::sqrt(pushX * pushX + pushZ * pushZ));
 			if (pushLen > 0.01 && xd * xd + zd * zd > 0.001)
 			{
 				pushX /= pushLen;
@@ -444,8 +475,8 @@ void EntityMinecart::tick()
 	}
 	else
 	{
-		xd = clampHorizontalSpeed(xd);
-		zd = clampHorizontalSpeed(zd);
+		xd = clampHorizontalSpeed(xd, maxSpeed);
+		zd = clampHorizontalSpeed(zd, maxSpeed);
 		if (onGround)
 		{
 			xd *= 0.5;
@@ -455,9 +486,9 @@ void EntityMinecart::tick()
 		move(xd, yd, zd);
 		if (!onGround)
 		{
-			xd *= 0.95;
-			yd *= 0.95;
-			zd *= 0.95;
+			xd *= static_cast<double>(0.95f);
+			yd *= static_cast<double>(0.95f);
+			zd *= static_cast<double>(0.95f);
 		}
 	}
 
@@ -466,7 +497,8 @@ void EntityMinecart::tick()
 	double dz = zo - z;
 	if (dx * dx + dz * dz > 0.001)
 	{
-		yRot = static_cast<float>(std::atan2(dz, dx) * 180.0 / Mth::PI);
+		// Minecart.tick uses Math.PI, not the float Mth::PI.
+		yRot = static_cast<float>(std::atan2(dz, dx) * 180.0 / 3.141592653589793);
 		if (flipped)
 			yRot += 180.0f;
 	}
@@ -483,10 +515,12 @@ void EntityMinecart::tick()
 	}
 	setRot(yRot, xRot);
 
-	const auto &nearby = level.getEntities(this, *bb.grow(0.2, 0.0, 0.2));
+	const auto &nearby = level.getEntities(this, *bb.grow(static_cast<double>(0.2f), 0.0, static_cast<double>(0.2f)));
 	for (const auto &other : nearby)
 	{
-		if (other.get() != rider.get() && other->isPushable())
+		// Minecart.tick only hands the collision to other minecarts.
+		if (other.get() != rider.get() && other->isPushable() &&
+			dynamic_cast<EntityMinecart *>(other.get()) != nullptr)
 			other->push(*this);
 	}
 
@@ -606,15 +640,27 @@ const ItemInstance &EntityMinecart::getItem(int_t slot) const
 void EntityMinecart::setItem(int_t slot, const ItemInstance &item)
 {
 	cargoItems[slot] = item;
-	if (!cargoItems[slot].isEmpty() && cargoItems[slot].stackSize > cargoItems[slot].getMaxStackSize())
-		cargoItems[slot].stackSize = cargoItems[slot].getMaxStackSize();
+	// Minecart.setItem clamps to the container limit (64), not the item's own
+	// max stack size, so an oversized stack of a normally unstackable item keeps
+	// whatever count it was given below 64.
+	if (cargoItems[slot].itemID != 0 && cargoItems[slot].stackSize > getInventoryStackLimit())
+		cargoItems[slot].stackSize = getInventoryStackLimit();
 }
 
 ItemInstance EntityMinecart::removeItem(int_t slot, int_t count)
 {
 	if (cargoItems[slot].isEmpty() || count <= 0)
 		return ItemInstance();
-	return cargoItems[slot].remove(count);
+	if (cargoItems[slot].stackSize <= count)
+	{
+		ItemInstance whole = cargoItems[slot];
+		cargoItems[slot] = ItemInstance();
+		return whole;
+	}
+	ItemInstance split = cargoItems[slot].remove(count);
+	if (cargoItems[slot].stackSize == 0)
+		cargoItems[slot] = ItemInstance();
+	return split;
 }
 
 int_t EntityMinecart::getContainerSize() const
@@ -685,12 +731,110 @@ void EntityMinecart::readAdditionalSaveData(CompoundTag &tag)
 	}
 }
 
+void EntityMinecart::push(Entity &entity)
+{
+	if (level.isOnline)
+		return;
+	if (&entity == rider.get())
+		return;
+
+	// A moving, empty, rideable cart mounts any non-player mob it touches.
+	if (dynamic_cast<Mob *>(&entity) != nullptr && !entity.isPlayer() &&
+		minecartType == TYPE_RIDEABLE && xd * xd + zd * zd > 0.01 &&
+		rider == nullptr && entity.riding == nullptr)
+	{
+		auto self = findSharedEntity(level, this);
+		if (self != nullptr)
+			entity.ride(self);
+	}
+
+	double dx = entity.x - x;
+	double dz = entity.z - z;
+	double distSqr = dx * dx + dz * dz;
+	if (distSqr < static_cast<double>(1.0E-4f))
+		return;
+
+	// Minecart.push narrows the separation through MathHelper.sqrt_double.
+	double dist = static_cast<double>(Mth::sqrt(distSqr));
+	dx /= dist;
+	dz /= dist;
+	double scale = 1.0 / dist;
+	if (scale > 1.0)
+		scale = 1.0;
+	dx *= scale;
+	dz *= scale;
+	dx *= static_cast<double>(0.1f);
+	dz *= static_cast<double>(0.1f);
+	dx *= static_cast<double>(1.0f - pushthrough);
+	dz *= static_cast<double>(1.0f - pushthrough);
+	dx *= 0.5;
+	dz *= 0.5;
+
+	EntityMinecart *otherCart = dynamic_cast<EntityMinecart *>(&entity);
+	if (otherCart == nullptr)
+	{
+		push(-dx, 0.0, -dz);
+		entity.push(dx / 4.0, 0.0, dz / 4.0);
+		return;
+	}
+
+	// Beta mixes the other cart's z velocity with its previous *x position* here.
+	// Both supplied references agree on the term, so it is reproduced verbatim.
+	double relX = entity.x - x;
+	double relZ = entity.z - z;
+	double reject = relX * entity.zd + relZ * entity.xo;
+	reject *= reject;
+	if (reject > 5.0)
+		return;
+
+	double sumXd = entity.xd + xd;
+	double sumZd = entity.zd + zd;
+	if (otherCart->minecartType == TYPE_FURNACE && minecartType != TYPE_FURNACE)
+	{
+		xd *= static_cast<double>(0.2f);
+		zd *= static_cast<double>(0.2f);
+		push(entity.xd - dx, 0.0, entity.zd - dz);
+		entity.xd *= static_cast<double>(0.7f);
+		entity.zd *= static_cast<double>(0.7f);
+	}
+	else if (otherCart->minecartType != TYPE_FURNACE && minecartType == TYPE_FURNACE)
+	{
+		entity.xd *= static_cast<double>(0.2f);
+		entity.zd *= static_cast<double>(0.2f);
+		entity.push(xd + dx, 0.0, zd + dz);
+		xd *= static_cast<double>(0.7f);
+		zd *= static_cast<double>(0.7f);
+	}
+	else
+	{
+		xd *= static_cast<double>(0.2f);
+		zd *= static_cast<double>(0.2f);
+		sumXd /= 2.0;
+		sumZd /= 2.0;
+		push(sumXd - dx, 0.0, sumZd - dz);
+		entity.xd *= static_cast<double>(0.2f);
+		entity.zd *= static_cast<double>(0.2f);
+		entity.push(sumXd + dx, 0.0, sumZd + dz);
+	}
+}
+
 void EntityMinecart::lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps)
 {
+	// Minecart.lerpTo stores the packet Y unchanged: heightOffset is already in it.
 	lerpX = x;
-	lerpY = y + heightOffset;
+	lerpY = y;
 	lerpZ = z;
 	lerpYaw = yRot;
 	lerpPitch = xRot;
 	lerpSteps = steps + 2;
+	xd = lerpXd;
+	yd = lerpYd;
+	zd = lerpZd;
+}
+
+void EntityMinecart::lerpMotion(double x, double y, double z)
+{
+	lerpXd = xd = x;
+	lerpYd = yd = y;
+	lerpZd = zd = z;
 }

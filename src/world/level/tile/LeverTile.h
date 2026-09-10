@@ -18,9 +18,8 @@ public:
 	bool isSignalSource() override { return true; }
 
 	void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;
-	bool canPlaceOnSide(Level &level, int_t x, int_t y, int_t z, Facing face);
+	bool mayPlaceOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;
 	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
-	void onPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 	bool use(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	void attack(Level &level, int_t x, int_t y, int_t z, Player &player) override;

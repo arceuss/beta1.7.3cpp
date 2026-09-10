@@ -77,9 +77,9 @@ void RedstoneOreTile::poofParticles(Level &level, int_t x, int_t y, int_t z)
 
 	for (int_t face = 0; face < 6; ++face)
 	{
-		double px = static_cast<double>(x) + random.nextFloat();
-		double py = static_cast<double>(y) + random.nextFloat();
-		double pz = static_cast<double>(z) + random.nextFloat();
+		double px = static_cast<float>(x) + random.nextFloat();
+		double py = static_cast<float>(y) + random.nextFloat();
+		double pz = static_cast<float>(z) + random.nextFloat();
 
 		if (face == 0 && !level.isSolidTile(x, y + 1, z)) py = static_cast<double>(y) + 1.0 + offset;
 		if (face == 1 && !level.isSolidTile(x, y - 1, z)) py = static_cast<double>(y) - offset;
@@ -88,7 +88,7 @@ void RedstoneOreTile::poofParticles(Level &level, int_t x, int_t y, int_t z)
 		if (face == 4 && !level.isSolidTile(x + 1, y, z)) px = static_cast<double>(x) + 1.0 + offset;
 		if (face == 5 && !level.isSolidTile(x - 1, y, z)) px = static_cast<double>(x) - offset;
 
-		if (px < x || px > x + 1 || py < y || py > y + 1 || pz < z || pz > z + 1)
+		if (px < x || px > x + 1 || py < 0.0 || py > y + 1 || pz < z || pz > z + 1)
 			level.addParticle(u"reddust", px, py, pz, 0.0, 0.0, 0.0);
 	}
 }

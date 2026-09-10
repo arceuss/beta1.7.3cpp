@@ -294,11 +294,13 @@ public:
 	int_t getBrightness(int_t layer, int_t x, int_t y, int_t z);
 	void setBrightness(int_t layer, int_t x, int_t y, int_t z, int_t brightness);
 	float getBrightness(int_t x, int_t y, int_t z) override;
+	float getMinBrightness(int_t x, int_t y, int_t z, int_t minimum) override;
 
 	bool isDay();
 
 	HitResult clip(Vec3 &from, Vec3 &to);
 	HitResult clip(Vec3 &from, Vec3 &to, bool canPickLiquid);
+	HitResult clip(Vec3 &from, Vec3 &to, bool canPickLiquid, bool ignoreNoAABB);
 	std::shared_ptr<Player> getNearestPlayer(Entity &entity, double radius);
 	std::shared_ptr<Player> getNearestPlayer(double x, double y, double z, double radius);
 	std::unique_ptr<PathEntity> getPathToEntity(Entity &entity, Entity &target, float distance);
@@ -410,6 +412,7 @@ public:
 	void broadcastEntityEvent(std::shared_ptr<Entity> entity, byte_t event);
 
 	bool isBlockNormalCube(int_t x, int_t y, int_t z) override;
+	bool mayPlace(int_t id, int_t x, int_t y, int_t z, bool ignoreEntities, Facing face);
 	bool getDirectSignal(int_t x, int_t y, int_t z, int_t dir);
 	bool hasDirectSignal(int_t x, int_t y, int_t z);
 	bool getSignal(int_t x, int_t y, int_t z, int_t dir);

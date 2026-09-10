@@ -53,11 +53,12 @@ bool RedStoneDustTile::isPowerProviderOrWire(LevelSource &level, int_t x, int_t 
 
 void RedStoneDustTile::updateAndPropagateCurrentStrength(Level &level, int_t x, int_t y, int_t z)
 {
-	deferredNotifications.clear();
 	propagateCurrentStrength(level, x, y, z, x, y, z);
 
-	// Copy deferred set before iterating (notifications may modify it)
-	auto notifications = deferredNotifications;
+	// vanilla snapshots the pending set into an ArrayList, clears the set and
+	// only then dispatches, so a reentrant propagation started by one of these
+	// callbacks accumulates into a fresh set. Nothing is cleared on entry.
+	std::vector<TilePos> notifications(deferredNotifications.begin(), deferredNotifications.end());
 	deferredNotifications.clear();
 
 	for (const TilePos &pos : notifications)
@@ -154,13 +155,13 @@ void RedStoneDustTile::propagateCurrentStrength(Level &level, int_t x, int_t y, 
 
 		if (oldPower == 0 || newPower == 0)
 		{
-			deferredNotifications.emplace_back(x, y, z);
-			deferredNotifications.emplace_back(x - 1, y, z);
-			deferredNotifications.emplace_back(x + 1, y, z);
-			deferredNotifications.emplace_back(x, y - 1, z);
-			deferredNotifications.emplace_back(x, y + 1, z);
-			deferredNotifications.emplace_back(x, y, z - 1);
-			deferredNotifications.emplace_back(x, y, z + 1);
+			deferredNotifications.emplace(x, y, z);
+			deferredNotifications.emplace(x - 1, y, z);
+			deferredNotifications.emplace(x + 1, y, z);
+			deferredNotifications.emplace(x, y - 1, z);
+			deferredNotifications.emplace(x, y + 1, z);
+			deferredNotifications.emplace(x, y, z - 1);
+			deferredNotifications.emplace(x, y, z + 1);
 		}
 	}
 }
@@ -190,6 +191,11 @@ void RedStoneDustTile::notifyWireNeighborsOfNeighborChange(Level &level, int_t x
 void RedStoneDustTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
 	Tile::onPlace(level, x, y, z);
+
+	// vanilla onBlockAdded returns here on a client level: packet chunk writes
+	// reach this callback, and the server owns wire strength.
+	if (level.isOnline)
+		return;
 
 	updateAndPropagateCurrentStrength(level, x, y, z);
 	level.notifyBlocksOfNeighborChange(x, y + 1, z, id);
@@ -224,6 +230,9 @@ void RedStoneDustTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 {
 	Tile::onRemove(level, x, y, z);
 
+	if (level.isOnline)
+		return;
+
 	level.notifyBlocksOfNeighborChange(x, y + 1, z, id);
 	level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
 	updateAndPropagateCurrentStrength(level, x, y, z);
@@ -256,6 +265,9 @@ void RedStoneDustTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 void RedStoneDustTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
 	(void)tile;
+	if (level.isOnline)
+		return;
+
 	if (!mayPlace(level, x, y, z))
 	{
 		int_t data = level.getData(x, y, z);

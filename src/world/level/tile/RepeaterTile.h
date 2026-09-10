@@ -35,6 +35,9 @@ public:
 	bool isSignalSource() override { return false; }
 	bool getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
 	int_t getTexture(Facing face, int_t data) override;
+	// vanilla getBlockTextureFromSide routes through the metadata variant, so
+	// item/particle textures use the diode faces instead of the base index
+	int_t getTexture(Facing face) override { return getTexture(face, 0); }
 	int_t getResource(int_t data, Random &random) override;
 	void animateTick(Level &level, int_t x, int_t y, int_t z, Random &random) override;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "java/Random.h"
 #include "world/level/tile/Tile.h"
 
 class FurnaceTile : public Tile
@@ -7,9 +8,11 @@ class FurnaceTile : public Tile
 private:
 	bool lit = false;
 	static bool keepContents;
+	// FurnaceTile.java:8 - the lit and unlit blocks each own a separate drop RNG
+	Random furnaceRand;
 
 	void setDefaultDirection(Level &level, int_t x, int_t y, int_t z) const;
-	void dropContents(Level &level, int_t x, int_t y, int_t z) const;
+	void dropContents(Level &level, int_t x, int_t y, int_t z);
 
 public:
 	FurnaceTile(int_t id, bool lit);

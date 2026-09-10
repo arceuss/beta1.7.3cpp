@@ -11,65 +11,98 @@ ButtonTile::ButtonTile(int_t id, int_t tex) : Tile(id, tex, Material::circuits()
 	updateCachedProperties();
 }
 
-// Scan 4 wall faces for a normal cube to attach to; returns orientation 1-4 or -1
+// b173: getOrientation — scan the four walls, defaulting to orientation 1 like
+// the reference does when nothing supports the button
 int_t ButtonTile::getOrientation(Level &level, int_t x, int_t y, int_t z)
 {
 	if (level.isBlockNormalCube(x - 1, y, z)) return 1; // attach east wall → orient 1
 	if (level.isBlockNormalCube(x + 1, y, z)) return 2; // attach west wall → orient 2
 	if (level.isBlockNormalCube(x, y, z - 1)) return 3; // attach south wall → orient 3
 	if (level.isBlockNormalCube(x, y, z + 1)) return 4; // attach north wall → orient 4
-	return -1;
+	return 1;
 }
 
 bool ButtonTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
 	// b173: canPlaceBlockAt — at least one wall face must be a normal cube
-	return getOrientation(level, x, y, z) != -1;
+	if (level.isBlockNormalCube(x - 1, y, z))
+		return true;
+	if (level.isBlockNormalCube(x + 1, y, z))
+		return true;
+	if (level.isBlockNormalCube(x, y, z - 1))
+		return true;
+	return level.isBlockNormalCube(x, y, z + 1);
+}
+
+bool ButtonTile::mayPlaceOnFace(Level &level, int_t x, int_t y, int_t z, Facing face)
+{
+	// b173: canPlaceBlockOnSide — the clicked wall itself must be a normal cube,
+	// so floor and ceiling clicks are refused
+	if (face == Facing::NORTH && level.isBlockNormalCube(x, y, z + 1))
+		return true;
+	if (face == Facing::SOUTH && level.isBlockNormalCube(x, y, z - 1))
+		return true;
+	if (face == Facing::WEST && level.isBlockNormalCube(x + 1, y, z))
+		return true;
+	return face == Facing::EAST && level.isBlockNormalCube(x - 1, y, z);
 }
 
 void ButtonTile::setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face)
 {
-	// b173: onBlockPlaced — determine orientation from face clicked
-	int_t orient = -1;
-	if (face == Facing::NORTH) orient = 4; // attached to north face (+z neighbor)
-	else if (face == Facing::SOUTH) orient = 3; // attached to south face (-z neighbor)
-	else if (face == Facing::WEST) orient = 2; // attached to west face (+x neighbor)
-	else if (face == Facing::EAST) orient = 1; // attached to east face (-x neighbor)
+	// b173: onBlockPlaced — the clicked wall decides the orientation only when it
+	// actually supports the button; the powered bit survives
+	int_t data = level.getData(x, y, z);
+	int_t powered = data & 8;
+	int_t orient;
 
-	// Floor/ceiling faces: try auto-detect
-	if (orient == -1)
+	if (face == Facing::NORTH && level.isBlockNormalCube(x, y, z + 1))
+		orient = 4;
+	else if (face == Facing::SOUTH && level.isBlockNormalCube(x, y, z - 1))
+		orient = 3;
+	else if (face == Facing::WEST && level.isBlockNormalCube(x + 1, y, z))
+		orient = 2;
+	else if (face == Facing::EAST && level.isBlockNormalCube(x - 1, y, z))
+		orient = 1;
+	else
 		orient = getOrientation(level, x, y, z);
 
-	if (orient == -1)
-	{
-		// No valid face — drop the button
-		spawnResources(level, x, y, z, 0);
-		level.setTile(x, y, z, 0);
-		return;
-	}
+	level.setData(x, y, z, orient + powered);
+}
 
-	// Preserve powered bit (bit 3) if any, set orientation in low 3 bits
-	int_t data = level.getData(x, y, z);
-	level.setData(x, y, z, (data & 8) | orient);
+bool ButtonTile::checkCanSurvive(Level &level, int_t x, int_t y, int_t z)
+{
+	if (!mayPlace(level, x, y, z))
+	{
+		spawnResources(level, x, y, z, level.getData(x, y, z));
+		level.setTile(x, y, z, 0);
+		return false;
+	}
+	return true;
 }
 
 void ButtonTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
 	(void)tile;
-	int_t data = level.getData(x, y, z);
-	int_t orient = data & 7;
 
-	// Check if the block this button is attached to is still a normal cube
-	bool supported = false;
-	if (orient == 1) supported = level.isBlockNormalCube(x - 1, y, z);
-	else if (orient == 2) supported = level.isBlockNormalCube(x + 1, y, z);
-	else if (orient == 3) supported = level.isBlockNormalCube(x, y, z - 1);
-	else if (orient == 4) supported = level.isBlockNormalCube(x, y, z + 1);
-
-	if (!supported)
+	if (checkCanSurvive(level, x, y, z))
 	{
-		spawnResources(level, x, y, z, data);
-		level.setTile(x, y, z, 0);
+		int_t orient = level.getData(x, y, z) & 7;
+		bool drop = false;
+
+		if (!level.isBlockNormalCube(x - 1, y, z) && orient == 1)
+			drop = true;
+		if (!level.isBlockNormalCube(x + 1, y, z) && orient == 2)
+			drop = true;
+		if (!level.isBlockNormalCube(x, y, z - 1) && orient == 3)
+			drop = true;
+		if (!level.isBlockNormalCube(x, y, z + 1) && orient == 4)
+			drop = true;
+
+		if (drop)
+		{
+			spawnResources(level, x, y, z, level.getData(x, y, z));
+			level.setTile(x, y, z, 0);
+		}
 	}
 }
 
@@ -82,22 +115,17 @@ bool ButtonTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 	if ((data & 8) != 0)
 		return true;
 
-	// Set powered bit
 	level.setData(x, y, z, data | 8);
-
-	// Notify neighbors including the block we're attached to
+	level.setTilesDirty(x, y, z, x, y, z);
+	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"random.click", 0.3f, 0.6f);
 	level.notifyBlocksOfNeighborChange(x, y, z, id);
 	int_t orient = data & 7;
 	if (orient == 1) level.notifyBlocksOfNeighborChange(x - 1, y, z, id);
 	else if (orient == 2) level.notifyBlocksOfNeighborChange(x + 1, y, z, id);
 	else if (orient == 3) level.notifyBlocksOfNeighborChange(x, y, z - 1, id);
 	else if (orient == 4) level.notifyBlocksOfNeighborChange(x, y, z + 1, id);
-
-	// Schedule deactivation tick
+	else level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
 	level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
-
-	// Click on sound
-	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"random.click", 0.3f, 0.6f);
 
 	return true;
 }
@@ -110,6 +138,11 @@ void ButtonTile::attack(Level &level, int_t x, int_t y, int_t z, Player &player)
 void ButtonTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 {
 	(void)random;
+
+	// b173: updateTick - the release is a server-side transition
+	if (level.isOnline)
+		return;
+
 	int_t data = level.getData(x, y, z);
 
 	// Only act if still powered
@@ -117,7 +150,7 @@ void ButtonTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 		return;
 
 	// Clear powered bit
-	level.setData(x, y, z, data & ~8);
+	level.setData(x, y, z, data & 7);
 
 	// Notify neighbors
 	level.notifyBlocksOfNeighborChange(x, y, z, id);
@@ -126,9 +159,11 @@ void ButtonTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 	else if (orient == 2) level.notifyBlocksOfNeighborChange(x + 1, y, z, id);
 	else if (orient == 3) level.notifyBlocksOfNeighborChange(x, y, z - 1, id);
 	else if (orient == 4) level.notifyBlocksOfNeighborChange(x, y, z + 1, id);
+	else level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
 
 	// Click off sound
 	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"random.click", 0.3f, 0.5f);
+	level.setTilesDirty(x, y, z, x, y, z);
 }
 
 bool ButtonTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
@@ -164,6 +199,7 @@ void ButtonTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 		else if (orient == 2) level.notifyBlocksOfNeighborChange(x + 1, y, z, id);
 		else if (orient == 3) level.notifyBlocksOfNeighborChange(x, y, z - 1, id);
 		else if (orient == 4) level.notifyBlocksOfNeighborChange(x, y, z + 1, id);
+		else level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
 	}
 }
 

@@ -11,5 +11,6 @@ public:
 	jstring getDescriptionId(const ItemInstance &stack) const override;
 	// ItemDye.dyeColors[colour]
 	static const jstring &getDyeColorName(int_t colour);
+	bool useOn(ItemInstance &stack, Player &player, Level &level, int_t x, int_t y, int_t z, Facing face) const override;
 	void saddleEntity(ItemInstance &stack, Mob &target) const override;
 };

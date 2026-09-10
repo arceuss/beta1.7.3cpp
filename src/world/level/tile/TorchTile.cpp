@@ -1,4 +1,5 @@
 #include "world/level/tile/TorchTile.h"
+#include "world/level/tile/FenceTile.h"
 #include "world/level/Level.h"
 #include "world/level/material/Material.h"
 #include "world/phys/AABB.h"
@@ -35,44 +36,40 @@ Tile::Shape TorchTile::getRenderShape()
 	return SHAPE_TORCH;
 }
 
+bool TorchTile::canPlaceOn(Level &level, int_t x, int_t y, int_t z)
+{
+	// b173: func_31032_h - the block below a torch may be a normal cube or a fence
+	return level.isBlockNormalCube(x, y, z) || level.getTile(x, y, z) == Tile::fence.id;
+}
+
 bool TorchTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	// b173: canPlaceBlockAt - check all 4 sides + below for isBlockNormalCube
-	if (level.isSolidTile(x - 1, y, z))
+	// b173: canPlaceBlockAt - four normal-cube walls, or the fence-aware floor rule
+	if (level.isBlockNormalCube(x - 1, y, z))
 		return true;
-	if (level.isSolidTile(x + 1, y, z))
+	if (level.isBlockNormalCube(x + 1, y, z))
 		return true;
-	if (level.isSolidTile(x, y, z - 1))
+	if (level.isBlockNormalCube(x, y, z - 1))
 		return true;
-	if (level.isSolidTile(x, y, z + 1))
+	if (level.isBlockNormalCube(x, y, z + 1))
 		return true;
-	return level.isSolidTile(x, y - 1, z);
+	return canPlaceOn(level, x, y - 1, z);
 }
 
 void TorchTile::setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face)
 {
 	// b173: onBlockPlaced - sets metadata based on face clicked
 	int_t data = level.getData(x, y, z);
-	if (face == Facing::UP && level.isSolidTile(x, y - 1, z))
-	{
+	if (face == Facing::UP && canPlaceOn(level, x, y - 1, z))
 		data = 5; // standing on top
-	}
-	else if (face == Facing::NORTH && level.isSolidTile(x, y, z + 1))
-	{
+	if (face == Facing::NORTH && level.isBlockNormalCube(x, y, z + 1))
 		data = 4; // torch on north face
-	}
-	else if (face == Facing::SOUTH && level.isSolidTile(x, y, z - 1))
-	{
+	if (face == Facing::SOUTH && level.isBlockNormalCube(x, y, z - 1))
 		data = 3; // torch on south face
-	}
-	else if (face == Facing::WEST && level.isSolidTile(x + 1, y, z))
-	{
+	if (face == Facing::WEST && level.isBlockNormalCube(x + 1, y, z))
 		data = 2; // torch on west face
-	}
-	else if (face == Facing::EAST && level.isSolidTile(x - 1, y, z))
-	{
+	if (face == Facing::EAST && level.isBlockNormalCube(x - 1, y, z))
 		data = 1; // torch on east face
-	}
 	level.setData(x, y, z, data);
 }
 
@@ -87,24 +84,24 @@ void TorchTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 
 void TorchTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	// b173: onBlockAdded - auto-detect orientation from adjacent solid blocks
-	if (level.isSolidTile(x - 1, y, z))
+	// b173: onBlockAdded - auto-detect orientation from adjacent support
+	if (level.isBlockNormalCube(x - 1, y, z))
 	{
 		level.setData(x, y, z, 1);
 	}
-	else if (level.isSolidTile(x + 1, y, z))
+	else if (level.isBlockNormalCube(x + 1, y, z))
 	{
 		level.setData(x, y, z, 2);
 	}
-	else if (level.isSolidTile(x, y, z - 1))
+	else if (level.isBlockNormalCube(x, y, z - 1))
 	{
 		level.setData(x, y, z, 3);
 	}
-	else if (level.isSolidTile(x, y, z + 1))
+	else if (level.isBlockNormalCube(x, y, z + 1))
 	{
 		level.setData(x, y, z, 4);
 	}
-	else if (level.isSolidTile(x, y - 1, z))
+	else if (canPlaceOn(level, x, y - 1, z))
 	{
 		level.setData(x, y, z, 5);
 	}
@@ -120,15 +117,15 @@ void TorchTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t t
 		int_t data = level.getData(x, y, z);
 		bool shouldDrop = false;
 
-		if (!level.isSolidTile(x - 1, y, z) && data == 1)
+		if (!level.isBlockNormalCube(x - 1, y, z) && data == 1)
 			shouldDrop = true;
-		if (!level.isSolidTile(x + 1, y, z) && data == 2)
+		if (!level.isBlockNormalCube(x + 1, y, z) && data == 2)
 			shouldDrop = true;
-		if (!level.isSolidTile(x, y, z - 1) && data == 3)
+		if (!level.isBlockNormalCube(x, y, z - 1) && data == 3)
 			shouldDrop = true;
-		if (!level.isSolidTile(x, y, z + 1) && data == 4)
+		if (!level.isBlockNormalCube(x, y, z + 1) && data == 4)
 			shouldDrop = true;
-		if (!level.isSolidTile(x, y - 1, z) && data == 5)
+		if (!canPlaceOn(level, x, y - 1, z) && data == 5)
 			shouldDrop = true;
 
 		if (shouldDrop)

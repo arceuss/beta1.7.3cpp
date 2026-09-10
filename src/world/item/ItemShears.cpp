@@ -29,8 +29,8 @@ bool ItemShears::canDestroySpecial(const ItemInstance &stack, Tile &tile) const
 
 bool ItemShears::mineBlock(ItemInstance &stack, int_t tileId, int_t x, int_t y, int_t z, Entity &miner) const
 {
-    (void)x; (void)y; (void)z; (void)miner;
     if (tileId == Tile::cobweb.id || tileId == Tile::leaves.id)
         stack.damageItem(1, miner);
-    return true;
+    // ShearsItem.mineBlock defers the item-use statistic to Item, which reports false.
+    return Item::mineBlock(stack, tileId, x, y, z, miner);
 }

@@ -20,7 +20,8 @@ int_t GrassTile::getTexture(LevelSource &level, int_t x, int_t y, int_t z, Facin
 	if (face == Facing::DOWN)
 		return 2;
 
-	return &level.getMaterial(x, y + 1, z) == &Material::snow() ? 68 : 3;
+	const Material &above = level.getMaterial(x, y + 1, z);
+	return (&above == &Material::snow() || &above == &Material::builtSnow) ? 68 : 3;
 }
 
 int_t GrassTile::getTexture(Facing face, int_t data)

@@ -9,7 +9,7 @@ private:
 
 	int_t getState(int_t data) const;
 	void setDoorRotation(int_t state);
-	void removePair(Level &level, int_t x, int_t y, int_t z, bool drop, int_t data);
+	void setOpen(Level &level, int_t x, int_t y, int_t z, bool open);
 
 public:
 	DoorTile(int_t id, int_t tex, const Material &material, bool iron);
@@ -22,8 +22,10 @@ public:
 	void updateShape(LevelSource &level, int_t x, int_t y, int_t z) override;
 	void updateDefaultShape() override;
 	int_t getTexture(Facing face, int_t data) override;
+	void attack(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	bool use(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
+	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
 	int_t getResource(int_t data, Random &random) override;
 	int_t getMobilityFlag() const override { return 1; }
 };

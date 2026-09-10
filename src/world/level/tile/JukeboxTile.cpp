@@ -54,17 +54,22 @@ void JukeboxTile::ejectRecord(Level &level, int_t x, int_t y, int_t z)
 	if (level.isOnline)
 		return;
 	auto jukebox = std::dynamic_pointer_cast<RecordPlayerTileEntity>(level.getTileEntity(x, y, z));
-	if (jukebox == nullptr || jukebox->record == 0)
+	if (jukebox == nullptr)
 		return;
-	level.playRecord(jstring(), x, y, z);
 	int_t recordId = jukebox->record;
+	if (recordId == 0)
+		return;
+	// RecordPlayerTile.java:42-43 - the world event stops playback for every
+	// listener, the direct call stops it for this client's stream
+	level.levelEvent(1005, x, y, z, 0);
+	level.playRecord(jstring(), x, y, z);
 	jukebox->record = 0;
 	jukebox->setChanged();
 	level.setData(x, y, z, 0);
 	float spread = 0.7f;
-	double xo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
-	double yo = level.random.nextFloat() * spread + (1.0f - spread) * 0.2f + 0.6f;
-	double zo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5f;
+	double xo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
+	double yo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.2 + 0.6;
+	double zo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
 	ItemInstance stack(recordId, 1, 0);
 	auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, stack);
 	entity->throwTime = 10;

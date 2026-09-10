@@ -19,6 +19,7 @@ public:
 	int_t getTile(int_t x, int_t y, int_t z) override;
 	std::shared_ptr<TileEntity> getTileEntity(int_t x, int_t y, int_t z) override;
 	float getBrightness(int_t x, int_t y, int_t z) override;
+	float getMinBrightness(int_t x, int_t y, int_t z, int_t minimum) override;
 	int_t getRawBrightness(int_t x, int_t y, int_t z);
 	int_t getRawBrightness(int_t x, int_t y, int_t z, bool neighbors);
 	int_t getData(int_t x, int_t y, int_t z) override;

@@ -45,6 +45,15 @@ float Region::getBrightness(int_t x, int_t y, int_t z)
 	return level.dimension->brightnessRamp[getRawBrightness(x, y, z)];
 }
 
+// B173-JAVA-METHOD: Region#getBrightness(int,int,int,int) (CFR ChunkCache.getBrightness)
+float Region::getMinBrightness(int_t x, int_t y, int_t z, int_t minimum)
+{
+	int_t brightness = getRawBrightness(x, y, z);
+	if (brightness < minimum)
+		brightness = minimum;
+	return level.dimension->brightnessRamp[brightness];
+}
+
 int_t Region::getRawBrightness(int_t x, int_t y, int_t z)
 {
 	return getRawBrightness(x, y, z, true);
@@ -52,7 +61,7 @@ int_t Region::getRawBrightness(int_t x, int_t y, int_t z)
 
 int_t Region::getRawBrightness(int_t x, int_t y, int_t z, bool neighbors)
 {
-	if (x < -Level::MAX_LEVEL_SIZE || z < -Level::MAX_LEVEL_SIZE || x >= Level::MAX_LEVEL_SIZE || z >= Level::MAX_LEVEL_SIZE)
+	if (x < -Level::MAX_LEVEL_SIZE || z < -Level::MAX_LEVEL_SIZE || x >= Level::MAX_LEVEL_SIZE || z > Level::MAX_LEVEL_SIZE)
 		return 15;
 
 	if (neighbors)
@@ -120,7 +129,10 @@ bool Region::isBlockNormalCube(int_t x, int_t y, int_t z)
 	Tile *tile = Tile::tiles[id];
 	if (tile == nullptr)
 		return false;
-	return tile->material.isSolid() && tile->isCubeShaped();
+	// CFR ChunkCache.isBlockNormalCube asks Material.getIsSolid(), not Material.isSolid()
+	// as World.isBlockNormalCube's getIsTranslucent() does. Native spells getIsSolid()
+	// as blocksMotion().
+	return tile->material.blocksMotion() && tile->isCubeShaped();
 }
 
 BiomeSource &Region::getBiomeSource()

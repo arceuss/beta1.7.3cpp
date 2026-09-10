@@ -1,5 +1,6 @@
 #pragma once
 
+#include "java/Random.h"
 #include "world/level/tile/Tile.h"
 
 class DispenserTile : public Tile
@@ -16,6 +17,9 @@ public:
 	void tick(Level &level, int_t x, int_t y, int_t z, Random &random) override;
 	int_t getTickDelay() override { return 4; }
 private:
+	// DispenserTile.java:8 - break drops use the block instance's own generator
+	Random random;
+
 	void setDefaultDirection(Level &level, int_t x, int_t y, int_t z) const;
-	void dropContents(Level &level, int_t x, int_t y, int_t z) const;
+	void dropContents(Level &level, int_t x, int_t y, int_t z);
 };

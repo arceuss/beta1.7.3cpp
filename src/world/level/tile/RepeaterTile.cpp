@@ -25,7 +25,9 @@ RepeaterTile::RepeaterTile(int_t id, bool repeaterPowered)
 
 bool RepeaterTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	return level.isBlockNormalCube(x, y - 1, z);
+	// vanilla canPlaceBlockAt: normal-cube support, then the inherited
+	// replaceable-target check
+	return level.isBlockNormalCube(x, y - 1, z) && Tile::mayPlace(level, x, y, z);
 }
 
 bool RepeaterTile::canSurvive(Level &level, int_t x, int_t y, int_t z) const
@@ -39,19 +41,18 @@ void RepeaterTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 
 	int_t data = level.getData(x, y, z);
 	bool powered = hasInputSignal(level, x, y, z, data);
-	if (repeaterPowered)
+	if (repeaterPowered && !powered)
 	{
-		if (!powered)
-			level.setTileAndData(x, y, z, Tile::repeaterIdle.id, data);
+		level.setTileAndData(x, y, z, Tile::repeaterIdle.id, data);
 	}
-	else
+	else if (!repeaterPowered)
 	{
-		if (powered)
-		{
-			level.setTileAndData(x, y, z, Tile::repeaterActive.id, data);
-			if (!hasInputSignal(level, x, y, z, data))
-				level.scheduleBlockUpdate(x, y, z, Tile::repeaterActive.id, getDelayTicks(data));
-		}
+		// vanilla activates on the scheduled tick even when the input already
+		// vanished, then schedules the matching off tick: that is what keeps a
+		// pulse shorter than the delay alive.
+		level.setTileAndData(x, y, z, Tile::repeaterActive.id, data);
+		if (!powered)
+			level.scheduleBlockUpdate(x, y, z, Tile::repeaterActive.id, getDelayTicks(data));
 	}
 }
 
@@ -67,9 +68,13 @@ int_t RepeaterTile::getTexture(Facing face, int_t data)
 
 bool RepeaterTile::shouldRenderFace(LevelSource &level, int_t x, int_t y, int_t z, Facing face)
 {
-	if (face == Facing::DOWN || face == Facing::UP)
-		return false;
-	return Tile::shouldRenderFace(level, x, y, z, face);
+	// vanilla shouldSideBeRendered: horizontal faces always draw, the flat top
+	// and bottom never do. No generic neighbour cull here.
+	(void)level;
+	(void)x;
+	(void)y;
+	(void)z;
+	return face != Facing::DOWN && face != Facing::UP;
 }
 
 bool RepeaterTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
@@ -184,9 +189,11 @@ void RepeaterTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &
 		return;
 
 	int_t data = level.getData(x, y, z);
-	double px = static_cast<double>(x) + 0.5 + (random.nextFloat() - 0.5f) * 0.2;
-	double py = static_cast<double>(y) + 0.4 + (random.nextFloat() - 0.5f) * 0.2;
-	double pz = static_cast<double>(z) + 0.5 + (random.nextFloat() - 0.5f) * 0.2;
+	// vanilla builds the base coordinate in float ((float)x + 0.5f) and only
+	// then widens, so keep the narrowing points
+	double px = static_cast<double>(static_cast<float>(x) + 0.5f) + static_cast<double>(random.nextFloat() - 0.5f) * 0.2;
+	double py = static_cast<double>(static_cast<float>(y) + 0.4f) + static_cast<double>(random.nextFloat() - 0.5f) * 0.2;
+	double pz = static_cast<double>(static_cast<float>(z) + 0.5f) + static_cast<double>(random.nextFloat() - 0.5f) * 0.2;
 	double offX = 0.0;
 	double offZ = 0.0;
 	if (random.nextInt(2) == 0)

@@ -100,7 +100,10 @@ void PistonBaseTile::playBlock(Level &level, int_t x, int_t y, int_t z, int_t ty
 			if (pistonTe != nullptr)
 				pistonTe->finishMovement();
 		}
-		level.setTileAndData(x, y, z, Tile::pistonMoving.id, dir);
+		// BlockPistonBase.playBlock writes the placeholder without notification and
+		// attaches its moving tile entity first; the notified head clear below is
+		// the first callback neighbours may observe
+		level.setTileAndDataNoUpdate(x, y, z, Tile::pistonMoving.id, dir);
 		level.setTileEntity(x, y, z, PistonMovingTile::createTileEntity(id, dir, dir, false, true));
 		if (isSticky)
 		{
@@ -136,7 +139,7 @@ void PistonBaseTile::playBlock(Level &level, int_t x, int_t y, int_t z, int_t ty
 				x += PistonTextures::offsetX[dir];
 				y += PistonTextures::offsetY[dir];
 				z += PistonTextures::offsetZ[dir];
-				level.setTileAndData(x, y, z, Tile::pistonMoving.id, pulledData);
+				level.setTileAndDataNoUpdate(x, y, z, Tile::pistonMoving.id, pulledData);
 				level.setTileEntity(x, y, z, PistonMovingTile::createTileEntity(pulledId, pulledData, dir, false, false));
 			}
 			else if (!found)
@@ -324,6 +327,9 @@ bool PistonBaseTile::doExtend(Level &level, int_t x, int_t y, int_t z, int_t dir
 		cy += PistonTextures::offsetY[dir];
 		cz += PistonTextures::offsetZ[dir];
 	}
+	// Each cell of the pushed column is written without notification, immediately
+	// followed by its moving tile entity. The single notified write of the whole
+	// extension is the base metadata update in playBlock, after this loop.
 	while (cx != x || cy != y || cz != z)
 	{
 		int_t px = cx - PistonTextures::offsetX[dir];
@@ -333,12 +339,12 @@ bool PistonBaseTile::doExtend(Level &level, int_t x, int_t y, int_t z, int_t dir
 		int_t prevData = level.getData(px, py, pz);
 		if (prevId == id && px == x && py == y && pz == z)
 		{
-			level.setTileAndData(cx, cy, cz, Tile::pistonMoving.id, dir | (isSticky ? 8 : 0));
+			level.setTileAndDataNoUpdate(cx, cy, cz, Tile::pistonMoving.id, dir | (isSticky ? 8 : 0));
 			level.setTileEntity(cx, cy, cz, PistonMovingTile::createTileEntity(Tile::pistonExtension.id, dir | (isSticky ? 8 : 0), dir, true, false));
 		}
 		else
 		{
-			level.setTileAndData(cx, cy, cz, Tile::pistonMoving.id, prevData);
+			level.setTileAndDataNoUpdate(cx, cy, cz, Tile::pistonMoving.id, prevData);
 			level.setTileEntity(cx, cy, cz, PistonMovingTile::createTileEntity(prevId, prevData, dir, true, false));
 		}
 		cx = px;

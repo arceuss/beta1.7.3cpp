@@ -13,7 +13,8 @@ public:
 	ItemInstance item;
 	int_t age = 0;
 	float bobOffs = 0.0f;
-	int_t throwTime = 10;
+	// ItemEntity.throwTime defaults to 0; every drop site that needs a pickup delay assigns it.
+	int_t throwTime = 0;
 
 	EntityItem(Level &level);
 	EntityItem(Level &level, double x, double y, double z, const ItemInstance &stack);
@@ -21,10 +22,10 @@ public:
 	void tick() override;
 	void playerTouch(Player &player) override;
 	bool hurt(Entity *source, int_t dmg) override;
-	bool shouldRenderAtSqrDistance(double distance) override;
 	bool handleWaterMovement() override;
 
 protected:
+	void burn(int_t dmg) override;
 	void addAdditionalSaveData(CompoundTag &tag) override;
 	void readAdditionalSaveData(CompoundTag &tag) override;
 

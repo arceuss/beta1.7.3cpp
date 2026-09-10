@@ -6,6 +6,7 @@ class ButtonTile : public Tile
 {
 private:
 	static int_t getOrientation(Level &level, int_t x, int_t y, int_t z);
+	bool checkCanSurvive(Level &level, int_t x, int_t y, int_t z);
 
 public:
 	ButtonTile(int_t id, int_t tex);
@@ -23,6 +24,7 @@ public:
 
 	void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;
 	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
+	bool mayPlaceOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 	bool use(Level &level, int_t x, int_t y, int_t z, Player &player) override;
 	void attack(Level &level, int_t x, int_t y, int_t z, Player &player) override;

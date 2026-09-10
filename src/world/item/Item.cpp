@@ -50,6 +50,12 @@ Item &Item::setDescriptionId(const jstring &id)
 	return *this;
 }
 
+Item &Item::setFull3D()
+{
+	full3D = true;
+	return *this;
+}
+
 int_t Item::getIcon(const ItemInstance &stack) const
 {
 	(void)stack;
@@ -60,6 +66,12 @@ jstring Item::getDescriptionId(const ItemInstance &stack) const
 {
 	(void)stack;
 	return descriptionId;
+}
+
+int_t Item::getLevelDataForAuxValue(int_t auxValue) const
+{
+	(void)auxValue;
+	return 0;
 }
 
 float Item::getDestroySpeed(const ItemInstance &stack, Tile &tile) const

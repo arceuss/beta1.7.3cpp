@@ -112,7 +112,7 @@ void validateOptions(const Options &options)
 		{ "lighting", { "count", "period", "width", "depth" } },
 		{ "fluids", { "size", "spacing" } }, { "tnt", { "count", "period" } },
 		{ "mobs", { "count" } }, { "entities", { "count" } },
-		{ "cave", { "width", "depth" } }, { "crops", {} }, { "clouds", {} }, { "all", {} }
+		{ "cave", { "width", "depth" } }, { "crops", {} }, { "glass", { "origin", "ao" } }, { "clouds", {} }, { "all", {} }
 	};
 	const auto &allowed = keys.at(options.scenario);
 	for (const auto &entry : options.params.values)
@@ -143,8 +143,8 @@ void validateOptions(const Options &options)
 		else
 		{
 			const int value = options.params.intOr(key, 0);
-			const int lower = key == "step" ? -24000 : 1;
-			const int upper = key == "step" ? 24000 : key == "floors" ? 16 :
+			const int lower = key == "step" ? -24000 : key == "origin" ? -1024 : key == "ao" ? 0 : 1;
+			const int upper = key == "step" ? 24000 : key == "origin" ? 1024 : key == "ao" ? 1 : key == "floors" ? 16 :
 				key == "count" ? 10000 : key == "period" ? 1000000 : 256;
 			if (value < lower || value > upper)
 				throw std::invalid_argument("Out of range: --" + key);

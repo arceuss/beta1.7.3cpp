@@ -25,15 +25,15 @@ EntitySnowball::EntitySnowball(Level &level, Mob &owner) : EntitySnowball(level)
 {
 	this->owner = level.getEntityRef(owner);
 	absMoveTo(owner.x, owner.y + owner.getHeadHeight(), owner.z, owner.yRot, owner.xRot);
-	x -= Mth::cos(yRot * Mth::DEGRAD) * 0.16f;
+	x -= Mth::cos(yRot / 180.0f * Mth::PI) * 0.16f;
 	y -= 0.1f;
-	z -= Mth::sin(yRot * Mth::DEGRAD) * 0.16f;
+	z -= Mth::sin(yRot / 180.0f * Mth::PI) * 0.16f;
 	setPos(x, y, z);
 	heightOffset = 0.0f;
 	float speed = 0.4f;
-	xd = -Mth::sin(yRot * Mth::DEGRAD) * Mth::cos(xRot * Mth::DEGRAD) * speed;
-	zd = Mth::cos(yRot * Mth::DEGRAD) * Mth::cos(xRot * Mth::DEGRAD) * speed;
-	yd = -Mth::sin(xRot * Mth::DEGRAD) * speed;
+	xd = -Mth::sin(yRot / 180.0f * Mth::PI) * Mth::cos(xRot / 180.0f * Mth::PI) * speed;
+	zd = Mth::cos(yRot / 180.0f * Mth::PI) * Mth::cos(xRot / 180.0f * Mth::PI) * speed;
+	yd = -Mth::sin(xRot / 180.0f * Mth::PI) * speed;
 	shoot(xd, yd, zd, 1.5f, 1.0f);
 }
 
@@ -107,34 +107,38 @@ void EntitySnowball::tick()
 	Vec3 *from = Vec3::newTemp(x, y, z);
 	Vec3 *to = Vec3::newTemp(x + xd, y + yd, z + zd);
 	HitResult hit = level.clip(*from, *to, false);
-	Vec3 *collisionEnd = to;
+	from = Vec3::newTemp(x, y, z);
+	to = Vec3::newTemp(x + xd, y + yd, z + zd);
 	if (hit.type != HitResult::Type::NONE && hit.pos != nullptr)
-		collisionEnd = Vec3::newTemp(hit.pos->x, hit.pos->y, hit.pos->z);
+		to = Vec3::newTemp(hit.pos->x, hit.pos->y, hit.pos->z);
 
-	std::shared_ptr<Entity> hitEntity;
-	double bestDistance = 0.0;
 	std::shared_ptr<Entity> ownerRef = owner.lock();
-	AABB *searchBox = bb.expand(xd, yd, zd)->grow(1.0, 1.0, 1.0);
-	const auto &entities = level.getEntities(this, *searchBox);
-	for (const auto &entity : entities)
+	if (!level.isOnline)
 	{
-		if (!entity->isPickable())
-			continue;
-		if (ownerRef != nullptr && entity.get() == ownerRef.get() && ticksInAir < 5)
-			continue;
-		AABB *entityBox = entity->bb.grow(0.3f, 0.3f, 0.3f);
-		HitResult entityHit = entityBox->clip(*from, *collisionEnd);
-		if (entityHit.type == HitResult::Type::NONE || entityHit.pos == nullptr)
-			continue;
-		double distance = from->distanceTo(*entityHit.pos);
-		if (distance < bestDistance || bestDistance == 0.0)
+		std::shared_ptr<Entity> hitEntity;
+		double bestDistance = 0.0;
+		AABB *searchBox = bb.expand(xd, yd, zd)->grow(1.0, 1.0, 1.0);
+		const auto &entities = level.getEntities(this, *searchBox);
+		for (const auto &entity : entities)
 		{
-			hitEntity = entity;
-			bestDistance = distance;
+			if (!entity->isPickable())
+				continue;
+			if (ownerRef != nullptr && entity.get() == ownerRef.get() && ticksInAir < 5)
+				continue;
+			AABB *entityBox = entity->bb.grow(0.3f, 0.3f, 0.3f);
+			HitResult entityHit = entityBox->clip(*from, *to);
+			if (entityHit.type == HitResult::Type::NONE || entityHit.pos == nullptr)
+				continue;
+			double distance = from->distanceTo(*entityHit.pos);
+			if (distance < bestDistance || bestDistance == 0.0)
+			{
+				hitEntity = entity;
+				bestDistance = distance;
+			}
 		}
+		if (hitEntity != nullptr)
+			hit = HitResult(hitEntity);
 	}
-	if (hitEntity != nullptr)
-		hit = HitResult(hitEntity);
 
 	if (hit.type != HitResult::Type::NONE)
 	{
@@ -143,7 +147,6 @@ void EntitySnowball::tick()
 		for (int_t i = 0; i < 8; ++i)
 			level.addParticle(u"snowballpoof", x, y, z, 0.0, 0.0, 0.0);
 		remove();
-		return;
 	}
 
 	x += xd;

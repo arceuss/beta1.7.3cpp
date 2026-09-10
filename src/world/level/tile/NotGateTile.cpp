@@ -2,6 +2,7 @@
 
 #include "world/level/Level.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/RedStoneDustTile.h"
 #include "java/Random.h"
 
 struct RedstoneUpdateInfo
@@ -14,12 +15,21 @@ struct RedstoneUpdateInfo
 
 std::vector<RedstoneUpdateInfo> NotGateTile::torchUpdates;
 
-// b173: BlockRedstoneTorch(76, 86, true) / BlockRedstoneTorchIdle(75, 86, false)
+// b173: BlockRedstoneTorch(76, 99, true) / BlockRedstoneTorch(75, 115, false)
 NotGateTile::NotGateTile(int_t id, int_t tex, bool torchActive)
 	: TorchTile(id, tex), torchActive(torchActive)
 {
 	setTicking(true);
 	updateCachedProperties();
+}
+
+int_t NotGateTile::getTexture(Facing face, int_t data)
+{
+	// vanilla delegates the top face to redstone dust so the wire tip shows
+	// through the torch head
+	if (face == Facing::UP)
+		return Tile::redstoneWire.getTexture(face, data);
+	return TorchTile::getTexture(face, data);
 }
 
 bool NotGateTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
@@ -52,10 +62,10 @@ void NotGateTile::onPlace(Level &level, int_t x, int_t y, int_t z)
 
 	if (torchActive)
 	{
-		level.notifyBlocksOfNeighborChange(x - 1, y, z, id);
-		level.notifyBlocksOfNeighborChange(x + 1, y, z, id);
 		level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
 		level.notifyBlocksOfNeighborChange(x, y + 1, z, id);
+		level.notifyBlocksOfNeighborChange(x - 1, y, z, id);
+		level.notifyBlocksOfNeighborChange(x + 1, y, z, id);
 		level.notifyBlocksOfNeighborChange(x, y, z - 1, id);
 		level.notifyBlocksOfNeighborChange(x, y, z + 1, id);
 	}
@@ -65,10 +75,10 @@ void NotGateTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 {
 	if (torchActive)
 	{
-		level.notifyBlocksOfNeighborChange(x - 1, y, z, id);
-		level.notifyBlocksOfNeighborChange(x + 1, y, z, id);
 		level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
 		level.notifyBlocksOfNeighborChange(x, y + 1, z, id);
+		level.notifyBlocksOfNeighborChange(x - 1, y, z, id);
+		level.notifyBlocksOfNeighborChange(x + 1, y, z, id);
 		level.notifyBlocksOfNeighborChange(x, y, z - 1, id);
 		level.notifyBlocksOfNeighborChange(x, y, z + 1, id);
 	}
@@ -76,29 +86,23 @@ void NotGateTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 
 void NotGateTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 {
-	(void)random;
-
 	bool shouldTurnOff = isAttachedBlockPowered(level, x, y, z);
 
-	// Prune old burnout entries (> 100 ticks ago)
-	long_t now = level.time;
-	for (auto it = torchUpdates.begin(); it != torchUpdates.end(); )
-	{
-		if (now - it->updateTime > 100)
-			it = torchUpdates.erase(it);
-		else
-			++it;
-	}
+	// vanilla prunes only the expired prefix of the toggle log: it stops at the
+	// first entry inside the 100 tick window instead of sweeping the whole list,
+	// which matters once the world time moves backwards.
+	while (!torchUpdates.empty() && level.time - torchUpdates.front().updateTime > 100)
+		torchUpdates.erase(torchUpdates.begin());
 
 	if (torchActive)
 	{
 		if (shouldTurnOff)
 		{
-			// Switch to idle block, preserving metadata (orientation)
-			int_t data = level.getData(x, y, z);
+			// the off-state replacement happens first; the burnout bookkeeping,
+			// sound and smoke follow it
+			level.setTileAndData(x, y, z, Tile::torchRedstoneIdle.id, level.getData(x, y, z));
 			if (checkForBurnout(level, x, y, z, true))
 			{
-				// Burnout: fizz sound + smoke particles
 				const float fa = level.random.nextFloat();
 				const float fb = level.random.nextFloat();
 				level.playSoundEffect(
@@ -107,27 +111,22 @@ void NotGateTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 					static_cast<double>(z) + 0.5,
 					u"random.fizz",
 					0.5f,
-					2.4f + (fa - fb) * 0.8f
+					2.6f + (fa - fb) * 0.8f
 				);
+				// the smoke offsets come from the tick random, not level.random
 				for (int_t i = 0; i < 5; i++)
 				{
-					double px = static_cast<double>(x) + level.random.nextDouble() * 0.6 + 0.2;
-					double py = static_cast<double>(y) + level.random.nextDouble() * 0.6 + 0.2;
-					double pz = static_cast<double>(z) + level.random.nextDouble() * 0.6 + 0.2;
+					double px = static_cast<double>(x) + random.nextDouble() * 0.6 + 0.2;
+					double py = static_cast<double>(y) + random.nextDouble() * 0.6 + 0.2;
+					double pz = static_cast<double>(z) + random.nextDouble() * 0.6 + 0.2;
 					level.addParticle(u"smoke", px, py, pz, 0.0, 0.0, 0.0);
 				}
 			}
-			level.setTileAndData(x, y, z, Tile::tiles[75]->id, data);
 		}
 	}
-	else
+	else if (!shouldTurnOff && !checkForBurnout(level, x, y, z, false))
 	{
-		if (!shouldTurnOff && !checkForBurnout(level, x, y, z, false))
-		{
-			// Switch to active block, preserving metadata (orientation)
-			int_t data = level.getData(x, y, z);
-			level.setTileAndData(x, y, z, Tile::tiles[76]->id, data);
-		}
+		level.setTileAndData(x, y, z, Tile::torchRedstoneActive.id, level.getData(x, y, z));
 	}
 }
 
@@ -170,8 +169,8 @@ int_t NotGateTile::getResource(int_t data, Random &random)
 {
 	(void)data;
 	(void)random;
-	// Both active and idle torches drop the active torch item (block 76)
-	return Tile::tiles[76]->id;
+	// both states drop the active torch
+	return Tile::torchRedstoneActive.id;
 }
 
 void NotGateTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &random)
@@ -179,13 +178,14 @@ void NotGateTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &r
 	if (!torchActive)
 		return;
 
-	// Spawn reddust particles matching b173 randomDisplayTick
+	// vanilla jitters all three base coordinates before picking the
+	// orientation offset: three nextFloat draws, in x/y/z order
 	int_t data = level.getData(x, y, z);
-	double px = static_cast<double>(x) + 0.5;
-	double py = static_cast<double>(y) + 0.7;
-	double pz = static_cast<double>(z) + 0.5;
-	double off = 0.22;
-	double side = 0.27;
+	double px = static_cast<double>(static_cast<float>(x) + 0.5f) + static_cast<double>(random.nextFloat() - 0.5f) * 0.2;
+	double py = static_cast<double>(static_cast<float>(y) + 0.7f) + static_cast<double>(random.nextFloat() - 0.5f) * 0.2;
+	double pz = static_cast<double>(static_cast<float>(z) + 0.5f) + static_cast<double>(random.nextFloat() - 0.5f) * 0.2;
+	double off = static_cast<double>(0.22f);
+	double side = static_cast<double>(0.27f);
 
 	if (data == 1)
 	{

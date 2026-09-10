@@ -70,16 +70,21 @@ void CactusTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 		}
 	}
 	
-void CactusTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
+bool CactusTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (!canStay(level, x, y, z))
-		level.setTile(x, y, z, 0);
+	if (!Tile::mayPlace(level, x, y, z))
+		return false;
+	return canStay(level, x, y, z);
 }
 
-void CactusTile::onPlace(Level &level, int_t x, int_t y, int_t z)
+void CactusTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
-	if (!canStay(level, x, y, z))
-		level.setTile(x, y, z, 0);
+	(void)tile;
+	if (canStay(level, x, y, z))
+		return;
+
+	spawnResources(level, x, y, z, level.getData(x, y, z));
+	level.setTile(x, y, z, 0);
 }
 	
 void CactusTile::entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity)

@@ -143,7 +143,6 @@ void PistonExtensionTile::addAABBs(Level &level, int_t x, int_t y, int_t z, AABB
 
 void PistonExtensionTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
-	(void)tile;
 	int_t dir = getDirection(level.getData(x, y, z));
 	int_t bx = x - PistonTextures::offsetX[dir];
 	int_t by = y - PistonTextures::offsetY[dir];
@@ -152,7 +151,9 @@ void PistonExtensionTile::neighborChanged(Level &level, int_t x, int_t y, int_t 
 	if (baseId != Tile::pistonBase.id && baseId != Tile::pistonStickyBase.id)
 		level.setTile(x, y, z, 0);
 	else
-		Tile::tiles[baseId]->neighborChanged(level, bx, by, bz, baseId);
+		// BlockPistonExtension passes on the id of the block that changed, not the
+		// piston base id; the base callback ignores it today but the contract holds
+		Tile::tiles[baseId]->neighborChanged(level, bx, by, bz, tile);
 }
 
 int_t PistonExtensionTile::getDirection(int_t data)

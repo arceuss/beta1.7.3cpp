@@ -26,7 +26,7 @@ bool ItemBed::useOn(ItemInstance &stack, Player &player, Level &level, int_t x, 
 	if (dir == 3) dx = 1;
 
 	if (level.isEmptyTile(x, y, z) && level.isEmptyTile(x + dx, y, z + dz)
-		&& level.isSolidTile(x, y - 1, z) && level.isSolidTile(x + dx, y - 1, z + dz))
+		&& level.isBlockNormalCube(x, y - 1, z) && level.isBlockNormalCube(x + dx, y - 1, z + dz))
 	{
 		level.setTileAndData(x, y, z, Tile::bed.id, dir);
 		level.setTileAndData(x + dx, y, z + dz, Tile::bed.id, dir | 8);

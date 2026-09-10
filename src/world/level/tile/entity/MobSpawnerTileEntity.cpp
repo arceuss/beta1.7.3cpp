@@ -1,11 +1,44 @@
 #include "world/level/tile/entity/MobSpawnerTileEntity.h"
 
+#include <memory>
 #include <typeinfo>
+#include <vector>
 
 #include "world/entity/EntityIO.h"
 #include "world/entity/Mob.h"
+#include "world/entity/monster/Giant.h"
+#include "world/entity/monster/Monster.h"
+#include "world/entity/monster/Zombie.h"
 #include "world/level/Level.h"
 #include "world/phys/AABB.h"
+
+static int_t countInstancesOfClass(const std::vector<std::shared_ptr<Entity>> &entities, const Entity &prototype)
+{
+	const std::type_info &spawnClass = typeid(prototype);
+	int_t count = 0;
+	if (spawnClass == typeid(Mob))
+	{
+		for (const auto &other : entities)
+			count += dynamic_cast<Mob *>(other.get()) != nullptr;
+	}
+	else if (spawnClass == typeid(Monster))
+	{
+		for (const auto &other : entities)
+			count += dynamic_cast<Monster *>(other.get()) != nullptr;
+	}
+	else if (spawnClass == typeid(Zombie))
+	{
+		// Java's Giant extends EntityMob, despite the native Giant's Zombie base.
+		for (const auto &other : entities)
+			count += dynamic_cast<Zombie *>(other.get()) != nullptr && dynamic_cast<Giant *>(other.get()) == nullptr;
+	}
+	else
+	{
+		for (const auto &other : entities)
+			count += typeid(*other) == spawnClass;
+	}
+	return count;
+}
 
 MobSpawnerTileEntity::MobSpawnerTileEntity()
 {
@@ -36,18 +69,23 @@ void MobSpawnerTileEntity::tick()
 	if (!isNearPlayer())
 		return;
 
-	double px = x + level->random.nextFloat();
-	double py = y + level->random.nextFloat();
-	double pz = z + level->random.nextFloat();
+	double px = static_cast<float>(x) + level->random.nextFloat();
+	double py = static_cast<float>(y) + level->random.nextFloat();
+	double pz = static_cast<float>(z) + level->random.nextFloat();
 	level->addParticle(u"smoke", px, py, pz, 0.0, 0.0, 0.0);
 	level->addParticle(u"flame", px, py, pz, 0.0, 0.0, 0.0);
 
-	spin += 1000.0 / (spawnDelay + 200.0);
+	spin += static_cast<double>(1000.0f / (static_cast<float>(spawnDelay) + 200.0f));
 	while (spin > 360.0)
 	{
 		spin -= 360.0;
 		oSpin -= 360.0;
 	}
+
+	// MobSpawnerTileEntity.java:37 - the countdown and the spawn attempts are
+	// server-authoritative; the spin and particles above are not
+	if (level->isOnline)
+		return;
 
 	if (spawnDelay == -1)
 		resetDelay();
@@ -65,17 +103,10 @@ void MobSpawnerTileEntity::tick()
 		if (mob == nullptr)
 			return;
 
-		// spawn cap: at most 6 of the same type within an 8/4/8 box
+		// spawn cap: at most 6 of the spawned class within an 8/4/8 box
 		AABB box(x, y, z, x + 1, y + 1, z + 1);
 		AABB *grown = box.grow(8.0, 4.0, 8.0);
-		const auto &nearby = level->getEntities(nullptr, *grown);
-		int_t sameType = 0;
-		for (const auto &other : nearby)
-		{
-			if (typeid(*other) == typeid(*mob))
-				sameType++;
-		}
-		if (sameType >= 6)
+		if (countInstancesOfClass(level->getEntities(nullptr, *grown), *mob) >= 6)
 		{
 			resetDelay();
 			return;

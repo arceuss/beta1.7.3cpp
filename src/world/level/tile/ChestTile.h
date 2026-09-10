@@ -1,5 +1,6 @@
 #pragma once
 
+#include "java/Random.h"
 #include "world/level/tile/Tile.h"
 
 class ChestTile : public Tile
@@ -15,7 +16,10 @@ public:
 	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
 
 private:
+	// ChestTile.java:8 - each block instance owns its drop RNG, separate from Level.random
+	Random random;
+
 	bool hasNeighborChest(Level &level, int_t x, int_t y, int_t z) const;
 	bool isBlockedChest(Level &level, int_t x, int_t y, int_t z) const;
-	void dropContents(Level &level, int_t x, int_t y, int_t z) const;
+	void dropContents(Level &level, int_t x, int_t y, int_t z);
 };

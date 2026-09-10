@@ -819,6 +819,48 @@ public:
 	}
 };
 
+class GlassScenario : public Scenario
+{
+	int_t origin = 0;
+	int neighborTransitions = 0;
+public:
+	const char *name() const override { return "glass"; }
+	int defaultFrames() const override { return 60; }
+	void setup(World &world, const Params &params) override
+	{
+		origin = params.intOr("origin", 0);
+		world.minecraft.options.ambientOcclusion = params.intOr("ao", world.minecraft.options.ambientOcclusion) != 0;
+		for (int_t x = -10; x <= 10; ++x)
+			for (int_t z = -10; z <= 10; ++z)
+			{
+				world.level.setTile(origin + x, 95, origin + z, Tile::rock.id);
+				for (int_t y = 96; y <= 108; ++y)
+					world.level.setTile(origin + x, y, origin + z, 0);
+			}
+		world.level.setTile(origin - 3, 96, origin, Tile::glass.id);
+		world.level.setTile(origin, 96, origin, Tile::glass.id);
+		world.level.setTile(origin + 1, 96, origin, Tile::glass.id);
+		for (int_t x = 3; x <= 4; ++x)
+			for (int_t y = 96; y <= 97; ++y)
+				for (int_t z = 0; z <= 1; ++z)
+					world.level.setTile(origin + x, y, origin + z, Tile::glass.id);
+		world.minecraft.options.hideGui = true;
+		onTick(world, 0);
+	}
+	void onTick(World &world, long_t tick) override
+	{
+		pinPlayer(world.player, origin + 0.5, 99.0, origin + 7.5, 180.0f, 20.0f);
+		world.level.setTime(6000);
+		if (tick == 3 || tick == 6)
+			neighborTransitions += world.level.setTile(origin - 2, 96, origin, tick == 3 ? Tile::glass.id : 0);
+	}
+	void report(World &world, std::vector<std::string> &lines) override
+	{
+		lines.push_back("glass_neighbor_transitions " + std::to_string(neighborTransitions));
+		lines.push_back("glass_neighbor_final " + std::to_string(world.level.getTile(origin - 2, 96, origin)));
+	}
+};
+
 class CloudsScenario : public Scenario
 {
 	double x = 0.0, z = 0.0;
@@ -860,6 +902,7 @@ std::unique_ptr<Scenario> makeScenario(const std::string &name)
 	if (name == "entities") return std::make_unique<EntitiesScenario>();
 	if (name == "cave") return std::make_unique<CaveScenario>();
 	if (name == "crops") return std::make_unique<CropsScenario>();
+	if (name == "glass") return std::make_unique<GlassScenario>();
 	if (name == "clouds") return std::make_unique<CloudsScenario>();
 	return nullptr;
 }
@@ -867,7 +910,7 @@ std::unique_ptr<Scenario> makeScenario(const std::string &name)
 std::vector<std::string> scenarioNames()
 {
 	return { "idle", "spin", "walk", "daycycle", "travel", "farlands", "building",
-		"lighting", "fluids", "tnt", "mobs", "entities", "cave", "crops", "clouds" };
+		"lighting", "fluids", "tnt", "mobs", "entities", "cave", "crops", "glass", "clouds" };
 }
 
 }

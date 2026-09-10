@@ -10,8 +10,8 @@ public:
 	bool isCubeShaped() override;
 	bool isSolidRender() override;
 	AABB *getAABB(Level &level, int_t x, int_t y, int_t z) override;
+	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
-	void onPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void updateShape(LevelSource &level, int_t x, int_t y, int_t z) override;
 	void updateDefaultShape() override;
 	void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data) override;
@@ -21,5 +21,5 @@ public:
 	void tick(Level &level, int_t x, int_t y, int_t z, Random &random) override;
 
 private:
-	bool canSnowStay(LevelSource &level, int_t x, int_t y, int_t z);
+	bool checkCanSurvive(Level &level, int_t x, int_t y, int_t z);
 };

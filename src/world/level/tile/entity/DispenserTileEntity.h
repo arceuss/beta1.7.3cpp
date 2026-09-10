@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "java/Random.h"
 #include "world/level/tile/entity/TileEntity.h"
 #include "world/inventory/IInventory.h"
 #include "world/item/ItemInstance.h"
@@ -12,6 +13,9 @@ class DispenserTileEntity : public TileEntity, public IInventory
 {
 private:
 	std::array<ItemInstance, 9> items = {};
+	// DispenserTileEntity.java:9 - slot selection draws from the tile entity's
+	// own generator, not the world or block RNG
+	Random random;
 
 public:
 	jstring getEncodeId() const override { return u"Trap"; }
@@ -22,6 +26,7 @@ public:
 	const ItemInstance &getItem(int_t slot) const { return items[slot]; }
 	void setItem(int_t slot, const ItemInstance &item);
 	ItemInstance removeItem(int_t slot, int_t count);
+	ItemInstance removeRandomItem();
 	int_t getContainerSize() const { return static_cast<int_t>(items.size()); }
 	bool canUse(Player &player) const;
 

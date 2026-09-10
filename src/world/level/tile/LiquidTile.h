@@ -31,14 +31,17 @@ public:
 	virtual void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 
 	void velocityToAddToEntity(Level &level, int_t x, int_t y, int_t z, Entity &entity, Vec3 &vec);
-	Vec3 getFlowVector(Level &level, int_t x, int_t y, int_t z);
+	Vec3 getFlowVector(LevelSource &level, int_t x, int_t y, int_t z);
 
 	static float getHeight(int_t data);
 	static double getSlopeAngle(LevelSource &level, int_t x, int_t y, int_t z, const Material &material);
 
 protected:
 	int_t getDepth(Level &level, int_t x, int_t y, int_t z) const;
-	int_t getEffectiveFlowDepth(Level &level, int_t x, int_t y, int_t z);
+	// LiquidTile.getIsBlockSolid: the reference solidity test used by the falling-flow
+	// checks. Same material and ice never count as solid, the up face always does, and
+	// everything else falls back to Tile.getIsBlockSolid (target material solidity).
+	bool getIsBlockSolid(LevelSource &level, int_t x, int_t y, int_t z, Facing face) const;
 	int_t getRenderedDepth(LevelSource &level, int_t x, int_t y, int_t z) const;
 	void updateLiquid(Level &level, int_t x, int_t y, int_t z);
 	void fizz(Level &level, int_t x, int_t y, int_t z);

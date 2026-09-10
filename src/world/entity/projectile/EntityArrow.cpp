@@ -30,14 +30,14 @@ EntityArrow::EntityArrow(Level &level, Mob &owner) : EntityArrow(level)
 	this->owner = level.getEntityRef(owner);
 	doesArrowBelongToPlayer = owner.isPlayer();
 	absMoveTo(owner.x, owner.y + owner.getHeadHeight(), owner.z, owner.yRot, owner.xRot);
-	x -= Mth::cos(yRot * Mth::DEGRAD) * 0.16f;
+	x -= Mth::cos(yRot / 180.0f * Mth::PI) * 0.16f;
 	y -= 0.1f;
-	z -= Mth::sin(yRot * Mth::DEGRAD) * 0.16f;
+	z -= Mth::sin(yRot / 180.0f * Mth::PI) * 0.16f;
 	setPos(x, y, z);
 	heightOffset = 0.0f;
-	xd = -Mth::sin(yRot * Mth::DEGRAD) * Mth::cos(xRot * Mth::DEGRAD);
-	zd = Mth::cos(yRot * Mth::DEGRAD) * Mth::cos(xRot * Mth::DEGRAD);
-	yd = -Mth::sin(xRot * Mth::DEGRAD);
+	xd = -Mth::sin(yRot / 180.0f * Mth::PI) * Mth::cos(xRot / 180.0f * Mth::PI);
+	zd = Mth::cos(yRot / 180.0f * Mth::PI) * Mth::cos(xRot / 180.0f * Mth::PI);
+	yd = -Mth::sin(xRot / 180.0f * Mth::PI);
 	setArrowHeading(xd, yd, zd, 1.5f, 1.0f);
 }
 
@@ -90,6 +90,7 @@ void EntityArrow::tick()
 		Tile *tile = Tile::tiles[tileId];
 		if (tile != nullptr)
 		{
+			tile->updateShape(level, xTile, yTile, zTile);
 			AABB *aabb = tile->getAABB(level, xTile, yTile, zTile);
 			if (aabb != nullptr && aabb->contains(*Vec3::newTemp(x, y, z)))
 				inGround = true;
@@ -124,10 +125,11 @@ void EntityArrow::tick()
 	ticksInAir++;
 	Vec3 *from = Vec3::newTemp(x, y, z);
 	Vec3 *to = Vec3::newTemp(x + xd, y + yd, z + zd);
-	HitResult hit = level.clip(*from, *to, false);
-	Vec3 *collisionEnd = to;
+	HitResult hit = level.clip(*from, *to, false, true);
+	from = Vec3::newTemp(x, y, z);
+	to = Vec3::newTemp(x + xd, y + yd, z + zd);
 	if (hit.type != HitResult::Type::NONE && hit.pos != nullptr)
-		collisionEnd = Vec3::newTemp(hit.pos->x, hit.pos->y, hit.pos->z);
+		to = Vec3::newTemp(hit.pos->x, hit.pos->y, hit.pos->z);
 
 	std::shared_ptr<Entity> hitEntity;
 	double bestDistance = 0.0;
@@ -141,7 +143,7 @@ void EntityArrow::tick()
 		if (ownerRef != nullptr && entity.get() == ownerRef.get() && ticksInAir < 5)
 			continue;
 		AABB *entityBox = entity->bb.grow(0.3f, 0.3f, 0.3f);
-		HitResult entityHit = entityBox->clip(*from, *collisionEnd);
+		HitResult entityHit = entityBox->clip(*from, *to);
 		if (entityHit.type == HitResult::Type::NONE || entityHit.pos == nullptr)
 			continue;
 		double distance = from->distanceTo(*entityHit.pos);
@@ -182,9 +184,9 @@ void EntityArrow::tick()
 			zTile = hit.z;
 			inTile = level.getTile(xTile, yTile, zTile);
 			inData = level.getData(xTile, yTile, zTile);
-			xd = hit.pos->x - x;
-			yd = hit.pos->y - y;
-			zd = hit.pos->z - z;
+			xd = static_cast<float>(hit.pos->x - x);
+			yd = static_cast<float>(hit.pos->y - y);
+			zd = static_cast<float>(hit.pos->z - z);
 			float impactDistance = Mth::sqrt(xd * xd + yd * yd + zd * zd);
 			x -= xd / impactDistance * 0.05f;
 			y -= yd / impactDistance * 0.05f;

@@ -9,6 +9,18 @@
 
 // b173: BlockPressurePlate — Material circuits (stone) or wood, ticking, sensitivity by subtype
 
+namespace PressurePlateDetail
+{
+	static bool isMobEntity(Entity &entity)
+	{
+		return dynamic_cast<Mob *>(&entity) != nullptr;
+	}
+	static bool isPlayerEntity(Entity &entity)
+	{
+		return dynamic_cast<Player *>(&entity) != nullptr;
+	}
+}
+
 PressurePlateTile::PressurePlateTile(int_t id, int_t tex, Sensitivity sensitivity, const Material &material)
 	: Tile(id, tex, material), sensitivity(sensitivity)
 {
@@ -19,7 +31,7 @@ PressurePlateTile::PressurePlateTile(int_t id, int_t tex, Sensitivity sensitivit
 
 bool PressurePlateTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	// b173: canPlaceBlockAt — solid block below required
+	// b173: canPlaceBlockAt — a normal cube below is required
 	return level.isBlockNormalCube(x, y - 1, z);
 }
 
@@ -37,70 +49,69 @@ void PressurePlateTile::neighborChanged(Level &level, int_t x, int_t y, int_t z,
 void PressurePlateTile::entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity)
 {
 	(void)entity;
-	// b173: onEntityCollidedWithBlock — check if not already pressed
-	if (level.getData(x, y, z) != 1)
-		setStateIfMobInteractsWithPlate(level, x, y, z);
+	// b173: onEntityCollidedWithBlock — the trigger belongs to the server, and a
+	// plate that already reads pressed needs no re-evaluation here
+	if (level.isOnline)
+		return;
+	if (level.getData(x, y, z) == 1)
+		return;
+	checkPressed(level, x, y, z);
 }
 
 void PressurePlateTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 {
 	(void)random;
 	// b173: updateTick — re-evaluate state if still pressed
-	if (level.getData(x, y, z) != 0)
-		setStateIfMobInteractsWithPlate(level, x, y, z);
+	if (level.isOnline)
+		return;
+	if (level.getData(x, y, z) == 0)
+		return;
+	checkPressed(level, x, y, z);
 }
 
-void PressurePlateTile::setStateIfMobInteractsWithPlate(Level &level, int_t x, int_t y, int_t z)
+void PressurePlateTile::checkPressed(Level &level, int_t x, int_t y, int_t z)
 {
-	// b173: setStateIfMobInteractsWithPlate — entity AABB query
-	float x0 = (float)x + 2.0f / 16.0f;
-	float y0 = (float)y;
-	float z0 = (float)z + 2.0f / 16.0f;
-	float x1 = (float)x + 14.0f / 16.0f;
-	float y1 = (float)y + 0.25f;
-	float z1 = (float)z + 14.0f / 16.0f;
+	// b173: checkPressed — the entity query itself is the filter, so entities in
+	// their death animation still hold a plate down
+	bool wasPressed = level.getData(x, y, z) == 1;
+	bool pressed = false;
+	float f = 0.125f;
 
-	AABB *plateAABB = AABB::newTemp(x0, y0, z0, x1, y1, z1);
-	const auto &entities = level.getEntities(nullptr, *plateAABB);
-
-	bool found = false;
-	for (const auto &e : entities)
+	if (sensitivity == Sensitivity::EVERYTHING)
 	{
-		if (!e->isAlive())
-			continue;
-
-		switch (sensitivity)
-		{
-		case Sensitivity::EVERYTHING:
-			found = true;
-			break;
-		case Sensitivity::MOBS:
-			if (dynamic_cast<Mob *>(e.get()) != nullptr)
-				found = true;
-			break;
-		case Sensitivity::PLAYERS:
-			if (dynamic_cast<Player *>(e.get()) != nullptr)
-				found = true;
-			break;
-		}
-		if (found)
-			break;
+		AABB *plateAABB = AABB::newTemp(static_cast<float>(x) + f, y, static_cast<float>(z) + f, static_cast<float>(x + 1) - f, static_cast<double>(y) + 0.25, static_cast<float>(z + 1) - f);
+		pressed = !level.getEntities(nullptr, *plateAABB).empty();
+	}
+	if (sensitivity == Sensitivity::MOBS)
+	{
+		AABB *plateAABB = AABB::newTemp(static_cast<float>(x) + f, y, static_cast<float>(z) + f, static_cast<float>(x + 1) - f, static_cast<double>(y) + 0.25, static_cast<float>(z + 1) - f);
+		pressed = !level.getEntitiesOfCondition(PressurePlateDetail::isMobEntity, *plateAABB).empty();
+	}
+	if (sensitivity == Sensitivity::PLAYERS)
+	{
+		AABB *plateAABB = AABB::newTemp(static_cast<float>(x) + f, y, static_cast<float>(z) + f, static_cast<float>(x + 1) - f, static_cast<double>(y) + 0.25, static_cast<float>(z + 1) - f);
+		pressed = !level.getEntitiesOfCondition(PressurePlateDetail::isPlayerEntity, *plateAABB).empty();
 	}
 
-	int_t oldData = level.getData(x, y, z);
-	int_t newData = found ? 1 : 0;
-
-	if (oldData != newData)
+	if (pressed && !wasPressed)
 	{
-		level.setData(x, y, z, newData);
+		level.setData(x, y, z, 1);
 		level.notifyBlocksOfNeighborChange(x, y, z, id);
 		level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
-
-		float pitch = found ? 0.6f : 0.5f;
-		level.playSoundEffect((double)x + 0.5, (double)y + 0.1, (double)z + 0.5, u"random.click", 0.3f, pitch);
+		level.setTilesDirty(x, y, z, x, y, z);
+		level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.1, static_cast<double>(z) + 0.5, u"random.click", 0.3f, 0.6f);
 	}
 
-	if (found)
+	if (!pressed && wasPressed)
+	{
+		level.setData(x, y, z, 0);
+		level.notifyBlocksOfNeighborChange(x, y, z, id);
+		level.notifyBlocksOfNeighborChange(x, y - 1, z, id);
+		level.setTilesDirty(x, y, z, x, y, z);
+		level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.1, static_cast<double>(z) + 0.5, u"random.click", 0.3f, 0.5f);
+	}
+
+	if (pressed)
 		level.scheduleBlockUpdate(x, y, z, id, getTickDelay());
 }
 

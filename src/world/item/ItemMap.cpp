@@ -1,5 +1,7 @@
 #include "world/item/ItemMap.h"
 
+#include "java/Number.h"
+
 #include "nbt/CompoundTag.h"
 #include "util/Mth.h"
 #include "world/entity/Entity.h"
@@ -65,7 +67,7 @@ void ItemMap::updateMapData(Level &level, Entity &entity, MapData &data)
 	int_t radius = MAP_SIZE / scale;
 	if (level.dimension->hasCeiling) radius /= 2;
 
-	data.tick++;
+	data.tick = Java::intFromBits(static_cast<uint_t>(data.tick) + 1u);
 
 	for (int_t px = playerX - radius + 1; px < playerX + radius; px++)
 	{
@@ -95,8 +97,8 @@ void ItemMap::updateMapData(Level &level, Entity &entity, MapData &data)
 
 		if (level.dimension->hasCeiling)
 		{
-			int_t hash = worldX + worldZ * 231871;
-			hash = hash * hash * 31287121 + hash * 11;
+			uint_t hash = static_cast<uint_t>(worldX) + static_cast<uint_t>(worldZ) * 231871u;
+			hash = hash * hash * 31287121u + hash * 11u;
 			if ((hash >> 20 & 1) == 0)
 				blockCounts[Tile::dirt.id] += 10;
 			else

@@ -805,6 +805,29 @@ bool Level::isBlockNormalCube(int_t x, int_t y, int_t z)
 	return t->material.isSolidBlocking() && t->isCubeShaped();
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.World#canBlockBePlacedAt(int,int,int,int,boolean,int)
+bool Level::mayPlace(int_t id, int_t x, int_t y, int_t z, bool ignoreEntities, Facing face)
+{
+	int_t occupantId = getTile(x, y, z);
+	Tile *occupant = Tile::tiles[occupantId];
+	Tile *placed = Tile::tiles[id];
+	if (placed == nullptr)
+		return false;
+
+	AABB *box = placed->getAABB(*this, x, y, z);
+	if (ignoreEntities)
+		box = nullptr;
+	if (box != nullptr && !isUnobstructed(*box))
+		return false;
+
+	if (occupant == &Tile::water || occupant == &Tile::calmWater ||
+		occupant == &Tile::lava || occupant == &Tile::calmLava ||
+		occupant == &Tile::fire || occupant == &Tile::snow)
+		occupant = nullptr;
+
+	return id > 0 && occupant == nullptr && placed->mayPlaceOnFace(*this, x, y, z, face);
+}
+
 // b1.2 Level.getDirectSignal - the strong query (MCP misnames this pair
 // isBlockProvidingPowerTo -> isIndirectlyPoweringTo)
 bool Level::getDirectSignal(int_t x, int_t y, int_t z, int_t dir)
@@ -1069,6 +1092,15 @@ float Level::getBrightness(int_t x, int_t y, int_t z)
 	return dimension->brightnessRamp[getRawBrightness(x, y, z)];
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.World#getBrightness(int,int,int,int)
+float Level::getMinBrightness(int_t x, int_t y, int_t z, int_t minimum)
+{
+	int_t brightness = getRawBrightness(x, y, z);
+	if (brightness < minimum)
+		brightness = minimum;
+	return dimension->brightnessRamp[brightness];
+}
+
 bool Level::isDay()
 {
 	return skyDarken < 4;
@@ -1076,10 +1108,16 @@ bool Level::isDay()
 
 HitResult Level::clip(Vec3 &from, Vec3 &to)
 {
-	return clip(from, to, false);
+	return clip(from, to, false, false);
 }
 
 HitResult Level::clip(Vec3 &from, Vec3 &to, bool canPickLiquid)
+{
+	return clip(from, to, canPickLiquid, false);
+}
+
+// B173-JAVA-METHOD: net.minecraft.src.World#rayTraceBlocks_do_do (lce Level.raycast)
+HitResult Level::clip(Vec3 &from, Vec3 &to, bool canPickLiquid, bool ignoreNoAABB)
 {
 	if (std::isnan(from.x) || std::isnan(from.y) || std::isnan(from.z)) return HitResult();
 	if (std::isnan(to.x) || std::isnan(to.y) || std::isnan(to.z)) return HitResult();
@@ -1090,6 +1128,22 @@ HitResult Level::clip(Vec3 &from, Vec3 &to, bool canPickLiquid)
 	int_t x1 = Mth::floor(from.x);
 	int_t y1 = Mth::floor(from.y);
 	int_t z1 = Mth::floor(from.z);
+
+	// The reference tests the cell the ray starts in before entering the traversal
+	// loop (lce Level.java:586-589); a ray whose endpoints share one cell only ever
+	// gets this test.
+	{
+		int_t startId = getTile(x1, y1, z1);
+		int_t startData = getData(x1, y1, z1);
+		Tile *startTile = Tile::tiles[startId];
+		if ((!ignoreNoAABB || startTile == nullptr || startTile->getAABB(*this, x1, y1, z1) != nullptr) &&
+			startId > 0 && startTile != nullptr && startTile->mayPick(startData, canPickLiquid))
+		{
+			HitResult hitResult = startTile->clip(*this, x1, y1, z1, from, to);
+			if (hitResult.type != HitResult::Type::NONE)
+				return hitResult;
+		}
+	}
 	int_t steps = 200;
 
 	while (steps-- >= 0)
@@ -1182,12 +1236,20 @@ HitResult Level::clip(Vec3 &from, Vec3 &to, bool canPickLiquid)
 		if (tile > 0)
 		{
 			Tile *tt = Tile::tiles[tile];
-			int_t data = getData(x1, y1, z1);
-			if (tt != nullptr && tt->mayPick(data, canPickLiquid))
+			if (tt != nullptr)
 			{
-				HitResult hitResult = tt->clip(*this, x1, y1, z1, from, to);
-				if (hitResult.type != HitResult::Type::NONE)
-					return hitResult;
+				// lce Level.java:682: with ignoreNoAABB set, a cell whose tile has no
+				// collision box is skipped before the pickability test.
+				if (ignoreNoAABB && tt->getAABB(*this, x1, y1, z1) == nullptr)
+					continue;
+
+				int_t data = getData(x1, y1, z1);
+				if (tt->mayPick(data, canPickLiquid))
+				{
+					HitResult hitResult = tt->clip(*this, x1, y1, z1, from, to);
+					if (hitResult.type != HitResult::Type::NONE)
+						return hitResult;
+				}
 			}
 		}
 	}

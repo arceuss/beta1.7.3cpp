@@ -38,6 +38,7 @@ class Level;
 class LevelSource;
 class Entity;
 class Player;
+class ItemInstance;
 
 class StoneTile;
 class GrassTile;
@@ -332,6 +333,8 @@ public:
 
 	void spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data);
 	virtual void spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, float chance);
+	// B173-JAVA-METHOD: net.minecraft.src.Block#dropBlockAsItem_do
+	void popResource(Level &level, int_t x, int_t y, int_t z, const ItemInstance &item);
 
 	virtual int_t getSpawnResourcesAuxValue(int_t data);
 
@@ -359,6 +362,8 @@ public:
 
 	virtual void updateDefaultShape();
 	virtual bool mayPlace(Level &level, int_t x, int_t y, int_t z);
+	// B173-JAVA-METHOD: net.minecraft.src.Block#canPlaceBlockOnSide
+	virtual bool mayPlaceOnFace(Level &level, int_t x, int_t y, int_t z, Facing face);
 
 	virtual bool getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir);
 	virtual bool isSignalSource() { return false; }
@@ -369,7 +374,6 @@ public:
 	Tile &setDescriptionId(const jstring &id);
 
 	virtual void harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data);
-	virtual void playerDestroy(Level &level, int_t x, int_t y, int_t z, int_t data);
 	virtual void onBlockDestroyedByExplosion(Level &level, int_t x, int_t y, int_t z) {}
 	virtual float getExplosionResistance(Entity *entity) { (void)entity; return explosionResistance / 5.0f; }
 	virtual void playBlock(Level &level, int_t x, int_t y, int_t z, int_t type, int_t data);

@@ -1,13 +1,21 @@
 #include "tools/FindingsSmoke.h"
+#include "tools/audit/AuditCases.h"
 
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <array>
 #include <limits>
 #include <map>
 
 #include "client/Minecraft.h"
 #include "client/renderer/Tesselator.h"
+#include "world/level/Region.h"
+#include "world/level/MapData.h"
+#include "world/level/tile/GlassTile.h"
+#include "world/level/tile/IceTile.h"
+#include "world/level/tile/LiquidTile.h"
+#include "world/level/tile/StoneTile.h"
 #include "world/level/chunk/ChunkSource.h"
 #include "world/level/tile/CropsTile.h"
 #include "world/level/tile/SlabTile.h"
@@ -71,6 +79,10 @@ public:
 	{
 		if (probeDispatch) throw DispatchReached();
 		return brightness;
+	}
+	float getMinBrightness(int_t x, int_t y, int_t z, int_t) override
+	{
+		return getBrightness(x, y, z);
 	}
 	int_t getData(int_t, int_t, int_t) override { return cropStage; }
 };
@@ -281,6 +293,156 @@ bool tileEntityDistance()
 	std::cout << "findings-smoke tile entities: " << (ok ? "PASS" : "FAIL") << '\n';
 	return ok;
 }
+
+bool maps()
+{
+	World world;
+	auto first = std::make_shared<Player>(world);
+	auto second = std::make_shared<Player>(world);
+	world.players = {first, second};
+	ItemInstance map(358, 1, 7);
+	first->inventory.setItem(0, map);
+	second->inventory.setItem(0, map);
+	first->yRot = 90.0f;
+	second->yRot = 180.0f;
+	first->dimension = second->dimension = 0;
+	MapData data(u"map_7");
+	data.updatePlayer(*first, map);
+	data.updatePlayer(*second, map);
+	bool ok = expect(data.mapCoords.size() == 2, "both map owners receive markers");
+	ok &= expect(data.mapCoords.size() == 2 && data.mapCoords[0]->rot == 8 && data.mapCoords[1]->rot == 8,
+		"Beta map markers use the updating player's yaw");
+	second->inventory.setItem(1, map);
+	second->inventory.setItem(0, ItemInstance());
+	data.updatePlayer(*first, map);
+	ok &= expect(data.mapCoords.size() == 2, "a remaining duplicate map retains its marker");
+	second->inventory.setItem(1, ItemInstance(358, 1, 8));
+	data.updatePlayer(*first, map);
+	ok &= expect(data.mapCoords.size() == 1 && data.mapInfos.size() == 1 && data.playerMapInfos.count(second.get()) == 0,
+		"dropping the last matching map removes its marker and tracker");
+	second->inventory.setItem(0, map);
+	data.updatePlayer(*second, map);
+	second->removed = true;
+	data.updatePlayer(*first, map);
+	ok &= expect(data.mapCoords.size() == 1 && data.mapInfos.size() == 1, "dead map owner is removed");
+	second->removed = false;
+	data.updatePlayer(*second, map);
+	world.players.pop_back();
+	second.reset();
+	data.updatePlayer(*first, map);
+	ok &= expect(data.mapCoords.size() == 1 && data.mapInfos.size() == 1, "disconnected map owner is removed without dereferencing it");
+	data.dimension = first->dimension = -1;
+	data.tick = 1000000;
+	data.updatePlayer(*first, map);
+	ok &= expect(data.mapCoords.size() == 1 && data.mapCoords[0]->rot == 8, "Nether marker rotation matches Java wrapped arithmetic");
+	std::cout << "findings-smoke maps: " << (ok ? "PASS" : "FAIL") << '\n';
+	return ok;
+}
+
+bool glass()
+{
+	bool ok = true;
+	const int_t steps[6][3] = {{0,-1,0},{0,1,0},{0,0,-1},{0,0,1},{-1,0,0},{1,0,0}};
+	for (bool ao : {false, true})
+		for (bool fancy : {false, true})
+			for (int_t origin : {-16, -1, 0, 15, 16})
+			{
+				World world;
+				auto capture = [&](const std::vector<std::array<int_t, 3>> &blocks) {
+					Region region(world, origin - 2, 62, origin - 2, origin + 3, 67, origin + 3);
+					TileRenderer renderer(&region, ao, fancy);
+					MeshCapture mesh;
+					Tesselator &t = Tesselator::instance;
+					t.offset(0.0, 0.0, 0.0);
+					t.captureTo(&mesh);
+					t.begin();
+					for (const auto &block : blocks)
+						renderer.tesselateInWorld(Tile::glass, block[0], block[1], block[2]);
+					t.end();
+					t.captureTo(nullptr);
+					return mesh.quads;
+				};
+				std::vector<std::array<int_t, 3>> blocks = {{{origin, 64, origin}}};
+				world.tile(origin, 64, origin, Tile::glass.id);
+				ok &= expect(capture(blocks) == 6, "isolated glass emits six exterior quads");
+				for (int_t face = 0; face < 6; ++face)
+				{
+					int_t x = origin + steps[face][0], y = 64 + steps[face][1], z = origin + steps[face][2];
+					world.tile(x, y, z, Tile::glass.id);
+					blocks.push_back({x, y, z});
+					ok &= expect(capture(blocks) == 10, "adjacent glass omits both interface quads across boundaries");
+					blocks.pop_back();
+					world.tile(x, y, z, Tile::rock.id);
+					ok &= expect(capture(blocks) == 5, "opaque neighbor hides the touching glass face");
+					for (int_t neighbor : {Tile::ice.id, Tile::water.id})
+					{
+						world.tile(x, y, z, neighbor);
+						ok &= expect(capture(blocks) == 6, "glass preserves faces touching ice and water");
+					}
+					world.tile(x, y, z, 0);
+					ok &= expect(capture(blocks) == 6, "neighbor removal restores glass face");
+				}
+				blocks.clear();
+				for (int_t x = 0; x < 2; ++x)
+					for (int_t y = 0; y < 2; ++y)
+						for (int_t z = 0; z < 2; ++z)
+						{
+							world.tile(origin + x, 64 + y, origin + z, Tile::glass.id);
+							blocks.push_back({origin + x, 64 + y, origin + z});
+						}
+				ok &= expect(capture(blocks) == 24, "solid glass group emits only its twenty-four exterior unit faces");
+			}
+	ok &= expect(Tile::glass.getRenderLayer() == 0, "glass stays in terrain pass zero");
+	std::cout << "findings-smoke glass geometry: " << (ok ? "PASS" : "FAIL") << '\n';
+	return ok;
+}
+
+bool glassBackfaces()
+{
+	World world;
+	world.tile(0, 64, 0, Tile::glass.id);
+	TileRenderer renderer(&world, false, false);
+	glPushAttrib(GL_ALL_ATTRIB_BITS);
+	glViewport(0, 0, 64, 64);
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_ALPHA_TEST);
+	glDisable(GL_BLEND);
+	glDisable(GL_FOG);
+	glDisable(GL_LIGHTING);
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glFrustum(-0.1, 0.1, -0.1, 0.1, 0.1, 10.0);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	glTranslated(-0.5, -64.5, -0.5);
+	GLuint query = 0;
+	glGenQueries(1, &query);
+	GLuint samples[2] = {};
+	for (int_t culling = 0; culling < 2; ++culling)
+	{
+		if (culling) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
+		glBeginQuery(GL_SAMPLES_PASSED, query);
+		Tesselator::instance.begin();
+		renderer.tesselateInWorld(Tile::glass, 0, 64, 0);
+		Tesselator::instance.end();
+		glEndQuery(GL_SAMPLES_PASSED);
+		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &samples[culling]);
+	}
+	glDeleteQueries(1, &query);
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopAttrib();
+	bool ok = expect(samples[0] > 0 && samples[1] == 0, "glass backfaces produce no fragments from inside with reference culling");
+	std::cout << "findings-smoke glass GPU: uncull=" << samples[0] << " cull=" << samples[1] << '\n';
+	return ok;
+}
 }
 
 int runFindingsSmoke()
@@ -291,6 +453,21 @@ int runFindingsSmoke()
 	bool ok = FindingsSmoke::movement();
 	ok &= FindingsSmoke::crops();
 	ok &= FindingsSmoke::tileEntityDistance();
+	ok &= FindingsSmoke::maps();
+	ok &= FindingsSmoke::glass();
+	ok &= FindingsSmoke::glassBackfaces();
+	ok &= runAuditFoundationCases();
+	ok &= runAuditItemsCases();
+	ok &= runAuditPlantsCases();
+	ok &= runAuditAttachmentsCases();
+	ok &= runAuditRedstoneCases();
+	ok &= runAuditRailPistonCases();
+	ok &= runAuditContainersCases();
+	ok &= runAuditLiquidsFirePortalCases();
+	ok &= runAuditLooseEntitiesCases();
+	ok &= runAuditProjectilesCases();
+	ok &= runAuditVehiclesCases();
+	ok &= runAuditJavaGlassProbeCases();
 	std::cout << "findings-smoke: " << (ok ? "PASS" : "FAIL") << '\n';
 	return ok ? 0 : 1;
 }

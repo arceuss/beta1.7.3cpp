@@ -225,7 +225,7 @@ void Entity::lavaHurt()
 void Entity::onStruckByLightning(Entity &lightning)
 {
 	(void)lightning;
-	hurt(nullptr, 5);
+	burn(5); // Entity.onStruckByLightning calls dealFireDamage(5)
 	++onFire;
 	if (onFire == 0)
 		onFire = 300;
@@ -489,9 +489,11 @@ AABB *Entity::getCollideBox()
 	return nullptr;
 }
 
-void Entity::burn(int_t a0)
+void Entity::burn(int_t dmg)
 {
-
+	// Entity.dealFireDamage
+	if (!fireImmune)
+		hurt(nullptr, dmg);
 }
 
 void Entity::causeFallDamage(float distance)
@@ -1068,4 +1070,73 @@ void Entity::setSharedFlag(int_t flag, bool value)
 		dataWatcher.updateObject(DATA_SHARED_FLAGS_ID, static_cast<byte_t>(flags | (1 << flag)));
 	else
 		dataWatcher.updateObject(DATA_SHARED_FLAGS_ID, static_cast<byte_t>(flags & ~(1 << flag)));
+}
+
+bool Entity::pushOutOfBlocks(double x, double y, double z)
+{
+	// Entity.pushOutOfBlocks. Only entities standing inside a normal cube draw
+	// from the RNG, and the method always reports false.
+	int_t bx = Mth::floor(x);
+	int_t by = Mth::floor(y);
+	int_t bz = Mth::floor(z);
+	double fx = x - static_cast<double>(bx);
+	double fy = y - static_cast<double>(by);
+	double fz = z - static_cast<double>(bz);
+	if (!level.isBlockNormalCube(bx, by, bz))
+		return false;
+
+	bool freeXm = !level.isBlockNormalCube(bx - 1, by, bz);
+	bool freeXp = !level.isBlockNormalCube(bx + 1, by, bz);
+	bool freeYm = !level.isBlockNormalCube(bx, by - 1, bz);
+	bool freeYp = !level.isBlockNormalCube(bx, by + 1, bz);
+	bool freeZm = !level.isBlockNormalCube(bx, by, bz - 1);
+	bool freeZp = !level.isBlockNormalCube(bx, by, bz + 1);
+
+	int_t face = -1;
+	double best = 9999.0;
+	if (freeXm && fx < best)
+	{
+		best = fx;
+		face = 0;
+	}
+	if (freeXp && 1.0 - fx < best)
+	{
+		best = 1.0 - fx;
+		face = 1;
+	}
+	if (freeYm && fy < best)
+	{
+		best = fy;
+		face = 2;
+	}
+	if (freeYp && 1.0 - fy < best)
+	{
+		best = 1.0 - fy;
+		face = 3;
+	}
+	if (freeZm && fz < best)
+	{
+		best = fz;
+		face = 4;
+	}
+	if (freeZp && 1.0 - fz < best)
+	{
+		best = 1.0 - fz;
+		face = 5;
+	}
+
+	float push = random.nextFloat() * 0.2f + 0.1f;
+	if (face == 0)
+		xd = -push;
+	if (face == 1)
+		xd = push;
+	if (face == 2)
+		yd = -push;
+	if (face == 3)
+		yd = push;
+	if (face == 4)
+		zd = -push;
+	if (face == 5)
+		zd = push;
+	return false;
 }

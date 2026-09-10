@@ -14,7 +14,9 @@ public:
 	int_t getTickDelay() override;
 	void onPlace(Level &level, int_t x, int_t y, int_t z) override;
 
+	// FallingTile's landing check calls this, as the reference does.
+	static bool isFree(Level &level, int_t x, int_t y, int_t z);
+
 private:
 	void checkSlide(Level &level, int_t x, int_t y, int_t z);
-	static bool isFree(Level &level, int_t x, int_t y, int_t z);
 };

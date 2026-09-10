@@ -10,6 +10,13 @@
 #include "world/item/ItemSword.h"
 #include "world/item/ItemArmor.h"
 #include "world/item/ItemFood.h"
+#include "world/item/TileItem.h"
+#include "world/item/TilePlanterItem.h"
+#include "world/item/ItemCloth.h"
+#include "world/item/ItemLeaves.h"
+#include "world/item/ItemLog.h"
+#include "world/item/ItemPiston.h"
+#include "world/item/ItemSapling.h"
 #include "world/item/ItemSlab.h"
 #include "world/item/ItemDye.h"
 #include "world/item/ItemDoor.h"
@@ -18,7 +25,6 @@
 #include "world/item/RecordItem.h"
 #include "world/item/ItemSign.h"
 #include "world/item/ItemRedStone.h"
-#include "world/item/ItemRepeater.h"
 #include "world/item/ItemMinecart.h"
 #include "world/item/ItemShears.h"
 #include "world/item/ItemSaddle.h"
@@ -26,7 +32,6 @@
 #include "world/item/ItemBoat.h"
 #include "world/item/ItemSoup.h"
 #include "world/item/ItemBucket.h"
-#include "world/item/ItemCake.h"
 #include "world/item/ItemCoal.h"
 #include "world/item/ItemSnowball.h"
 #include "world/item/ItemEgg.h"
@@ -39,6 +44,10 @@
 #include "world/level/tile/TreeTile.h"
 #include "world/level/tile/LeafTile.h"
 #include "world/level/tile/ClothTile.h"
+#include "world/level/tile/PistonBaseTile.h"
+#include "world/level/tile/ReedTile.h"
+#include "world/level/tile/RepeaterTile.h"
+#include "world/level/tile/SlabTile.h"
 
 namespace Items
 {
@@ -159,10 +168,6 @@ namespace Items
 			return;
 		initialized = true;
 
-		// These block items are represented by tiles in the native inventory.
-		for (int_t id : {Tile::sapling.id, Tile::treeTrunk.id, Tile::leaves.id, Tile::wool.id})
-			Item::subtypeItems[id] = true;
-
 		flintAndSteel = new ItemFlintAndSteel(3);
 
 		apple = new ItemFood(4, 4, false);
@@ -253,7 +258,7 @@ namespace Items
 		hoeGold->setIconIndex(132).setDescriptionId(u"item.hoeGold");
 
 		stick = new Item(24);
-		stick->setIconIndex(53).setDescriptionId(u"item.stick");
+		stick->setIconIndex(53).setFull3D().setDescriptionId(u"item.stick");
 
 		hoeWood = new ItemHoe(34, ToolMaterialType::WOOD);
 		hoeWood->setIconIndex(128).setDescriptionId(u"item.hoeWood");
@@ -329,7 +334,7 @@ namespace Items
 		flint = new Item(62);
 		flint->setIconIndex(6).setDescriptionId(u"item.flint");
 
-		reed = new Item(82);
+		reed = new TilePlanterItem(82, Tile::reed);
 		reed->setIconIndex(27).setDescriptionId(u"item.reeds");
 
 		doorWood = new ItemDoor(68, Tile::doorWood);
@@ -375,7 +380,7 @@ namespace Items
 		redstone->setIconIndex(56).setDescriptionId(u"item.redstone");
 
 		dyePowder = new ItemDye(95);
-		dyePowder->setIconIndex(78);
+		dyePowder->setIconIndex(78).setDescriptionId(u"item.dyePowder");
 
 		leather = new Item(78);
 		leather->setIconIndex(103).setDescriptionId(u"item.leather");
@@ -393,7 +398,7 @@ namespace Items
 		bowlEmpty->setIconIndex(71).setDescriptionId(u"item.bowl");
 
 		bowlSoup = new ItemSoup(26, 10);
-		bowlSoup->setIconIndex(77).setDescriptionId(u"item.mushroomStew");
+		bowlSoup->setIconIndex(72).setDescriptionId(u"item.mushroomStew");
 
 		bucketEmpty = new ItemBucket(69, 0);
 		bucketEmpty->setIconIndex(74).setDescriptionId(u"item.bucket");
@@ -420,7 +425,7 @@ namespace Items
 		book->setIconIndex(59).setDescriptionId(u"item.book");
 
 		sugar = new Item(97);
-		sugar->setIconIndex(13).setDescriptionId(u"item.sugar");
+		sugar->setIconIndex(13).setFull3D().setDescriptionId(u"item.sugar");
 
 		glowstoneDust = new Item(92);
 		glowstoneDust->setIconIndex(73).setDescriptionId(u"item.yellowDust");
@@ -432,9 +437,9 @@ namespace Items
 		fishCooked->setIconIndex(90).setDescriptionId(u"item.fishCooked");
 
 		bone = new Item(96);
-		bone->setIconIndex(28).setDescriptionId(u"item.bone");
+		bone->setIconIndex(28).setFull3D().setDescriptionId(u"item.bone");
 
-		redstoneRepeater = new ItemRepeater(100);
+		redstoneRepeater = new TilePlanterItem(100, Tile::repeaterIdle);
 		redstoneRepeater->setIconIndex(86).setDescriptionId(u"item.diode");
 
 		cookie = new ItemFood(101, 1, false);
@@ -455,8 +460,8 @@ namespace Items
 		map = new ItemMap(102);
 		map->setIconIndex(60).setDescriptionId(u"item.map");
 
-		cake = new ItemCake(98, Tile::cake);
-		cake->setIconIndex(29).setDescriptionId(u"item.cake");
+		cake = new TilePlanterItem(98, Tile::cake);
+		cake->setMaxStackSize(1).setIconIndex(29).setDescriptionId(u"item.cake");
 
 		egg = new ItemEgg(88);
 		egg->setIconIndex(12).setDescriptionId(u"item.egg");
@@ -464,6 +469,20 @@ namespace Items
 		sign = new ItemSign(67);
 		sign->setIconIndex(42).setDescriptionId(u"item.sign");
 
-		new ItemSlab(44 - 256);
+		// Tile.<clinit>: the metadata-carrying adapters first, then an ordinary
+		// TileItem for every remaining registered tile.
+		new ItemCloth(Tile::wool.id - 256);
+		new ItemLog(Tile::treeTrunk.id - 256);
+		new ItemSlab(Tile::slabSingle.id - 256);
+		new ItemSapling(Tile::sapling.id - 256);
+		new ItemLeaves(Tile::leaves.id - 256);
+		new ItemPiston(Tile::pistonBase.id - 256);
+		new ItemPiston(Tile::pistonStickyBase.id - 256);
+		for (int_t id = 0; id < 256; id++)
+		{
+			if (Tile::tiles[id] == nullptr || Item::items[id] != nullptr)
+				continue;
+			new TileItem(id - 256);
+		}
 	}
 }

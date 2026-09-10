@@ -41,6 +41,9 @@ void DispenserTileEntity::save(CompoundTag &tag)
 void DispenserTileEntity::setItem(int_t slot, const ItemInstance &item)
 {
 	items[slot] = item;
+	// DispenserTileEntity.java:52 - the container cap, not the item's own limit
+	if (!items[slot].isEmpty() && items[slot].stackSize > getInventoryStackLimit())
+		items[slot].stackSize = getInventoryStackLimit();
 	setChanged();
 }
 
@@ -52,6 +55,22 @@ ItemInstance DispenserTileEntity::removeItem(int_t slot, int_t count)
 	if (!removed.isEmpty())
 		setChanged();
 	return removed;
+}
+
+ItemInstance DispenserTileEntity::removeRandomItem()
+{
+	int_t chosen = -1;
+	int_t seen = 1;
+	for (int_t slot = 0; slot < static_cast<int_t>(items.size()); ++slot)
+	{
+		if (items[slot].isEmpty())
+			continue;
+		if (random.nextInt(seen++) == 0)
+			chosen = slot;
+	}
+	if (chosen >= 0)
+		return removeItem(chosen, 1);
+	return ItemInstance();
 }
 
 bool DispenserTileEntity::canUse(Player &player) const

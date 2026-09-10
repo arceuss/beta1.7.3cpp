@@ -20,7 +20,7 @@ public:
 	bool getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
 	bool isSignalSource() override { return true; }
 
-	bool mayPlace(Level &level, int_t x, int_t y, int_t z);
+	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile) override;
 	void onPlace(Level &level, int_t x, int_t y, int_t z) override {}
 	void entityInside(Level &level, int_t x, int_t y, int_t z, Entity &entity) override;
@@ -31,5 +31,5 @@ public:
 
 private:
 	Sensitivity sensitivity;
-	void setStateIfMobInteractsWithPlate(Level &level, int_t x, int_t y, int_t z);
+	void checkPressed(Level &level, int_t x, int_t y, int_t z);
 };

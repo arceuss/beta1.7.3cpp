@@ -10,7 +10,6 @@
 #include "world/item/ItemInstance.h"
 #include "world/item/Items.h"
 #include "world/entity/player/Player.h"
-#include "world/entity/item/EntityItem.h"
 #include "world/stats/StatList.h"
 
 LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::leaves, false)
@@ -22,10 +21,11 @@ LeafTile::LeafTile(int_t id, int_t tex) : TransparentTile(id, tex, Material::lea
 
 int_t LeafTile::getColor(LevelSource &level, int_t x, int_t y, int_t z)
 {
-	int_t type = ClientTarget::isAlphaPlace() ? OAK_LEAF : level.getData(x, y, z) & LEAF_TYPE_MASK;
-	if (type == SPRUCE_LEAF)
+	// BlockLeaves.colorMultiplier tests the raw metadata bits in order, so data 3 is pine.
+	int_t data = ClientTarget::isAlphaPlace() ? OAK_LEAF : level.getData(x, y, z);
+	if ((data & 1) == 1)
 		return FoliageColor::getEvergreenColor();
-	if (type == BIRCH_LEAF)
+	if ((data & 2) == 2)
 		return FoliageColor::getBirchColor();
 
 	level.getBiomeSource().getBiomeBlock(x, z, 1, 1);
@@ -49,7 +49,7 @@ int_t LeafTile::getItemColor(int_t data)
 
 void LeafTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 {
-	if (level.isOnline || !level.hasChunksAt(x, y, z, 2))
+	if (!level.hasChunksAt(x, y, z, 2))
 		return;
 
 	for (int_t dx = -1; dx <= 1; ++dx)
@@ -139,7 +139,7 @@ void LeafTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 	}
 
 	if (adjacentTreeBlocks[indexAt(0, 0, 0)] >= 0)
-		level.setData(x, y, z, data & ~CHECK_DECAY_BIT);
+		level.setDataNoUpdate(x, y, z, data & ~CHECK_DECAY_BIT);
 	else
 		die(level, x, y, z);
 }
@@ -197,8 +197,7 @@ void LeafTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_
 	{
 		if (StatBase *stat = StatList::mineBlockStats[id])
 			player.addStat(*stat, 1);
-		auto item = std::make_shared<EntityItem>(level, x + 0.5, y + 0.5, z + 0.5, ItemInstance(id, 1, data & 3));
-		level.addEntity(item);
+		popResource(level, x, y, z, ItemInstance(Tile::leaves.id, 1, data & 3));
 	}
 	else
 	{

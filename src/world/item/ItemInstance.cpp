@@ -178,8 +178,6 @@ bool ItemInstance::isItemDamaged() const
 
 int_t ItemInstance::getIcon() const
 {
-	if (itemID >= 0 && itemID < static_cast<int_t>(Tile::tiles.size()) && Tile::tiles[itemID] != nullptr)
-		return Tile::tiles[itemID]->getTexture(Facing::NORTH, itemDamage);
 	Item *item = getItem();
 	if (item != nullptr)
 		return item->getIcon(*this);
@@ -199,7 +197,9 @@ bool ItemInstance::canDestroySpecial(Tile &tile) const
 	Item *item = getItem();
 	if (item != nullptr)
 		return item->canDestroySpecial(*this, tile);
-	return true;
+	// Item.canDestroySpecial is false by default, and every registered tile now
+	// has a TileItem, so an unresolvable stack must not grant tool permission.
+	return false;
 }
 
 int_t ItemInstance::getAttackDamage(Entity &entity) const

@@ -56,9 +56,25 @@ bool PortalTile::isCubeShaped()
 
 bool PortalTile::shouldRenderFace(LevelSource &level, int_t x, int_t y, int_t z, Facing face)
 {
-	(void)face;
-	// Portal renders all faces unconditionally (b102/b173 parity)
-	return level.getTile(x, y, z) != id;
+	if (level.getTile(x, y, z) == id)
+		return false;
+
+	// Only the portal's two open sides are drawn: a neighbouring portal column decides
+	// the axis, and the column must end at that neighbour for the face to be an edge.
+	bool westEdge = level.getTile(x - 1, y, z) == id && level.getTile(x - 2, y, z) != id;
+	bool eastEdge = level.getTile(x + 1, y, z) == id && level.getTile(x + 2, y, z) != id;
+	bool northEdge = level.getTile(x, y, z - 1) == id && level.getTile(x, y, z - 2) != id;
+	bool southEdge = level.getTile(x, y, z + 1) == id && level.getTile(x, y, z + 2) != id;
+	bool alongX = westEdge || eastEdge;
+	bool alongZ = northEdge || southEdge;
+
+	if (alongX && face == Facing::WEST)
+		return true;
+	if (alongX && face == Facing::EAST)
+		return true;
+	if (alongZ && face == Facing::NORTH)
+		return true;
+	return alongZ && face == Facing::SOUTH;
 }
 
 int_t PortalTile::getResourceCount(Random &random)
@@ -93,23 +109,23 @@ void PortalTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &ra
 
 	for (int_t i = 0; i < 4; ++i)
 	{
-		double particleX = static_cast<double>(x) + random.nextFloat();
-		double particleY = static_cast<double>(y) + random.nextFloat();
-		double particleZ = static_cast<double>(z) + random.nextFloat();
+		double particleX = static_cast<float>(x) + random.nextFloat();
+		double particleY = static_cast<float>(y) + random.nextFloat();
+		double particleZ = static_cast<float>(z) + random.nextFloat();
+		int_t dir = random.nextInt(2) * 2 - 1;
 		double motionX = (random.nextFloat() - 0.5) * 0.5;
 		double motionY = (random.nextFloat() - 0.5) * 0.5;
 		double motionZ = (random.nextFloat() - 0.5) * 0.5;
-		int_t dir = random.nextInt(2) * 2 - 1;
 
-		if (level.getTile(x - 1, y, z) != id && level.getTile(x + 1, y, z) != id)
-		{
-			particleX = static_cast<double>(x) + 0.5 + 0.25 * dir;
-			motionX = random.nextFloat() * 2.0f * dir;
-		}
-		else
+		if (level.getTile(x - 1, y, z) == id || level.getTile(x + 1, y, z) == id)
 		{
 			particleZ = static_cast<double>(z) + 0.5 + 0.25 * dir;
 			motionZ = random.nextFloat() * 2.0f * dir;
+		}
+		else
+		{
+			particleX = static_cast<double>(x) + 0.5 + 0.25 * dir;
+			motionX = random.nextFloat() * 2.0f * dir;
 		}
 
 		level.addParticle(u"portal", particleX, particleY, particleZ, motionX, motionY, motionZ);
@@ -182,9 +198,15 @@ bool PortalTile::trySpawnPortal(Level &level, int_t x, int_t y, int_t z)
 	{
 		for (int_t yOffset = -1; yOffset <= 3; ++yOffset)
 		{
-			bool isFrame = frameOffset == -1 || frameOffset == 2 || yOffset == -1 || yOffset == 3;
+			bool horizontalEdge = frameOffset == -1 || frameOffset == 2;
+			bool verticalEdge = yOffset == -1 || yOffset == 3;
+			// The four frame corners are optional: the usual ten-obsidian frame is valid,
+			// so these cells are never even read.
+			if (horizontalEdge && verticalEdge)
+				continue;
+
 			int_t tileId = level.getTile(x + axisX * frameOffset, y + yOffset, z + axisZ * frameOffset);
-			if (isFrame)
+			if (horizontalEdge || verticalEdge)
 			{
 				if (tileId != Tile::obsidian.id)
 					return false;

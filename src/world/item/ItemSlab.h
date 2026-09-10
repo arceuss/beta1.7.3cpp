@@ -1,13 +1,15 @@
 #pragma once
 
-#include "world/item/Item.h"
+#include "world/item/TileItem.h"
 
-class ItemSlab : public Item
+// Java ItemSlab: only the variant travels in the aux value. The downward merge
+// belongs to StoneSlabTile.onPlace, not to the item.
+class ItemSlab : public TileItem
 {
 public:
-	ItemSlab(int_t baseId);
+	explicit ItemSlab(int_t baseId);
 
 	int_t getIcon(const ItemInstance &stack) const override;
+	int_t getLevelDataForAuxValue(int_t auxValue) const override;
 	jstring getDescriptionId(const ItemInstance &stack) const override;
-	bool useOn(ItemInstance &stack, Player &player, Level &level, int_t x, int_t y, int_t z, Facing face) const override;
 };

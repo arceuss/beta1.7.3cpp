@@ -46,10 +46,10 @@ void FarmlandTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 {
 	if (random.nextInt(5) != 0)
 		return;
-	if (isWaterNearby(level, x, y, z))
+
+	if (isWaterNearby(level, x, y, z) || level.canBlockBeRainedOn(x, y + 1, z))
 	{
-		if (level.getData(x, y, z) != 7)
-			level.setData(x, y, z, 7);
+		level.setData(x, y, z, 7);
 		return;
 	}
 
@@ -65,7 +65,7 @@ void FarmlandTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 
 void FarmlandTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
-	(void)tile;
+	Tile::neighborChanged(level, x, y, z, tile);
 	if (level.getMaterial(x, y + 1, z).isSolid())
 		level.setTile(x, y, z, DIRT_TILE_ID);
 }
@@ -80,7 +80,7 @@ int_t FarmlandTile::getResource(int_t data, Random &random)
 void FarmlandTile::stepOn(Level &level, int_t x, int_t y, int_t z, Entity &entity)
 {
 	(void)entity;
-	if (!level.isOnline && level.random.nextInt(4) == 0)
+	if (level.random.nextInt(4) == 0)
 		level.setTile(x, y, z, DIRT_TILE_ID);
 }
 

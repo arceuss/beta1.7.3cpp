@@ -4,11 +4,19 @@
 #include "world/level/tile/RailTile.h"
 
 RailLogic::RailLogic(const RailTile &rail, Level &level, int_t x, int_t y, int_t z)
-	: level(level), rail(rail), x(x), y(y), z(z), poweredRail(rail.isPoweredRail())
+	: level(level), rail(rail), x(x), y(y), z(z)
 {
+	// The rail family comes from the tile standing at these coordinates, not from
+	// the rail object that started the update: RailTile$Rail reads
+	// Tile.tiles[level.getTile(x, y, z)] and tests that tile's powered flag, so a
+	// helper built for a neighbour of a mixed layout decodes its own metadata.
+	int_t tileId = level.getTile(x, y, z);
 	int_t data = level.getData(x, y, z);
-	if (poweredRail)
+	if (RailTile::isRail(tileId) && static_cast<const RailTile *>(Tile::tiles[tileId])->isPoweredRail())
+	{
+		poweredRail = true;
 		data &= ~8;
+	}
 	setConnections(data);
 }
 
@@ -188,7 +196,8 @@ void RailLogic::connectTo(const RailLogic &other)
 	int_t data = shape;
 	if (poweredRail)
 		data = (level.getData(x, y, z) & 8) | shape;
-	const_cast<RailTile &>(rail).setRailData(level, x, y, z, data);
+	// RailTile$Rail.connectTo writes with notification
+	level.setData(x, y, z, data);
 }
 
 bool RailLogic::canRailConnect(int_t trackX, int_t trackY, int_t trackZ) const
@@ -269,7 +278,9 @@ void RailLogic::place(bool receivingPower, bool forceUpdate)
 
 	if (forceUpdate || level.getData(x, y, z) != data)
 	{
-		const_cast<RailTile &>(rail).setRailData(level, x, y, z, data);
+		// RailTile$Rail.updateState writes with notification before it walks the
+		// connected cells, so neighbours see the new shape during that recursion
+		level.setData(x, y, z, data);
 
 		for (const TilePos &pos : connectedTracks)
 		{

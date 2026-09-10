@@ -20,28 +20,27 @@ void SurvivalMode::init()
 
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.PlayerControllerSP#sendBlockRemoved(int,int,int,int)
 bool SurvivalMode::destroyBlock(int_t x, int_t y, int_t z, Facing face)
 {
 	int_t t = minecraft.level->getTile(x, y, z);
 	int_t data = minecraft.level->getData(x, y, z);
 	Tile *tile = Tile::tiles[t];
 	bool changed = GameMode::destroyBlock(x, y, z, face);
+	// The reference wears the held tool whether or not the removal succeeded, and
+	// decides harvest eligibility before that wear, so a tool that breaks on its last
+	// use still harvests. The on-player-destroy callback belongs to
+	// GameMode::destroyBlock; dispatching it a second time here fired TNT twice.
+	ItemInstance *selected = minecraft.player->getSelectedItem();
 	bool couldDestroy = tile != nullptr && minecraft.player->canDestroy(*tile);
-	if (changed)
+	if (selected != nullptr)
 	{
-		ItemInstance *selected = minecraft.player->getSelectedItem();
-		if (selected != nullptr)
-		{
-			selected->mineBlock(t, x, y, z, *minecraft.player);
-			if (selected->isEmpty())
-				minecraft.player->removeSelectedItem();
-		}
-		if (couldDestroy)
-		{
-			tile->playerDestroy(*minecraft.level, x, y, z, data);
-			tile->harvestBlock(*minecraft.level, *minecraft.player, x, y, z, data);
-		}
+		selected->mineBlock(t, x, y, z, *minecraft.player);
+		if (selected->isEmpty())
+			minecraft.player->removeSelectedItem();
 	}
+	if (changed && couldDestroy)
+		tile->harvestBlock(*minecraft.level, *minecraft.player, x, y, z, data);
 	return changed;
 }
 

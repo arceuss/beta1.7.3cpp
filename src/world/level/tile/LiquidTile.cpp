@@ -9,12 +9,36 @@
 #include "world/level/tile/ReedTile.h"
 #include "world/level/tile/SignTile.h"
 
+#include "java/Math.h"
 #include "util/Mth.h"
 #include <algorithm>
+
+// Vec3.normalize: MathHelper.sqrt_double narrows to float, and anything shorter than
+// 1.0E-4 collapses to the zero vector instead of being scaled.
+static void normalize(Vec3 &vec)
+{
+	double len = Mth::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+	if (len < 1.0E-4)
+	{
+		vec.x = 0.0;
+		vec.y = 0.0;
+		vec.z = 0.0;
+		return;
+	}
+	vec.x /= len;
+	vec.y /= len;
+	vec.z /= len;
+}
 
 LiquidTile::LiquidTile(int_t id, int_t tex, const Material &material) : TransparentTile(id, tex, material, false)
 {
 	setTicking(true);
+	// Registry names both liquid states after their material: Tile.water/Tile.calmWater
+	// are "tile.water", Tile.lava/Tile.calmLava are "tile.lava".
+	if (&material == static_cast<const Material *>(&Material::water))
+		setDescriptionId(u"tile.water");
+	else if (&material == static_cast<const Material *>(&Material::lava))
+		setDescriptionId(u"tile.lava");
 }
 
 AABB *LiquidTile::getAABB(Level &level, int_t x, int_t y, int_t z)
@@ -75,7 +99,7 @@ double LiquidTile::getSlopeAngle(LevelSource &level, int_t x, int_t y, int_t z, 
 	{
 		if (Tile::tiles[Tile::water.id] != nullptr)
 		{
-			flow = static_cast<LiquidTile *>(Tile::tiles[Tile::water.id])->getFlowVector(static_cast<Level &>(level), x, y, z);
+			flow = static_cast<LiquidTile *>(Tile::tiles[Tile::water.id])->getFlowVector(level, x, y, z);
 			gotFlow = true;
 		}
 	}
@@ -83,7 +107,7 @@ double LiquidTile::getSlopeAngle(LevelSource &level, int_t x, int_t y, int_t z, 
 	{
 		if (Tile::tiles[Tile::lava.id] != nullptr)
 		{
-			flow = static_cast<LiquidTile *>(Tile::tiles[Tile::lava.id])->getFlowVector(static_cast<Level &>(level), x, y, z);
+			flow = static_cast<LiquidTile *>(Tile::tiles[Tile::lava.id])->getFlowVector(level, x, y, z);
 			gotFlow = true;
 		}
 	}
@@ -92,7 +116,8 @@ double LiquidTile::getSlopeAngle(LevelSource &level, int_t x, int_t y, int_t z, 
 		return -1000.0;
 	if (flow.x == 0.0 && flow.z == 0.0)
 		return -1000.0;
-	return std::atan2(flow.z, flow.x) - Mth::PI * 0.5;
+	// Math.PI * 0.5, not the float Mth::PI.
+	return std::atan2(flow.z, flow.x) - 1.5707963267948966;
 }
 
 bool LiquidTile::mayPick(int_t data, bool canPickLiquid)
@@ -140,9 +165,9 @@ void LiquidTile::animateTick(Level &level, int_t x, int_t y, int_t z, Random &ra
 		const Material &airMaterial = Material::air;
 		if (&aboveMaterial == &airMaterial && !level.isSolidTile(x, y + 1, z) && random.nextInt(100) == 0)
 		{
-			double px = static_cast<double>(x) + random.nextDouble();
+			double px = static_cast<float>(x) + random.nextFloat();
 			double py = static_cast<double>(y) + yy1;
-			double pz = static_cast<double>(z) + random.nextDouble();
+			double pz = static_cast<float>(z) + random.nextFloat();
 			level.addParticle(u"lava", px, py, pz, 0.0, 0.0, 0.0);
 		}
 	}
@@ -163,6 +188,19 @@ int_t LiquidTile::getDepth(Level &level, int_t x, int_t y, int_t z) const
 	return &level.getMaterial(x, y, z) != &material ? -1 : level.getData(x, y, z);
 }
 
+bool LiquidTile::getIsBlockSolid(LevelSource &level, int_t x, int_t y, int_t z, Facing face) const
+{
+	const Material &target = level.getMaterial(x, y, z);
+	if (&target == &material)
+		return false;
+	if (&target == &Material::ice())
+		return false;
+	if (face == Facing::UP)
+		return true;
+	// Tile::getIsBlockSolid.
+	return target.isSolid();
+}
+
 int_t LiquidTile::getRenderedDepth(LevelSource &level, int_t x, int_t y, int_t z) const
 {
 	if (&level.getMaterial(x, y, z) != &material)
@@ -172,16 +210,8 @@ int_t LiquidTile::getRenderedDepth(LevelSource &level, int_t x, int_t y, int_t z
 		data = 0;
 	return data;
 }
-int_t LiquidTile::getEffectiveFlowDepth(Level &level, int_t x, int_t y, int_t z){
-	if (&level.getMaterial(x, y, z) != &material)
-		return -1;
-	int_t data = level.getData(x, y, z);
-	if (data >= 8)
-		data = 0;
-	return data;
-}
 
-Vec3 LiquidTile::getFlowVector(Level &level, int_t x, int_t y, int_t z)
+Vec3 LiquidTile::getFlowVector(LevelSource &level, int_t x, int_t y, int_t z)
 {
 	Vec3 vec(0.0, 0.0, 0.0);
 	int_t depth = getRenderedDepth(level, x, y, z);
@@ -220,34 +250,22 @@ Vec3 LiquidTile::getFlowVector(Level &level, int_t x, int_t y, int_t z)
 	if (level.getData(x, y, z) >= 8)
 	{
 		bool hasOpening = false;
-		if (hasOpening || shouldRenderFace(level, x, y, z - 1, Facing::NORTH)) hasOpening = true;
-		if (hasOpening || shouldRenderFace(level, x, y, z + 1, Facing::SOUTH)) hasOpening = true;
-		if (hasOpening || shouldRenderFace(level, x - 1, y, z, Facing::WEST)) hasOpening = true;
-		if (hasOpening || shouldRenderFace(level, x + 1, y, z, Facing::EAST)) hasOpening = true;
-		if (hasOpening || shouldRenderFace(level, x, y + 1, z - 1, Facing::NORTH)) hasOpening = true;
-		if (hasOpening || shouldRenderFace(level, x, y + 1, z + 1, Facing::SOUTH)) hasOpening = true;
-		if (hasOpening || shouldRenderFace(level, x - 1, y + 1, z, Facing::WEST)) hasOpening = true;
-		if (hasOpening || shouldRenderFace(level, x + 1, y + 1, z, Facing::EAST)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x, y, z - 1, Facing::NORTH)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x, y, z + 1, Facing::SOUTH)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x - 1, y, z, Facing::WEST)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x + 1, y, z, Facing::EAST)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x, y + 1, z - 1, Facing::NORTH)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x, y + 1, z + 1, Facing::SOUTH)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x - 1, y + 1, z, Facing::WEST)) hasOpening = true;
+		if (hasOpening || getIsBlockSolid(level, x + 1, y + 1, z, Facing::EAST)) hasOpening = true;
 		if (hasOpening)
 		{
-			double len = Mth::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
-			if (len > 0.0)
-			{
-				vec.x /= len;
-				vec.y /= len;
-				vec.z /= len;
-			}
+			normalize(vec);
 			vec.y -= 6.0;
 		}
 	}
 
-	double len = Mth::sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
-	if (len > 0.0)
-	{
-		vec.x /= len;
-		vec.y /= len;
-		vec.z /= len;
-	}
+	normalize(vec);
 
 	return vec;
 }
@@ -299,6 +317,9 @@ void LiquidTile::fizz(Level &level, int_t x, int_t y, int_t z)
 	const float fa = level.random.nextFloat();
 	const float fb = level.random.nextFloat();
 	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"random.fizz", 0.5f, 2.6f + (fa - fb) * 0.8f);
+	// The smoke offsets come from the shared Math.random generator, not level.random.
+	for (int_t i = 0; i < 8; ++i)
+		level.addParticle(u"largesmoke", static_cast<double>(x) + Math::random(), static_cast<double>(y) + 1.2, static_cast<double>(z) + Math::random(), 0.0, 0.0, 0.0);
 }
 
 LiquidTileDynamic::LiquidTileDynamic(int_t id, int_t tex, const Material &material) : LiquidTile(id, tex, material)

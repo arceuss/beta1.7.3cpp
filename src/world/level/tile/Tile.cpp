@@ -331,6 +331,10 @@ void Tile::initTiles()
 	wood.setDescriptionId(u"tile.wood");
 	sapling.setDescriptionId(u"tile.sapling");
 	bedrock.setDescriptionId(u"tile.bedrock");
+	water.setDescriptionId(u"tile.water");
+	calmWater.setDescriptionId(u"tile.water");
+	lava.setDescriptionId(u"tile.lava");
+	calmLava.setDescriptionId(u"tile.lava");
 	dispenser.setDescriptionId(u"tile.dispenser");
 	sand.setDescriptionId(u"tile.sand");
 	gravel.setDescriptionId(u"tile.gravel");
@@ -346,14 +350,14 @@ void Tile::initTiles()
 	railDetector.setDescriptionId(u"tile.detectorRail");
 	rail.setDescriptionId(u"tile.rail");
 	sandstone.setDescriptionId(u"tile.sandStone");
-	tallGrass.setDescriptionId(u"tile.grass");
+	tallGrass.setDescriptionId(u"tile.tallgrass");
 	deadBush.setDescriptionId(u"tile.deadbush");
 	flower.setDescriptionId(u"tile.flower");
 	rose.setDescriptionId(u"tile.rose");
 	brownMushroom.setDescriptionId(u"tile.mushroom");
 	redMushroom.setDescriptionId(u"tile.mushroom");
-	slabDouble.setDescriptionId(u"tile.stoneSlab.stone");
-	slabSingle.setDescriptionId(u"tile.stoneSlab.stone");
+	slabDouble.setDescriptionId(u"tile.stoneSlab");
+	slabSingle.setDescriptionId(u"tile.stoneSlab");
 	mossyCobblestone.setDescriptionId(u"tile.stoneMoss");
 	obsidian.setDescriptionId(u"tile.obsidian");
 	diamondOre.setDescriptionId(u"tile.oreDiamond");
@@ -574,9 +578,10 @@ void Tile::setShape(float x0, float y0, float z0, float x1, float y1, float z1)
 	zz1 = z1;
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.Block#getBlockBrightness(IBlockAccess,int,int,int)
 float Tile::getBrightness(LevelSource &level, int_t x, int_t y, int_t z)
 {
-	return level.getBrightness(x, y, z);
+	return level.getMinBrightness(x, y, z, lightEmission[id]);
 }
 
 bool Tile::isFaceVisible(LevelSource &level, int_t x, int_t y, int_t z, Facing face)
@@ -742,16 +747,24 @@ void Tile::spawnResources(Level &level, int_t x, int_t y, int_t z, int_t data, f
 		if (resource <= 0)
 			continue;
 
-		float spread = 0.7f;
-		double xo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
-		double yo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
-		double zo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
-
-		ItemInstance stack(resource, 1, getSpawnResourcesAuxValue(data));
-		auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, stack);
-		entity->throwTime = 10;
-		level.addEntity(entity);
+		popResource(level, x, y, z, ItemInstance(resource, 1, getSpawnResourcesAuxValue(data)));
 	}
+}
+
+// B173-JAVA-METHOD: net.minecraft.src.Block#dropBlockAsItem_do
+void Tile::popResource(Level &level, int_t x, int_t y, int_t z, const ItemInstance &item)
+{
+	if (level.isOnline)
+		return;
+
+	float spread = 0.7f;
+	double xo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
+	double yo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
+	double zo = static_cast<double>(level.random.nextFloat() * spread) + static_cast<double>(1.0f - spread) * 0.5;
+
+	auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, item);
+	entity->throwTime = 10;
+	level.addEntity(entity);
 }
 
 int_t Tile::getSpawnResourcesAuxValue(int_t data)
@@ -900,17 +913,21 @@ void Tile::updateDefaultShape()
 
 }
 
+// B173-JAVA-METHOD: net.minecraft.src.Block#canPlaceBlockAt
 bool Tile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	(void)level;
-	(void)x;
-	(void)y;
-	(void)z;
-	return true;
+	int_t occupantId = level.getTile(x, y, z);
+	if (occupantId == 0)
+		return true;
+	Tile *occupant = Tile::tiles[occupantId];
+	return occupant != nullptr && occupant->material.isGroundCover();
 }
 
-void Tile::playerDestroy(Level &, int_t, int_t, int_t, int_t)
+// B173-JAVA-METHOD: net.minecraft.src.Block#canPlaceBlockOnSide
+bool Tile::mayPlaceOnFace(Level &level, int_t x, int_t y, int_t z, Facing face)
 {
+	(void)face;
+	return mayPlace(level, x, y, z);
 }
 
 void Tile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)

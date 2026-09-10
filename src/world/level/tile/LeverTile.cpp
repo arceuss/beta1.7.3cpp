@@ -13,91 +13,58 @@ LeverTile::LeverTile(int_t id, int_t tex) : Tile(id, tex, Material::circuits())
 
 bool LeverTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	// b173: canPlaceBlockAt - check all 5 faces for a solid attachment
-	for (int_t face = 1; face <= 5; face++)
-	{
-		if (canPlaceOnSide(level, x, y, z, static_cast<Facing>(face)))
-			return true;
-	}
-	return false;
+	// b173: canPlaceBlockAt - any of the four walls or the floor may hold a lever
+	if (level.isBlockNormalCube(x - 1, y, z))
+		return true;
+	if (level.isBlockNormalCube(x + 1, y, z))
+		return true;
+	if (level.isBlockNormalCube(x, y, z - 1))
+		return true;
+	if (level.isBlockNormalCube(x, y, z + 1))
+		return true;
+	return level.isBlockNormalCube(x, y - 1, z);
 }
 
-bool LeverTile::canPlaceOnSide(Level &level, int_t x, int_t y, int_t z, Facing face)
+bool LeverTile::mayPlaceOnFace(Level &level, int_t x, int_t y, int_t z, Facing face)
 {
-	// b173: canPlaceBlockOnSide - check if the block on the specified face is a normal cube
-	if (face == Facing::UP)
-		return level.isBlockNormalCube(x, y - 1, z);
-	if (face == Facing::NORTH)
-		return level.isBlockNormalCube(x, y, z + 1);
-	if (face == Facing::SOUTH)
-		return level.isBlockNormalCube(x, y, z - 1);
-	if (face == Facing::WEST)
-		return level.isBlockNormalCube(x + 1, y, z);
-	if (face == Facing::EAST)
-		return level.isBlockNormalCube(x - 1, y, z);
-	return false;
+	// b173: canPlaceBlockOnSide - only the clicked face's own support counts
+	if (face == Facing::UP && level.isBlockNormalCube(x, y - 1, z))
+		return true;
+	if (face == Facing::NORTH && level.isBlockNormalCube(x, y, z + 1))
+		return true;
+	if (face == Facing::SOUTH && level.isBlockNormalCube(x, y, z - 1))
+		return true;
+	if (face == Facing::WEST && level.isBlockNormalCube(x + 1, y, z))
+		return true;
+	return face == Facing::EAST && level.isBlockNormalCube(x - 1, y, z);
 }
 
 void LeverTile::setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face)
 {
-	// b173: onBlockPlaced - determine orientation from face
-	int_t orient = 0;
+	// b173: onBlockPlaced - the clicked face alone decides the orientation, and
+	// only the floor orientation consumes a random draw
+	int_t powered = level.getData(x, y, z) & 8;
+	int_t orient = -1;
 
-	if (face == Facing::UP && canPlaceOnSide(level, x, y, z, Facing::UP))
+	if (face == Facing::UP && level.isBlockNormalCube(x, y - 1, z))
 		orient = 5 + level.random.nextInt(2);
-	else if (face == Facing::NORTH && canPlaceOnSide(level, x, y, z, Facing::NORTH))
+	if (face == Facing::NORTH && level.isBlockNormalCube(x, y, z + 1))
 		orient = 4;
-	else if (face == Facing::SOUTH && canPlaceOnSide(level, x, y, z, Facing::SOUTH))
+	if (face == Facing::SOUTH && level.isBlockNormalCube(x, y, z - 1))
 		orient = 3;
-	else if (face == Facing::WEST && canPlaceOnSide(level, x, y, z, Facing::WEST))
+	if (face == Facing::WEST && level.isBlockNormalCube(x + 1, y, z))
 		orient = 2;
-	else if (face == Facing::EAST && canPlaceOnSide(level, x, y, z, Facing::EAST))
+	if (face == Facing::EAST && level.isBlockNormalCube(x - 1, y, z))
 		orient = 1;
 
-	if (orient == 0)
+	if (orient == -1)
 	{
-		// No valid orientation found, try to find one
-		orient = 1;
-		bool found = false;
-		for (int_t f = 1; f <= 5 && !found; f++)
-		{
-			if (canPlaceOnSide(level, x, y, z, static_cast<Facing>(f)))
-			{
-				found = true;
-				if (f == 1) orient = 5 + level.random.nextInt(2);
-				else if (f == 2) orient = 4;
-				else if (f == 3) orient = 3;
-				else if (f == 4) orient = 2;
-				else orient = 1;
-			}
-		}
-		if (!found)
-		{
-			spawnResources(level, x, y, z, level.getData(x, y, z));
-			level.setTile(x, y, z, 0);
-			return;
-		}
+		spawnResources(level, x, y, z, level.getData(x, y, z));
+		level.setTile(x, y, z, 0);
+		return;
 	}
 
-	int_t data = level.getData(x, y, z);
-	int_t powered = data & 8;
-	level.setData(x, y, z, orient | powered);
-}
-
-void LeverTile::onPlace(Level &level, int_t x, int_t y, int_t z)
-{
-	if (level.isBlockNormalCube(x - 1, y, z))
-		level.setData(x, y, z, 1);
-	else if (level.isBlockNormalCube(x + 1, y, z))
-		level.setData(x, y, z, 2);
-	else if (level.isBlockNormalCube(x, y, z - 1))
-		level.setData(x, y, z, 3);
-	else if (level.isBlockNormalCube(x, y, z + 1))
-		level.setData(x, y, z, 4);
-	else if (level.isBlockNormalCube(x, y - 1, z))
-		level.setData(x, y, z, 5 + level.random.nextInt(2));
-
-	checkCanSurvive(level, x, y, z);
+	level.setData(x, y, z, orient + powered);
 }
 
 bool LeverTile::checkCanSurvive(Level &level, int_t x, int_t y, int_t z)
@@ -117,26 +84,25 @@ void LeverTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t t
 
 	if (checkCanSurvive(level, x, y, z))
 	{
-		int_t data = level.getData(x, y, z);
-		int_t orient = data & 7;
-		bool supported = false;
+		int_t orient = level.getData(x, y, z) & 7;
+		bool drop = false;
 
-		if (orient == 1 && level.isBlockNormalCube(x - 1, y, z))
-			supported = true;
-		else if (orient == 2 && level.isBlockNormalCube(x + 1, y, z))
-			supported = true;
-		else if (orient == 3 && level.isBlockNormalCube(x, y, z - 1))
-			supported = true;
-		else if (orient == 4 && level.isBlockNormalCube(x, y, z + 1))
-			supported = true;
-		else if (orient == 5 && level.isBlockNormalCube(x, y - 1, z))
-			supported = true;
-		else if (orient == 6 && level.isBlockNormalCube(x, y - 1, z))
-			supported = true;
+		if (!level.isBlockNormalCube(x - 1, y, z) && orient == 1)
+			drop = true;
+		if (!level.isBlockNormalCube(x + 1, y, z) && orient == 2)
+			drop = true;
+		if (!level.isBlockNormalCube(x, y, z - 1) && orient == 3)
+			drop = true;
+		if (!level.isBlockNormalCube(x, y, z + 1) && orient == 4)
+			drop = true;
+		if (!level.isBlockNormalCube(x, y - 1, z) && orient == 5)
+			drop = true;
+		if (!level.isBlockNormalCube(x, y - 1, z) && orient == 6)
+			drop = true;
 
-		if (!supported)
+		if (drop)
 		{
-			spawnResources(level, x, y, z, data);
+			spawnResources(level, x, y, z, level.getData(x, y, z));
 			level.setTile(x, y, z, 0);
 		}
 	}
@@ -178,20 +144,19 @@ bool LeverTile::getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 
 bool LeverTile::getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir)
 {
-	// b173: isIndirectlyPoweringTo - powered and direction matches orientation
+	// b173: isIndirectlyPoweringTo - powered and direction matches orientation.
+	// Both floor orientations (5 and 6) power downward through direction 1.
 	int_t data = level.getData(x, y, z);
 	if ((data & 8) == 0)
 		return false;
 
-	// b1.2 LeverTile.getDirectSignal - orient 6 (second floor orientation)
-	// intentionally provides no strong signal, a vanilla quirk
 	int_t orient = data & 7;
+	if (orient == 6 && dir == 1) return true;
 	if (orient == 5 && dir == 1) return true;
 	if (orient == 4 && dir == 2) return true;
 	if (orient == 3 && dir == 3) return true;
 	if (orient == 2 && dir == 4) return true;
-	if (orient == 1 && dir == 5) return true;
-	return false;
+	return orient == 1 && dir == 5;
 }
 
 void LeverTile::onRemove(Level &level, int_t x, int_t y, int_t z)
@@ -211,7 +176,8 @@ void LeverTile::onRemove(Level &level, int_t x, int_t y, int_t z)
 
 void LeverTile::updateShape(LevelSource &level, int_t x, int_t y, int_t z)
 {
-	// b173: setBlockBoundsBasedOnState - per-orientation AABBs
+	// b173: setBlockBoundsBasedOnState - per-orientation AABBs; the floor
+	// orientations use a wider half-width than the wall ones
 	int_t orient = level.getData(x, y, z) & 7;
 	float f = 0.1875f;
 
@@ -223,6 +189,9 @@ void LeverTile::updateShape(LevelSource &level, int_t x, int_t y, int_t z)
 		setShape(0.5f - f, 0.2f, 0.0f, 0.5f + f, 0.8f, f * 2.0f);
 	else if (orient == 4)
 		setShape(0.5f - f, 0.2f, 1.0f - f * 2.0f, 0.5f + f, 0.8f, 1.0f);
-	else if (orient == 5 || orient == 6)
+	else
+	{
+		f = 0.25f;
 		setShape(0.5f - f, 0.0f, 0.5f - f, 0.5f + f, 0.6f, 0.5f + f);
+	}
 }

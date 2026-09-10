@@ -14,9 +14,9 @@ private:
 	bool isSupported(Level &level, int_t x, int_t y, int_t z, int_t shapeData) const;
 
 protected:
+	// RailTile$Rail reads the powered flag of the tile it stands on
 	friend class RailLogic;
 
-	void setRailData(Level &level, int_t x, int_t y, int_t z, int_t data) const;
 	bool isPoweredRail() const { return poweredRail; }
 
 public:

@@ -15,7 +15,13 @@ namespace
 
 CropsTile::CropsTile(int_t id, int_t tex) : FlowerTile(id, tex)
 {
-	setShape(0.0f, 0.0f, 0.0f, 1.0f, 0.25f, 1.0f);
+	updateDefaultShape();
+}
+
+void CropsTile::updateDefaultShape()
+{
+	float radius = 0.5f;
+	setShape(0.5f - radius, 0.0f, 0.5f - radius, 0.5f + radius, 0.25f, 0.5f + radius);
 }
 
 int_t CropsTile::getTexture(Facing face, int_t data)
@@ -29,8 +35,6 @@ int_t CropsTile::getTexture(Facing face, int_t data)
 void CropsTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 {
 	FlowerTile::tick(level, x, y, z, random);
-	if (level.getTile(x, y, z) != id)
-		return;
 	if (level.getRawBrightness(x, y + 1, z) < 9)
 		return;
 
@@ -39,11 +43,13 @@ void CropsTile::tick(Level &level, int_t x, int_t y, int_t z, Random &random)
 		return;
 
 	float growthSpeed = getGrowthSpeed(level, x, y, z);
-	int_t growthDelay = static_cast<int_t>(100.0f / growthSpeed);
-	if (growthDelay < 1)
-		growthDelay = 1;
-	if (random.nextInt(growthDelay) == 0)
+	if (random.nextInt(static_cast<int_t>(100.0f / growthSpeed)) == 0)
 		level.setData(x, y, z, data + 1);
+}
+
+void CropsTile::fertilize(Level &level, int_t x, int_t y, int_t z)
+{
+	level.setData(x, y, z, 7);
 }
 
 int_t CropsTile::getResource(int_t data, Random &random)

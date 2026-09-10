@@ -6,6 +6,8 @@
 #include "world/level/Level.h"
 #include "world/phys/HitResult.h"
 #include "world/phys/Vec3.h"
+#include "world/level/tile/SnowTile.h"
+#include "world/level/tile/Tile.h"
 #include "util/Mth.h"
 
 ItemBoat::ItemBoat(int_t baseId) : Item(baseId)
@@ -37,8 +39,16 @@ void ItemBoat::use(ItemInstance &stack, Level &level, Player &player) const
 
 	if (hit.type == HitResult::Type::TILE)
 	{
+		int_t x = hit.x;
+		int_t y = hit.y;
+		int_t z = hit.z;
 		if (!level.isOnline)
-			level.addEntity(std::make_shared<EntityBoat>(level, hit.x + 0.5, hit.y + 1.5, hit.z + 0.5));
+		{
+			if (level.getTile(x, y, z) == Tile::snow.id)
+				y--;
+			level.addEntity(std::make_shared<EntityBoat>(level,
+				static_cast<float>(x) + 0.5f, static_cast<float>(y) + 1.0f, static_cast<float>(z) + 0.5f));
+		}
 		stack.stackSize--;
 	}
 }

@@ -22,6 +22,9 @@ private:
 	double lerpZ = 0.0;
 	float lerpYaw = 0.0f;
 	float lerpPitch = 0.0f;
+	double lerpXd = 0.0;
+	double lerpYd = 0.0;
+	double lerpZd = 0.0;
 	std::array<ItemInstance, 27> cargoItems = {};
 
 public:
@@ -45,7 +48,11 @@ public:
 	bool interact(Player &player) override;
 	void tick() override;
 	void animateHurt() override;
+	void remove() override;
+	using Entity::push;
+	void push(Entity &entity) override;
 	void lerpTo(double x, double y, double z, float yRot, float xRot, int_t steps) override;
+	void lerpMotion(double x, double y, double z) override;
 
 	Vec3 *getPosOffs(double x, double y, double z, double offset) const;
 	Vec3 *getPosOnTrack(double x, double y, double z) const;

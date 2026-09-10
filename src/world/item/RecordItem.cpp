@@ -4,6 +4,7 @@
 #include "world/entity/player/Player.h"
 #include "world/level/Level.h"
 #include "world/level/tile/JukeboxTile.h"
+#include "world/level/tile/Tile.h"
 
 RecordItem::RecordItem(int_t baseId, const jstring &recordName) : Item(baseId), recordName(recordName)
 {
@@ -14,13 +15,14 @@ bool RecordItem::useOn(ItemInstance &stack, Player &player, Level &level, int_t 
 {
 	(void)player;
 	(void)face;
-	if (level.getTile(x, y, z) != 84 || level.getData(x, y, z) != 0)
+	if (level.getTile(x, y, z) != Tile::jukebox.id || level.getData(x, y, z) != 0)
 		return false;
-	auto *jukebox = dynamic_cast<JukeboxTile *>(Tile::tiles[84]);
-	if (jukebox == nullptr)
-		return false;
-	jukebox->insertRecord(level, x, y, z, getShiftedIndex());
-	level.playRecord(recordName, x, y, z);
+	// ItemRecord.useOn: the client only reports the use; the server owns the
+	// insertion, the consumption and the playback broadcast.
+	if (level.isOnline)
+		return true;
+	Tile::jukebox.insertRecord(level, x, y, z, getShiftedIndex());
+	level.levelEvent(nullptr, 1005, x, y, z, getShiftedIndex());
 	stack.stackSize--;
 	return true;
 }

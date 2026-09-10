@@ -3,7 +3,6 @@
 #include "world/entity/item/EntityItem.h"
 #include "world/item/Item.h"
 #include "world/item/ItemInstance.h"
-#include "world/item/ItemSpade.h"
 #include "world/item/Items.h"
 #include "world/level/Level.h"
 #include "world/level/LevelSource.h"
@@ -35,16 +34,32 @@ AABB *SnowTile::getAABB(Level &level, int_t x, int_t y, int_t z)
 	return AABB::newTemp(x + xx0, y + yy0, z + zz0, x + xx1, y + 0.5, z + zz1);
 }
 
-void SnowTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
+bool SnowTile::mayPlace(Level &level, int_t x, int_t y, int_t z)
 {
-	if (!canSnowStay(level, x, y, z))
-		level.setTile(x, y, z, 0);
+	// b173: canPlaceBlockAt - the supporting tile's live render opacity decides,
+	// not the registration-time cache, so fast/fancy leaves answer differently
+	int_t below = level.getTile(x, y - 1, z);
+	Tile *belowTile = (below == 0) ? nullptr : Tile::tiles[below];
+	if (belowTile == nullptr || !belowTile->isSolidRender())
+		return false;
+	return level.getMaterial(x, y - 1, z).blocksMotion();
 }
 
-void SnowTile::onPlace(Level &level, int_t x, int_t y, int_t z)
+void SnowTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t tile)
 {
-	if (!canSnowStay(level, x, y, z))
+	(void)tile;
+	checkCanSurvive(level, x, y, z);
+}
+
+bool SnowTile::checkCanSurvive(Level &level, int_t x, int_t y, int_t z)
+{
+	if (!mayPlace(level, x, y, z))
+	{
+		spawnResources(level, x, y, z, level.getData(x, y, z));
 		level.setTile(x, y, z, 0);
+		return false;
+	}
+	return true;
 }
 
 void SnowTile::updateShape(LevelSource &level, int_t x, int_t y, int_t z)
@@ -59,25 +74,11 @@ void SnowTile::updateDefaultShape()
 	setShape(0.0f, 0.0f, 0.0f, 1.0f, 2.0f / 16.0f, 1.0f);
 }
 
-bool SnowTile::canSnowStay(LevelSource &level, int_t x, int_t y, int_t z)
-{
-	int_t belowTile = level.getTile(x, y - 1, z);
-	if (belowTile == 0 || !Tile::solid[belowTile])
-		return false;
-
-	const Material &belowMaterial = level.getMaterial(x, y - 1, z);
-	return belowMaterial.blocksMotion();
-}
-
 void SnowTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_t z, int_t data)
 {
 	(void)data;
-	ItemInstance *selected = player.getSelectedItem();
-	if (selected == nullptr || selected->getItem() == nullptr)
-		return;
-	if (dynamic_cast<ItemSpade *>(selected->getItem()) == nullptr)
-		return;
-
+	// b173: harvestBlock - the controller already decided the block was
+	// harvestable, so the snowball drops without re-inspecting the held tool
 	int_t snowballId = Items::snowball->getShiftedIndex();
 	float spread = 0.7f;
 	double xo = level.random.nextFloat() * spread + (1.0f - spread) * 0.5;
@@ -86,6 +87,7 @@ void SnowTile::harvestBlock(Level &level, Player &player, int_t x, int_t y, int_
 	auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, ItemInstance(snowballId, 1, 0));
 	entity->throwTime = 10;
 	level.addEntity(entity);
+	level.setTile(x, y, z, 0);
 	if (StatBase *stat = StatList::mineBlockStats[id])
 		player.addStat(*stat, 1);
 }

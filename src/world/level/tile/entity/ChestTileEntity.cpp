@@ -57,8 +57,9 @@ const ItemInstance &ChestTileEntity::getItem(int_t slot) const
 void ChestTileEntity::setItem(int_t slot, const ItemInstance &item)
 {
 	items[slot] = item;
-	if (!items[slot].isEmpty() && items[slot].stackSize > items[slot].getMaxStackSize())
-		items[slot].stackSize = items[slot].getMaxStackSize();
+	// ChestTileEntity.java:44 - the container cap, not the item's own limit
+	if (!items[slot].isEmpty() && items[slot].stackSize > getInventoryStackLimit())
+		items[slot].stackSize = getInventoryStackLimit();
 	setChanged();
 }
 

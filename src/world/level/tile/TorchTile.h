@@ -9,7 +9,7 @@ public:
 	bool isSolidRender() override;
 	bool isCubeShaped() override;
 	Shape getRenderShape() override;
-	bool mayPlace(Level &level, int_t x, int_t y, int_t z);
+	bool mayPlace(Level &level, int_t x, int_t y, int_t z) override;
 	void setPlacedOnFace(Level &level, int_t x, int_t y, int_t z, Facing face) override;
 	void tick(Level &level, int_t x, int_t y, int_t z, Random &random) override;
 	void onPlace(Level &level, int_t x, int_t y, int_t z) override;
@@ -18,5 +18,6 @@ public:
 	void animateTick(Level &level, int_t x, int_t y, int_t z, Random &random) override;
 
 private:
+	bool canPlaceOn(Level &level, int_t x, int_t y, int_t z);
 	bool checkCanSurvive(Level &level, int_t x, int_t y, int_t z);
 };

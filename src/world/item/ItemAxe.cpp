@@ -1,9 +1,10 @@
 #include "world/item/ItemAxe.h"
 
-#include "world/level/tile/WoodTile.h"
-#include "world/level/tile/TreeTile.h"
 #include "world/level/tile/BookshelfTile.h"
+#include "world/level/tile/ChestTile.h"
 #include "world/level/tile/Tile.h"
+#include "world/level/tile/TreeTile.h"
+#include "world/level/tile/WoodTile.h"
 
 namespace
 {
@@ -15,10 +16,12 @@ namespace
 
 	EffectiveTiles getEffectiveTiles()
 	{
+		// HatchetItem.TILES_EFFECTIVE_ON
 		static int_t EFFECTIVE_TILES[] = {
 			Tile::wood.id,
-			Tile::treeTrunk.id,
 			Tile::bookshelf.id,
+			Tile::treeTrunk.id,
+			Tile::chest.id,
 		};
 		return EffectiveTiles{EFFECTIVE_TILES, sizeof(EFFECTIVE_TILES) / sizeof(EFFECTIVE_TILES[0])};
 	}

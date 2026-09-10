@@ -16,7 +16,7 @@ int_t WorkbenchTile::getTexture(Facing face, int_t data)
 		return tex - 16;
 	if (face == Facing::DOWN)
 		return Tile::wood.getTexture(Facing::DOWN);
-	if (face == Facing::NORTH || face == Facing::SOUTH)
+	if (face == Facing::NORTH || face == Facing::WEST)
 		return tex + 1;
 	return tex;
 }

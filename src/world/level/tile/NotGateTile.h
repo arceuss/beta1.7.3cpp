@@ -10,6 +10,8 @@ public:
 
 	int_t getTickDelay() override { return 2; }
 
+	int_t getTexture(Facing face, int_t data) override;
+
 	bool getSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
 	bool getDirectSignal(Level &level, int_t x, int_t y, int_t z, int_t dir) override;
 	bool isSignalSource() override { return true; }

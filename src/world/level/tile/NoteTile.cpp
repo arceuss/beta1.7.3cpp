@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include "world/level/tile/NoteTile.h"
 
 #include "util/Memory.h"
@@ -35,6 +37,8 @@ bool NoteTile::use(Level &level, int_t x, int_t y, int_t z, Player &player)
 void NoteTile::attack(Level &level, int_t x, int_t y, int_t z, Player &player)
 {
 	(void)player;
+	if (level.isOnline)
+		return;
 	auto noteEntity = std::dynamic_pointer_cast<NoteTileEntity>(level.getTileEntity(x, y, z));
 	if (noteEntity != nullptr)
 		noteEntity->triggerNote(level, x, y, z);
@@ -53,4 +57,20 @@ void NoteTile::neighborChanged(Level &level, int_t x, int_t y, int_t z, int_t ti
 			noteEntity->previousRedstoneState = powered;
 		}
 	}
+}
+
+void NoteTile::playBlock(Level &level, int_t x, int_t y, int_t z, int_t type, int_t data)
+{
+	float pitch = static_cast<float>(std::pow(2.0, static_cast<double>(data - 12) / 12.0));
+	jstring instrument = u"harp";
+	if (type == 1)
+		instrument = u"bd";
+	if (type == 2)
+		instrument = u"snare";
+	if (type == 3)
+		instrument = u"hat";
+	if (type == 4)
+		instrument = u"bassattack";
+	level.playSoundEffect(static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5, static_cast<double>(z) + 0.5, u"note." + instrument, 3.0f, pitch);
+	level.addParticle(u"note", static_cast<double>(x) + 0.5, static_cast<double>(y) + 1.2, static_cast<double>(z) + 0.5, static_cast<double>(data) / 24.0, 0.0, 0.0);
 }

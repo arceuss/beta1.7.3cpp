@@ -146,41 +146,34 @@ void FurnaceTile::setDefaultDirection(Level &level, int_t x, int_t y, int_t z) c
 	level.setData(x, y, z, data);
 }
 
-void FurnaceTile::dropContents(Level &level, int_t x, int_t y, int_t z) const
+void FurnaceTile::dropContents(Level &level, int_t x, int_t y, int_t z)
 {
 	auto furnace = std::dynamic_pointer_cast<FurnaceTileEntity>(level.getTileEntity(x, y, z));
 	if (furnace == nullptr)
 		return;
 
-	for (int_t slot = 0; slot < 3; ++slot)
+	for (int_t slot = 0; slot < furnace->getSizeInventory(); ++slot)
 	{
 		ItemInstance &stack = furnace->getItem(slot);
 		if (stack.isEmpty())
 			continue;
 
-		float xo = level.random.nextFloat() * 0.8f + 0.1f;
-		float yo = level.random.nextFloat() * 0.8f + 0.1f;
-		float zo = level.random.nextFloat() * 0.8f + 0.1f;
+		float xo = furnaceRand.nextFloat() * 0.8f + 0.1f;
+		float yo = furnaceRand.nextFloat() * 0.8f + 0.1f;
+		float zo = furnaceRand.nextFloat() * 0.8f + 0.1f;
 		while (stack.stackSize > 0)
 		{
-			int_t amount = level.random.nextInt(21) + 10;
+			int_t amount = furnaceRand.nextInt(21) + 10;
 			if (amount > stack.stackSize)
 				amount = stack.stackSize;
 			stack.stackSize -= amount;
 			ItemInstance dropped(stack.itemID, amount, stack.itemDamage);
-			auto entity = std::make_shared<EntityItem>(level, x + xo, y + yo, z + zo, dropped);
+			auto entity = std::make_shared<EntityItem>(level, static_cast<float>(x) + xo, static_cast<float>(y) + yo, static_cast<float>(z) + zo, dropped);
 			float velocity = 0.05f;
-			const float xda = level.random.nextFloat();
-			const float xdb = level.random.nextFloat();
-			entity->xd = (xda - xdb) * velocity;
-			const float yda = level.random.nextFloat();
-			const float ydb = level.random.nextFloat();
-			entity->yd = (yda - ydb) * velocity + 0.2f;
-			const float zda = level.random.nextFloat();
-			const float zdb = level.random.nextFloat();
-			entity->zd = (zda - zdb) * velocity;
+			entity->xd = static_cast<float>(furnaceRand.nextGaussian()) * velocity;
+			entity->yd = static_cast<float>(furnaceRand.nextGaussian()) * velocity + 0.2f;
+			entity->zd = static_cast<float>(furnaceRand.nextGaussian()) * velocity;
 			level.addEntity(entity);
 		}
-		stack = ItemInstance();
 	}
 }

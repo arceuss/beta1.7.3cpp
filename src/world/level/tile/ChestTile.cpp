@@ -72,11 +72,11 @@ int_t ChestTile::getTexture(LevelSource &level, int_t x, int_t y, int_t z, Facin
 	if (face == Facing::WEST)
 		offset = -1 - offset;
 
-	Facing front = Facing::WEST;
+	Facing front = Facing::EAST;
 	if ((Tile::solid[west] || Tile::solid[westSide]) && !Tile::solid[east] && !Tile::solid[eastSide])
-		front = Facing::WEST;
-	if ((Tile::solid[east] || Tile::solid[eastSide]) && !Tile::solid[west] && !Tile::solid[westSide])
 		front = Facing::EAST;
+	if ((Tile::solid[east] || Tile::solid[eastSide]) && !Tile::solid[west] && !Tile::solid[westSide])
+		front = Facing::WEST;
 	return (face == front ? tex + 16 : tex + 32) + offset;
 }
 
@@ -199,7 +199,7 @@ bool ChestTile::isBlockedChest(Level &level, int_t x, int_t y, int_t z) const
 	return level.isBlockNormalCube(x, y + 1, z);
 }
 
-void ChestTile::dropContents(Level &level, int_t x, int_t y, int_t z) const
+void ChestTile::dropContents(Level &level, int_t x, int_t y, int_t z)
 {
 	auto chest = std::dynamic_pointer_cast<ChestTileEntity>(level.getTileEntity(x, y, z));
 	if (chest == nullptr)
@@ -211,22 +211,22 @@ void ChestTile::dropContents(Level &level, int_t x, int_t y, int_t z) const
 		if (stack.isEmpty())
 			continue;
 
-		float xo = level.random.nextFloat() * 0.8f + 0.1f;
-		float yo = level.random.nextFloat() * 0.8f + 0.1f;
-		float zo = level.random.nextFloat() * 0.8f + 0.1f;
-		while (!stack.isEmpty())
+		float xo = random.nextFloat() * 0.8f + 0.1f;
+		float yo = random.nextFloat() * 0.8f + 0.1f;
+		float zo = random.nextFloat() * 0.8f + 0.1f;
+		while (stack.stackSize > 0)
 		{
-			int_t amount = level.random.nextInt(21) + 10;
+			int_t amount = random.nextInt(21) + 10;
 			if (amount > stack.stackSize)
 				amount = stack.stackSize;
-			ItemInstance dropped = stack.remove(amount);
-			auto entity = std::make_shared<EntityItem>(level, static_cast<double>(x) + xo, static_cast<double>(y) + yo, static_cast<double>(z) + zo, dropped);
-			float spread = 0.05f;
-			entity->xd = (level.random.nextFloat() * 2.0f - 1.0f) * spread;
-			entity->yd = (level.random.nextFloat() * 2.0f - 1.0f) * spread + 0.2f;
-			entity->zd = (level.random.nextFloat() * 2.0f - 1.0f) * spread;
+			stack.stackSize -= amount;
+			ItemInstance dropped(stack.itemID, amount, stack.itemDamage);
+			auto entity = std::make_shared<EntityItem>(level, static_cast<float>(x) + xo, static_cast<float>(y) + yo, static_cast<float>(z) + zo, dropped);
+			float velocity = 0.05f;
+			entity->xd = static_cast<float>(random.nextGaussian()) * velocity;
+			entity->yd = static_cast<float>(random.nextGaussian()) * velocity + 0.2f;
+			entity->zd = static_cast<float>(random.nextGaussian()) * velocity;
 			level.addEntity(entity);
 		}
-		stack = ItemInstance();
-}
+	}
 }
